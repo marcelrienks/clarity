@@ -6,7 +6,7 @@ Digital gauge cluster for vehicles, architected to manage any display via GPIO s
 
 _Partially vibe coded with claude a learning excercise._
 
-![Status](https://img.shields.io/badge/status-testing-yellow)
+[![Status](https://img.shields.io/badge/status-testing-blue.svg)](https://github.com/marcelrienks/clarity)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## 🌟 **System Highlights**
