@@ -1,2 +1,2 @@
-* test each scenario of startup with an input or trigger already active
+* implement a light sensor, either by creating a new sensor to determine dimming, or by leveraging the current light s4nsor to also supply analugue value of the strength of the display
 * Investigate espressif32 version in ini file
