@@ -8,6 +8,10 @@
 
 Source: project review of patterns, structure and code quality against current embedded C++ / PlatformIO community practice. Grouped by severity.
 
+### Critical
+
+Note after all the items listed in this file, a new restructure.md file was created which now supersedes the below
+
 ### High
 
 - [ ] **Restore CI workflow.** `.github/workflows/` only contains a `README.md`; no workflow file exists, yet the main README claims automated CI/CD on every commit. Add a workflow that runs `pio run` for all environments and the Wokwi tests.
