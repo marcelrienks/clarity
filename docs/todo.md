@@ -32,10 +32,10 @@ Step-by-step plan for the restructure specified in [restructure.md](restructure.
 
 Goal: a trustworthy build and test baseline before any code changes.
 
-- [ ] **0.1 Decide the toolchain (Q-11).** Run `pio run -v` on `release` and record: platform version, Arduino core version, GCC version, C++ standard, whether `-fno-exceptions` is set (C-06). This fixes the C++ standard and what `lib/core` may use (for example float `std::from_chars`).
-  - [ ] Check which espressif32 version actually builds today (a local install showed platform 8.0.0 / Arduino core 3.x, not 6.x).
-  - [ ] If moving to pioarduino, confirm LovyanGFX and LVGL build and run on it.
-  - [ ] Write the outcome to `docs/decisions.md`.
+- [x] **0.1 Decide the toolchain (Q-11).** Run `pio run -v` on `release` and record: platform version, Arduino core version, GCC version, C++ standard, whether `-fno-exceptions` is set (C-06). This fixes the C++ standard and what `lib/core` may use (for example float `std::from_chars`).
+  - [x] Check which espressif32 version actually builds today (a local install showed platform 8.0.0 / Arduino core 3.x, not 6.x).
+  - [x] If moving to pioarduino, confirm LovyanGFX and LVGL build and run on it.
+  - [x] Write the outcome to `docs/decisions.md`.
 - [ ] **0.2 Record the baseline.** Capture a golden serial log from `test-wokwi`, plus `pio run -t size` output and the linker map for each env.
 - [ ] **0.3 Repair the Wokwi scenario (D-22).**
   - [ ] List the 9 `wait-serial` strings in `test/wokwi/scenario_automated.yaml` that the firmware no longer prints (`Button action detected: SHORT_PRESS` / `LONG_PRESS`, 7 `ConfigPanel: …` messages).
