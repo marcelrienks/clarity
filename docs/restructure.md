@@ -8,7 +8,7 @@
 | **Scope** | All firmware (`src/`, `include/`), build config, tests, CI and docs |
 | **Method** | Static review of every source, header, build and test file, plus the existing docs. Nothing was compiled or run: PlatformIO was not installed on the review machine. Findings marked **Verify** depend on runtime behaviour and need confirming on hardware or in Wokwi before you act on them. |
 
-This document replaces the "Project Review Findings" section of `docs/todo.md`. It includes every item from that list, corrects two of them (see [§7.1](#71-platformioini) and [C-06](#c-06-exceptions-and-error-returns)), and goes much further.
+This document replaces the "Project Review Findings" section of `docs/todo.md`. It includes every item from that list, corrects it where it was wrong (see [C-06](#c-06-exceptions-and-error-returns)), and goes much further.
 
 ---
 
@@ -54,9 +54,9 @@ This document replaces the "Project Review Findings" section of `docs/todo.md`. 
 
 ### Verdict
 
-The firmware does its job: two animated gauges, priority-driven override screens, a single-button settings menu, persisted settings and an error viewer. But the code is roughly three times the size it needs to be. Much of that size makes the system *less* safe rather than more.
+The firmware does its job: two animated gauges, priority-driven override screens, a single-button settings menu, persisted settings and an error viewer. But the code is roughly twice the size it needs to be: about 10,300 lines of code plus about 6,200 lines of comments, many of them false. Much of that size makes the system *less* safe rather than more.
 
-- **The patterns are mostly ceremony.** Two factories, 11 interfaces with one implementation each, 5 singletons that are *also* injected, a "Trigger/Action interrupt" framework that polls 5 GPIOs, a string-keyed config registry with run-time schema registration and change callbacks, and a `Reading` variant over 5 types. In several places these layers *hide* defects: configuration items that silently do nothing, and a change callback that can never fire.
+- **The patterns are mostly ceremony.** Two factories, 11 interfaces (6 with a single implementation, the rest with 2–6), 5 singletons that are *also* injected, a "Trigger/Action interrupt" framework that polls 5 GPIOs, a string-keyed config registry with run-time schema registration and change callbacks, and a `Reading` variant over 5 types. In several places these layers *hide* defects: configuration items that silently do nothing, and a change callback that can never fire.
 - **There are real memory-safety and liveness bugs.** Leaving the oil panel double-deletes LVGL objects (D-01). Splash timers can outlive their panel (D-02). In release builds the UI can lock up permanently after the user views the last error (D-03). A failed init leaves `loop()` dereferencing null (D-04).
 - **The safety net is gone.** The CI workflows were deleted (`dd8524c`). The automated Wokwi scenario waits for 9 log lines the firmware no longer prints (D-22). There are no unit tests.
 - **About 37% of source lines are comments** (6,216 of 16,519, excluding icons and `lv_conf.h`). Many are stale or wrong: they describe interfaces, files and APIs that don't exist.
@@ -70,7 +70,7 @@ Replace MVP with a small, layered design driven by one event loop:
 - A **UI layer**: screens and widgets on LVGL, with one rule for object ownership.
 - **One composition root** in `main.cpp`, with no globals, singletons or factories.
 
-The trigger and restoration behaviour becomes a pure function of input state (see [A-02](#a-02-display-policy-as-a-pure-function)). That removes the `UIState` BUSY/IDLE gate and the class of bugs it causes.
+The override priority and theme choice become pure functions of input state (see [A-02](#a-02-display-policy-as-a-pure-function)). Restoration, Config modality and splash deferral remain small state inside `ScreenManager`. That removes the `UIState` BUSY/IDLE gate and the class of bugs it causes.
 
 ### Indicative impact (estimates, not commitments)
 
@@ -83,12 +83,12 @@ The trigger and restoration behaviour becomes a pure function of input state (se
 | Heap allocations per rendered frame | dozens (string config look-ups, see C-02) | ~0 in steady state |
 | Host unit tests | 0 | ~60–100 cases across core modules |
 | CI | none | build all envs + native tests + static analysis + Wokwi |
-| Icon flash | ~270 KB | ~50–70 KB (see B-05) |
+| Icon flash | ~290 KB | ~50–70 KB (see B-05) |
 
 ### Top priorities
 
 1. Restore a working safety net: fix the Wokwi scenario, restore CI, pin versions (Phase 0).
-2. Fix S1 defects D-01 to D-04 in place, before restructuring (Phase 1).
+2. Fix S1 defects D-01 to D-04 and D-07 in place, before restructuring (Phase 1).
 3. Replace the interrupt framework and `UIState` gate with the display policy and deferred transitions (A-02, A-05).
 4. Replace the config registry with typed settings, keeping NVS compatibility (A-07). This also fixes the 5 non-functional settings in D-05.
 5. Remove factories, singletons, globals and single-implementation interfaces (A-01, A-03).
@@ -217,7 +217,7 @@ Fix these first. Most can be patched in place before any restructuring (Phase 1)
 
 - `OemOilComponent::~OemOilComponent` (`src/components/oem/oem_oil_component.cpp:40-69`) deletes `scale_`, then deletes `oilIcon_`, `lowLabel_`, `highLabel_`, `pivotCircle_` and `pivotHighlight_`. Those are **children of `scale_`** and were already freed with it.
 - Worse, `OemOilPanel::~OemOilPanel` deletes `screen_` in its body (`src/panels/oem_oil_panel.cpp:69-73`). The component members are destroyed *after* the body runs, so every pointer the component destructor touches is already dangling.
-- The same trap applies to any panel that deletes its screen in its own destructor body while owning components that delete objects (`ErrorPanel`, `ConfigPanel`, `SplashPanel`). `KeyPanel` and `LockPanel` are safe only because their screen is deleted by `BasePanel`'s destructor, which runs after the derived members are gone.
+- The same pattern (a panel deleting `screen_` in its destructor body) exists in `ErrorPanel`, `ConfigPanel` and `SplashPanel` (`error_panel.cpp:43`, `config_panel.cpp:49`, `splash_panel.cpp:52`). Their components do not call `lv_obj_del`, so this is a latent hazard, not a live bug. `KeyPanel` and `LockPanel` are safe because `BasePanel`'s destructor deletes the screen after the derived members are gone.
 - The splash comment "the delay time is essential … else memory becomes corrupted" (`splash_panel.cpp:198-199`) is consistent with heap corruption of this kind.
 - **Fix:** adopt one LVGL ownership rule. Only the screen root is deleted; widget classes hold non-owning `lv_obj_t*` and never delete. Remove all component `lv_obj_del` calls.
 - **Verify:** set `LV_USE_ASSERT_OBJ 1` in a debug build (`include/lv_conf.h:243`) and switch from Oil to Config.
@@ -252,7 +252,7 @@ Fix these first. Most can be patched in place before any restructuring (Phase 1)
 | b | `button_sensor.debounce_ms` | Only read by `CalculateButtonAction` (`action_handler.cpp:274-288`), which is never called. The real debounce is the constant `ButtonSensor::DEBOUNCE_MS = 50` (`button_sensor.h:44`), and the minimum short press is a literal `50` (`action_handler.cpp:229`). |
 | c | `oil_*_sensor.offset` / `.scale` | `OemOilPanel` builds its sensors with the constructor that takes no configuration manager (`oem_oil_panel.cpp:32-33`). `LoadConfiguration()` (`oil_pressure_sensor.cpp:77-80`) never runs, so offset and scale stay 0/1. |
 | d | `oil_*_sensor.update_rate` | The panel applies `system.update_rate` to both sensors (`oem_oil_panel.cpp:577-601`). The per-sensor rate is ignored. |
-| e | Dead-band (`oil_*_component.deadband_percent`) | The item **key is itself a dotted full key** (`oil_pressure_sensor.h:99`, `oil_temperature_sensor.h:95`). The panel queries `oil_pressure_component.deadband_percent` (`oem_oil_panel.cpp:1000, 1011`), which resolves to a section that doesn't exist, so the default is always used. Saving it from the menu writes a 39-character NVS key. NVS keys are limited to 15 characters, so `putInt` fails, the value rolls back and `ReportError` runs (`storage_provider.cpp:380-413`). **The error panel then appears**, and in release builds this leads into D-03. |
+| e | Dead-band (`oil_*_component.deadband_percent`) | The item **key is itself a dotted full key** (`oil_pressure_sensor.h:99`, `oil_temperature_sensor.h:95`). The panel queries `oil_pressure_component.deadband_percent` (`oem_oil_panel.cpp:1000, 1011`), which resolves to a section that doesn't exist, so the default is always used. Saving it from the menu writes a 39-character NVS key. NVS keys are limited to 15 characters, so `putInt` fails, the value rolls back and `ReportError` runs (`storage_provider.cpp:380-413`). **The error panel then appears**, and in release builds a short-press dismissal leads into D-03 (a long press restores normally). |
 
 **Fix:** wire every setting to its consumer in the typed settings model (A-07), with a `static_assert` on NVS key lengths. Q-04 covers what the debounce option should mean.
 
@@ -260,8 +260,8 @@ Fix these first. Most can be patched in place before any restructuring (Phase 1)
 
 The three sources are `StyleManager::theme_` (the constructor argument, never updated, per the comment at `style_manager.cpp:114-115`), the configured value, and the colours actually loaded into the `lv_style_t` objects.
 
-- `ApplyCurrentTheme()` compares the configured theme with the stale `theme_` (`style_manager.cpp:197-223`). Switching Day → Night → Day in Config leaves Night colours on screen until reboot.
-- The error panel sets the Error palette (`error_panel.cpp:146`). It stores `previousTheme_` (`:81`) but never uses it, and `ApplyCurrentTheme()` sees "no change". The next panel keeps the Error palette until a lights change.
+- `ApplyCurrentTheme()` compares the configured theme with the stale `theme_` (`style_manager.cpp:197-223`). Switching Day → Night → Day in Config leaves Night colours on screen until reboot or until the lights next go off.
+- The error panel sets the Error palette (`error_panel.cpp:146`). It stores `previousTheme_` (`:81`) but never uses it, and `ApplyCurrentTheme()` sees "no change". The next panel keeps the Error palette until a lights change. This is visible only when lights are off and the saved theme is Day: with lights on, restoration re-applies Night, and a saved Night theme differs from the stale `theme_` and is re-applied.
 - Lights off always forces Day and ignores the user's preference (`include/definitions/interrupts.h:91-94`).
 - `GetThemeColors()` and `GetCurrentTheme()` return the *configured* theme, not the *applied* one (`style_manager.h:136-139`, `style_manager.cpp:251-267`). When lights switch to Night under a Day setting, the gauge pivot, needle, icon and Config menu colours follow Day while the background is Night.
 - The live-update callback can never fire. It is registered with the key `"style_manager"` (`style_manager.cpp:414`), but the dispatcher matches exact full keys such as `"style_manager.theme"` (`storage_provider.cpp:396`).
@@ -270,12 +270,12 @@ The three sources are `StyleManager::theme_` (the constructor argument, never up
 
 **Fix:** have one theme controller. The effective theme is a function of (error panel shown, lights, user preference), and is applied only when it changes (A-08). Q-05 covers lights-off behaviour.
 
-### D-07: The "DiagnosticPanel" option bricks restoration (S2, Confirmed)
+### D-07: The "DiagnosticPanel" option hangs the device or bricks restoration (S1, Confirmed)
 
 `PANEL_OPTIONS` offers `DiagnosticPanel` (`include/definitions/constants.h:314`), which doesn't exist. If it's selected as the default panel:
 
-- `CreatePanel` fails at boot (`panel_manager.cpp:533-540`) and reports an error, which brings up the error panel.
-- The restoration panel is set to `DiagnosticPanel` (`panel_manager.cpp:61-69`), so every restoration fails again.
+- `CreatePanel` fails at boot (`panel_manager.cpp:533-540`) and reports an error. With the default `show_splash=true`, the splash has already set the UI to BUSY and nothing sets IDLE after the failed create, so the main loop stays gated, **the error panel never appears and the device hangs**. With splash off, the error panel appears.
+- The restoration panel is set to `DiagnosticPanel` (`panel_manager.cpp:61-69`), so every restoration fails again. A failed restoration leaves `panel_` null while `currentPanel_` still says `ErrorPanel`, and the button handlers still point at the freed ErrorPanel.
 
 **Fix:** derive the options from a `PanelId` enum and validate on load. Q-10 asks whether to remove the option.
 
@@ -298,11 +298,11 @@ The three sources are `StyleManager::theme_` (the constructor argument, never up
 
 ### D-10: The error path for an invalid reading is a crash (S3, Confirmed; reachability low)
 
-`OilPressureSensor::GetReading()` returns `std::monostate` when the ADC is out of range (`oil_pressure_sensor.cpp:147-154`). Callers do `std::get<int32_t>(…)` (`oem_oil_panel.cpp:290, 431`; `oil_pressure_sensor.cpp:251`; `oem_oil_component.cpp:114`), which throws `bad_variant_access`, and nothing catches it, so the firmware aborts. The `Reading` variant goes away in A-06.
+`OilPressureSensor::GetReading()` returns `std::monostate` when the ADC is out of range (`oil_pressure_sensor.cpp:147-154`). Callers do `std::get<int32_t>(…)` (`oem_oil_panel.cpp:290, 431`; `oil_pressure_sensor.cpp:251`; `oem_oil_component.cpp:114`), which throws `bad_variant_access`, and nothing catches it, so the firmware aborts. Exceptions are enabled in this build (no `-fno-exceptions`, and `storage_provider.cpp` uses `try`/`catch`). Today the branch is effectively unreachable: `IsValidAdcReading` checks 0..4095 and a 12-bit `analogRead` cannot leave that range. The `Reading` variant goes away in A-06.
 
 ### D-11: `DetectChange` shares one "first read" flag across trackers (S3, Confirmed)
 
-`BaseSensor::DetectChange` uses a single `initialized_` member (`include/sensors/base_sensor.h:73-85`). The oil sensors call it with two different "previous" variables (`oil_pressure_sensor.cpp:160, 252`), so the second one is never seeded. `GpioSensor` sets `initialized_` itself in `Init()` (`gpio_sensor.cpp:75-76`), which bypasses the first-read path by accident.
+`BaseSensor::DetectChange` uses a single `initialized_` member (`include/sensors/base_sensor.h:73-85`). The oil sensors call it with two different "previous" variables (`oil_pressure_sensor.cpp:160, 252`), so the second one is never seeded. `GpioSensor` seeds its state deliberately in `Init()` (`gpio_sensor.cpp:74-76`), so it is unaffected. Only the oil sensors hit this.
 
 ### D-12: Frame pacing is broken, and LVGL is pumped from inside call stacks (S3, Confirmed)
 
@@ -321,6 +321,8 @@ Panels request transitions synchronously:
 
 This works only because every caller returns immediately afterwards. Any future member access after the call is a use-after-free. **Fix:** deferred transitions (A-05).
 
+`CreateAndLoadPanelDirect` also destroys the old panel while its screen is still the active LVGL screen, before the new screen is loaded (`panel_manager.cpp:560-562`). Load the new screen first, then delete the old one (A-05).
+
 ### D-14: The storage "thread safety" is partial (S3, Confirmed)
 
 - The mutex is taken in 5 methods (`storage_provider.cpp:78, 106, 142, 310, 317`), but not in Save, Load, Query or Update. Callbacks are invoked without it.
@@ -336,15 +338,15 @@ Key, lock and lights are sampled raw every loop (`gpio_sensor.cpp:120-170`). Con
 
 ### D-16: Global macros collide with Arduino names (S3, Confirmed)
 
-`include/providers/device_provider.h:10-28` defines `SPI`, `MOSI`, `CS`, `DC`, `RST`, `BL`, `SCREEN_WIDTH` and others as macros. `#define SPI SPI2_HOST` shadows Arduino's global `SPIClass SPI` in every translation unit that includes the header. The same values are duplicated in `HardwareConstants` (`constants.h:376-399`).
+`include/providers/device_provider.h:10-28` defines `SPI`, `MOSI`, `CS`, `DC`, `RST`, `BL`, `SCREEN_WIDTH` and others as macros. `#define SPI SPI2_HOST` is textual replacement that would break any later use of Arduino's `SPIClass SPI`. Only 4 translation units include the header and none uses Arduino `SPI`, so the risk is latent. The same values are duplicated in `HardwareConstants` (`constants.h:376-399`).
 
 ### D-17: Interfaces with no virtual destructor (S3, Confirmed)
 
 `IComponent` (`include/interfaces/i_component.h:44-51`) and `ISensor` (`include/interfaces/i_sensor.h:52-68`) have no virtual destructor. Deleting through a base pointer is undefined behaviour. It's harmless today only because `shared_ptr` captures the derived deleter.
 
-### D-18: LVGL draw buffers are oversized (S3, Confirmed)
+### D-18: LVGL draw buffer size is accidental and mis-documented (S4, Confirmed)
 
-The buffers are sized with `sizeof(lv_color_t)` (`device_provider.h:79-81`). In LVGL 9 that is 3 bytes, but the display is RGB565 at 2 bytes per pixel. That's 2 × 28.8 KB instead of 2 × 19.2 KB, so about **19 KB of internal RAM is wasted**. The buffers are also embedded in a heap object rather than explicitly allocated DMA-capable. The comment at `:76-78` gives yet another figure.
+The buffers are sized with `sizeof(lv_color_t)` (`device_provider.h:79-81`). In LVGL 9 that is 3 bytes, but the display is RGB565 at 2 bytes per pixel. The size is passed to `lv_display_set_buffers` in bytes (`device_provider.cpp:119`), so LVGL uses all of it: each buffer holds 60 RGB565 lines (2 × 28.8 KB), not the 40 lines the comment intends (2 × 19.2 KB). Nothing is wasted, but the size is an accident and the comments disagree with it (`:45` says ~57 KB, `:76-78` says ~38 KB). **Fix:** choose the line count deliberately, size with 2 bytes per pixel, and fix the comments. This board has no PSRAM, so internal heap is already DMA-capable and explicit allocation is optional.
 
 ### D-19: Hot-path work every frame (S3, Confirmed)
 
@@ -363,8 +365,8 @@ If `ManagerFactory::CreatePanelManager` or `CreateInterruptManager` ever receive
 
 ### D-22: The automated scenario is stale and CI is gone (S2, Confirmed)
 
-- `scenario_automated.yaml` waits for `[T] Button action detected: SHORT_PRESS` (`:121`), `… LONG_PRESS` (`:139, 213, …`) and 7 `ConfigPanel: …` messages. **None of these are printed by the current firmware.** They were last present before commit `398b0d9`. The run therefore stalls at line 121 and can't pass.
-- The workflow files were deleted in `dd8524c`, but `README.md` and `.github/workflows/README.md` still describe three workflows.
+- `scenario_automated.yaml` waits for `[T] Button action detected: SHORT_PRESS` (`:121`), `… LONG_PRESS` (`:139, 213, …`) and 7 `ConfigPanel: …` messages. **None of these are printed by the current firmware.** The `Button action detected` messages were removed in `398b0d9`; the `ConfigPanel: …` messages earlier, in `6c71a23`. The run therefore stalls at line 121 and can't pass.
+- The workflow files were deleted in `dd8524c`, but `.github/workflows/README.md` still describes three workflows and `README.md` claims CI on every commit.
 - `README.md` points to `test/manual/wokwi_debug.sh` and `test/wokwi/wokwi_run.sh`, both deleted in `b454e27`. `.vscode/tasks.json` points to `run_automated_tests.sh`, which doesn't exist.
 
 ### D-23: Smaller correctness items (S4, Confirmed)
@@ -374,7 +376,7 @@ If `ManagerFactory::CreatePanelManager` or `CreateInterruptManager` ever receive
 - The `"error"` magic string (`trigger_handler.cpp:260`) duplicates `TriggerIds::ERROR`.
 - The `GetShortPressFunction` and `GetLongPressFunction` declarations (`base_panel.h:103-109`) are never defined.
 - `IPanel::screen_` (`i_panel.h:83`) is shadowed by a `screen_` member in every panel.
-- `ValidateRange` parses `"min-max"` on the first `-`, so negative ranges such as `-5-5` can't be expressed (`storage_provider.cpp:454-491`).
+- `ValidateIntRange`/`ValidateFloatRange` parse `"min-max"` on the first `-`, so negative ranges such as `-5-5` can't be expressed. `stoi("")` throws, the catch returns true, and any value is accepted (`storage_provider.cpp:454-491`).
 - `SplashPanel::GetAnimationTime()` calls `std::stoi` on a string setting without handling failure (`splash_panel.cpp:302-306`). A corrupt value would abort on **every boot**.
 
 ---
@@ -398,9 +400,9 @@ If `ManagerFactory::CreatePanelManager` or `CreateInterruptManager` ever receive
 | Element | What it does | Cost | Verdict |
 |---|---|---|---|
 | `ProviderFactory` + `ManagerFactory` ("dual factory") | `make_unique` wrappers with null checks that can never fail, plus a fallback path (D-21) | ~600 lines; misleading docs claiming `IProviderFactory`/`IManagerFactory`, which don't exist | **Delete.** Construct objects in the composition root. |
-| 11 interfaces, one implementation each | `IDisplayProvider` (6 one-line `lv_*_create` wrappers that components bypass anyway), `IStyleManager`, `IPanelManager`, `IStorageProvider`, `IConfigurationManager`, `IConfig`, `IActionHandler`, `IComponent`, `ISensor`, `IPanel`, `IGpioProvider` | Virtual dispatch, header coupling, no tests use them | **Delete all except** a key-value store seam for settings tests. Hardware reads move to the edge, so the core needs no mocks (A-06). |
+| 11 interfaces (6 with one implementation; `IComponent`, `IPanel`, `ISensor`, `IConfig` and `IActionHandler` have 2–6) | `IDisplayProvider` (6 one-line `lv_*_create` wrappers that components bypass anyway), `IStyleManager`, `IPanelManager`, `IStorageProvider`, `IConfigurationManager`, `IConfig`, `IActionHandler`, `IComponent`, `ISensor`, `IPanel`, `IGpioProvider` | Virtual dispatch, header coupling, no tests use them | **Delete all except** a key-value store seam for settings tests. Hardware reads move to the edge, so the core needs no mocks (A-06). |
 | Singletons plus DI at the same time | 5 global access points (`ErrorManager`, `InterruptManager`, `PanelManager`, `StyleManager`, `ConfigurationManager`), 137 `Instance()` call sites. Injected pointers sit unused next to `Instance()` calls in the same class. | Hidden dependencies, init-order hazards, `*nullptr` returns (D-04) | **Remove.** Pass references explicitly. |
-| "Interrupt" system: `InterruptManager` + `TriggerHandler` + `ActionHandler` + `interrupts.h` + `Trigger`/`Action` structs + `Priority`/`TriggerType` | Polls 5 GPIOs and a button. It calls activate/deactivate function pointers that reach back into singletons. `RegisterAction` is a no-op (`interrupt_manager.cpp:158-170`), so the whole `Action` path and `GetSystemActions()` are dead. `CheckRestoration()` is empty (`:256-268`). | ~1,500 lines. Nothing here is an interrupt. A bidirectional runtime cycle between PanelManager and InterruptManager. Priority logic spread over 4 files. | **Replace** with an input sampler and a pure display policy (A-02). |
+| "Interrupt" system: `InterruptManager` + `TriggerHandler` + `ActionHandler` + `interrupts.h` + `Trigger`/`Action` structs + `Priority`/`TriggerType` | Polls 5 GPIOs and a button. It calls activate/deactivate function pointers that reach back into singletons. `RegisterAction` is a no-op (`interrupt_manager.cpp:158-170`), so the whole `Action` path and `GetSystemActions()` are dead. `CheckRestoration()` is empty (`:256-268`). | ~1,800 lines. Nothing here is an interrupt. A bidirectional runtime cycle between PanelManager and InterruptManager. Priority logic spread over 4 files. | **Replace** with an input sampler and a pure display policy (A-02). |
 | `UIState` BUSY/IDLE gate | Blocks triggers and button execution while panels animate. Correctness depends on every panel calling `SetUiState(IDLE)` from several callback paths. | Causes D-03 and the splash window in D-02. Adds up to 750 ms latency. | **Remove.** Use deferred transitions and panel-owned animations (A-05). |
 | Config registry: `ConfigurationManager` (17 pass-through methods) → `StorageProvider` (schema, validation, callbacks and NVS in one class) + `ConfigSection`/`ConfigItem`/`ConfigMetadata` with string-encoded constraints + 6 static self-registration blocks | A run-time, string-keyed, variant-typed settings database | ~1,700 lines. It hides D-05, D-06 and D-07. Each lookup heap-allocates (C-02). Static-init ordering. | **Replace** with a typed `Settings` struct, a descriptor table for the menu and a small store (A-07). |
 | `Reading` = `variant<monostate, int32_t, double, string, bool>` + `ISensor` | Generic sensor value | Type erasure for 2 concrete sensor kinds, a crash path (D-10), `double` on a single-precision FPU | **Replace** with typed `DebouncedInput` (bool) and `AnalogChannel` (float, engineering units). |
@@ -599,7 +601,7 @@ constexpr DisplayRequest ResolveDisplay(const VehicleInputs& in, bool errorsActi
 
 constexpr ThemeId EffectiveTheme(const DisplayRequest& r, const VehicleInputs& in, ThemeId user) {
     if (r.panel == OverridePanel::Error) return ThemeId::Error;
-    return in.lights ? ThemeId::Night : user;   // Q-05: today lights-off forces Day
+    return in.lights ? ThemeId::Night : user;   // Q-05: implements the RECOMMENDED answer (restore user preference), not today's behaviour
 }
 }
 ```
@@ -611,7 +613,7 @@ constexpr ThemeId EffectiveTheme(const DisplayRequest& r, const VehicleInputs& i
 - No override, and the current screen is an override: restore the user panel without splash and emit `CheckRestoration() called` / `No blocking interrupts - restoring to '…'`.
 - Config is modal over the user panel. An override discards Config, and restoration returns to the user panel (§2.2).
 
-**Equivalence with today's behaviour.** Each row is a table-driven unit test (T-02).
+**Equivalence with today's behaviour.** Each row is a table-driven unit test (T-02). Row 13 matches today only because the user theme is Day. Today, lights-off is a one-off event that sets Day, while boot with lights off uses the user theme, so no pure function of the current inputs reproduces both. Keeping today's behaviour (Q-05) needs a latched "lights were seen on" flag in `ScreenManager` or `Theme`.
 
 | Scenario step (`docs/scenarios.md`) | Inputs (KP, KNP, Lock, Lights, Errors) | Expected screen | Expected theme |
 |---|---|---|---|
@@ -630,7 +632,7 @@ constexpr ThemeId EffectiveTheme(const DisplayRequest& r, const VehicleInputs& i
 
 #### A-03: Inputs
 
-- `DebouncedInput`: a value must be stable for N ms (default 30 ms for vehicle lines, 50 ms for the button). It reports `State()` and `Changed()`.
+- `DebouncedInput`: a value must be stable for N ms (default 30 ms for vehicle lines, 50 ms for the button). It reports `State()` and `Changed()`. Seed every input from its first raw read in `Begin()`, before the first splash decision. Otherwise a lock or key that is active at boot is seen only after the debounce window, the splash starts, Q-06 defers the override, and the §2.1 step 4 "no splash" behaviour breaks.
 - `ButtonFsm`: states `Idle → Pressed → LongFired`. A short press is emitted on release when `minShortMs ≤ held < longPressMs`. A long press is emitted **once, while held**, at `longPressMs`, matching today. Thresholds come from `Settings`.
 - `Inputs` (in `app/`) owns 5 `DebouncedInput`s and 1 `ButtonFsm`. Pins come from `board.h`. The debug input on GPIO 34 is compiled only with `CLARITY_DEBUG`. On its rising edge it reports the three test errors, as today.
 
@@ -681,11 +683,11 @@ protected:
 3. Animations use an LVGL object as their `var` (for example the gauge's `scale_`), so LVGL removes them automatically when the object is deleted. Today they use the panel's `this` (`oem_oil_panel.cpp:375`).
 4. Panels own no `lv_timer`. Time-based behaviour lives in `Update(now)`.
 
-**Transitions.** Panels never call the screen manager. `OnButton` returns a `NavIntent` (`OpenConfig`, `ExitConfig`, `ClearErrors`, `None`), which `ScreenManager` applies on the next `Apply()`. That removes D-13 and D-02.
+**Transitions.** Panels never call the screen manager. `OnButton` returns a `NavIntent` (`OpenConfig`, `ExitConfig`, `ClearErrors`, `None`), which `ScreenManager` applies on the next `Apply()`. That removes D-13 and D-02. **Swap order:** create and load the new screen first, then call `Exit()` on the previous panel, so the active screen is never the one being deleted (today's `CreateAndLoadPanelDirect` does the reverse, `panel_manager.cpp:560-562`).
 
 Panels are long-lived members of `ScreenManager`: six objects, constructed once. Only their LVGL trees are created and destroyed. This removes per-transition C++ heap churn; LVGL objects still use LVGL's allocator.
 
-**Splash** becomes a small state machine (`FadeIn → Hold → FadeOut → Done`) driven by `Update(now)`, using `lv_screen_load_anim` for the fades. `ScreenManager` defers override transitions while `!Finished()` (Q-06; this matches today).
+**Splash** becomes a small state machine (`FadeIn → Hold → FadeOut → Done`) driven by `Update(now)`, computing the label opacity from `now` in `Update(now)`, consistent with rule 4. `lv_screen_load_anim` isn't needed: the fade is on a label, not a screen. `ScreenManager` defers override transitions while `!Finished()` (Q-06; this matches today).
 
 **Removes:** `UIState`, `SetUiState`, every `ShowPanelCompletionCallback`, `OnPanelLoadComplete`, `SplashCompletionCallback`, `TriggerPanelSwitchCallback`, `IPanelManager` and `IActionHandler`.
 
@@ -717,14 +719,15 @@ struct Settings {
     ThemeId  theme         = ThemeId::Day;
     uint8_t  brightnessPct = 80;
     SensorSettings pressure{}, temperature{};
-    uint16_t debounceMs    = 50;     // Q-04
+    uint16_t debounceMs    = 50;     // Q-04 is still open; today's stored default is 400
     uint16_t longPressMs   = 1500;
     uint16_t splashMs      = 1500;
 };
 ```
 
 - **`SettingsStore`** loads and saves each field through `KeyValueStore`, using the **existing namespaces, keys and stored types** from §2.5. That includes `splash_panel.duration` as a string, parsed with `std::from_chars` and a fallback, so existing devices keep their settings.
-- Add a `cfg_meta/schema` integer for future migrations. Migration 1 can move the dead-band to a short key (`deadband`) in the sensor namespace, and the splash duration to an int.
+- Add a `cfg_meta/schema` integer for future migrations. Migration 1 can move the splash duration to an int. No dead-band migration is needed: saving it has always failed, so no device holds a value. Use a short key (`deadband`) in the sensor namespace from the start.
+- Wiring the dead settings (D-05) **changes behaviour on existing devices**: brightness (default 80 vs today's hard-coded 100%), and stored offset, scale, per-sensor rate and debounce values start applying. See Q-15. Once per-sensor rates apply, `system.update_rate` has no consumer (Q-16).
 - Validate on load: an out-of-range value or unknown enum string falls back to the default and is rewritten.
 - Add `static_assert(Fits15("…"))` on every key and namespace.
 - **`SettingsMenu`** is a `constexpr` table of sections. Each section has a title and fields. Each field has a label, an option list, and get/set functions. `ConfigPanel` renders the table, preserving today's sorted sections, `Label: value` rows, toggles, `> ` markers and Exit.
@@ -794,7 +797,7 @@ See [Appendix A](#appendix-a-per-file-disposition) for every file.
 
 #### C-01: Language and idioms
 
-- `static constexpr` at namespace scope in headers → `inline constexpr` (`constants.h`, `gpio_sensor.h:102-137`).
+- `static constexpr` at namespace scope in headers → `inline constexpr` (`constants.h`, `gpio_sensor.h:102-137`). Cosmetic and low value; do it only when touching those files anyway.
 - `#define` constants and macros → `constexpr` or `enum class`: `MAIN_DEFAULT`/`ITEMS_DEFAULT`/`INDICATOR_DEFAULT` (`style_manager.h:15-17`), the `device_provider.h:10-28` macros, `UI_VERSION` (`main.h:25`).
 - Designated initialisers (`interrupts.h`, `styles.h:75-126`) are a GNU extension in C++17. Keep them only if you move to C++20 (Q-11). Otherwise use aggregate order or constructors.
 - `[[nodiscard]]` on fallible functions; `noexcept` on core functions that can't fail; `explicit` on single-argument constructors (`TriggerHandler(IGpioProvider*)` today, and every new class).
@@ -864,7 +867,7 @@ Once no code depends on exceptions, consider building with `-fno-exceptions` for
   - Doxygen `@brief` only on public API in headers.
   - Comments explain *why*, never *what*.
   - No `@context`, `@design_pattern` or `@architecture_notes` essays.
-  - No history ("new architecture", "removed", "legacy", "during migration"; 28 occurrences).
+  - No history ("new architecture", "removed", "legacy", "during migration"; about 38 occurrences).
   - No banner separators.
 - Delete commented-out code (`oem_oil_panel.cpp:533-564`).
 
@@ -892,7 +895,7 @@ This is in addition to whole files removed in Appendix A.
 - No aggregate "include everything" headers (`definitions/types.h`).
 - Heavy headers (`LovyanGFX.hpp`, `lvgl.h`) appear only in the TUs that need them.
 - Icon data never goes in headers (B-05).
-- Add `-Winvalid-pch`-style hygiene by compiling each header standalone once in CI.
+- Optionally compile each header standalone once (low priority).
 
 ---
 
@@ -905,7 +908,7 @@ Current problems:
 | Line(s) | Problem |
 |---|---|
 | `6` | `platform = espressif32` is unpinned, so builds aren't reproducible. The inline TODO points at pioarduino (Q-11). |
-| `12-14` | Caret ranges. The README claims LVGL 9.3.0 and LovyanGFX 1.2.7. ArduinoJson is unused. |
+| `12-14` | Caret ranges. The README claims LVGL 9.3.0 and LovyanGFX 1.2.7. ArduinoJson is included (`storage_provider.h:7`) but never used. |
 | `18-20` | `-I include` is redundant (PlatformIO adds it). `-I lib` and `-I test` leak test paths into firmware. |
 | `21-25` | `LV_TICK_CUSTOM` is LVGL 8 only. `LV_USE_FS_FATFS=1` enables an unused FATFS driver. `LV_MEM_SIZE`/`LV_MEM_ADR` are ignored because `lv_conf.h:38` uses the C library allocator, and conflict with `lv_conf.h:43` anyway. `ESP32=1` is already defined by the framework. |
 | `28-31` | `+<../hal/esp32>` references a directory that doesn't exist. `-<**/draw/nxp/vglite/**>` only filters `src/`, so it has no effect. |
@@ -967,7 +970,7 @@ build_flags = -std=c++17 -Wall -Wextra -Werror -Wshadow
 test_filter = native/*
 ```
 
-Renaming `INVERT` to `CLARITY_INVERT_DISPLAY` and `WOKWI_EMULATOR` to `CLARITY_WOKWI` is optional. If you do it, update `test/wokwi/*.toml` and `wokwi_test_automation.sh` (which hard-codes `.pio/build/test-wokwi`) in the same change.
+Renaming `INVERT` to `CLARITY_INVERT_DISPLAY` and `WOKWI_EMULATOR` to `CLARITY_WOKWI` is optional. **Renaming or dropping environments is not free.** `wokwi.toml` points at `debug-local`, and `wokwi_automated.toml` and `wokwi_test_automation.sh` point at `.pio/build/test-wokwi`. The shape above renames `test-wokwi` to `wokwi` and drops `debug-local` and `debug-upload`. Either update `test/wokwi/*.toml`, the script and `.vscode/tasks.json` in the same change, or keep the existing env names.
 
 ### 7.2 `lv_conf.h` (B-02)
 
@@ -988,7 +991,7 @@ Options (Q-13):
 
 ### 7.4 Assets (B-05)
 
-- There are four 150×150 `RGB565A8` icons (67.5 KB each, about 270 KB of flash).
+- There are four `RGB565A8` icons: key 150×150 (67.5 KB), lock 131×150 (59 KB) and the two oil icons 188×150 (84.6 KB each), about 289 KiB of flash in total. Each array has internal linkage and the oil icons are included in 3 translation units each, so the real footprint depends on the linker dropping unreferenced copies (check the map file).
   - The oil icons are drawn at `lv_image_set_scale(…, 50)`, about 20% or ~29 px (`oem_oil_component.cpp:308`), so LVGL software-scales them on every redraw that touches them.
   - All four icons are monochrome and recoloured.
 - **Pre-render** the oil icons at their display size, and store every icon as `LV_COLOR_FORMAT_A8`, which is a third the size and still recolourable.
@@ -1032,7 +1035,7 @@ Options (Q-13):
 
 - **Repair the scenario now** (D-22): restore the 9 `[T]` events, or update the scenario. Make the runner exit non-zero on timeout.
 - Add scenarios for:
-  - a `release`-like build without `CLARITY_DEBUG`, covering error → short-press through to the end (D-03), using an injected error;
+  - a `release`-like build without `CLARITY_DEBUG`, covering error → short-press through to the end (D-03), using an injected error. Add a test-only injection hook for this (for example a `CLARITY_TEST_INJECT_ERROR` flag, or a scenario-driven input, compiled into the `wokwi` env only). Do not rely on D-05e, which Phase 6 removes;
   - boot with lock or key already active;
   - Config Day → Night → Day theme round trip (D-06);
   - saving the dead-band setting (D-05e).
@@ -1043,8 +1046,8 @@ Options (Q-13):
 1. Lint: clang-format check, the include-layering check from §5.2, and a check that every scenario string exists in `test_events.h`.
 2. `pio check` (cppcheck + clang-tidy).
 3. `pio test -e native`.
-4. `pio run -e release -e debug -e wokwi`. Upload `firmware.bin`, `firmware.elf` and the linker map. Run `pio run -t size` and fail on more than an agreed regression (for example +5% flash or +2 KB RAM).
-5. Wokwi run (`wokwi/wokwi-ci-action`, `WOKWI_CLI_TOKEN` secret) against the `wokwi` build.
+4. `pio run -e release -e debug -e wokwi`. Upload `firmware.bin`, `firmware.elf` and the linker map. Report `pio run -t size`. Add a regression gate only once a baseline exists.
+5. Wokwi run (`wokwi/wokwi-ci-action`, `WOKWI_CLI_TOKEN` secret) against the `wokwi` build. The token and the service's usage limits are an external dependency, so check the limits first and run this job on pull requests rather than every push.
 
 Cache `~/.platformio`. Trigger on push and pull request.
 
@@ -1086,7 +1089,7 @@ In debug builds, log free heap, minimum free heap and the largest free block at 
 | X-07 | `.github/workflows/README.md`: rewrite it for the restored workflow, or delete it. |
 | X-08 | `standards.md`: keep the naming rules, drop the "examples from codebase" that go stale, and point at `.clang-format`/`.clang-tidy` as the source of truth. |
 | X-09 | Merge `log_t.md` and `error.md` into the new architecture doc (two short sections). |
-| X-10 | Add `docs/decisions/` with one short ADR per decision in §12, and a `CHANGELOG.md`. |
+| X-10 | Record the outcome of each §12 decision as one line in a single `docs/decisions.md`. Skip per-decision ADRs and a `CHANGELOG.md` unless the firmware is shipped to others. |
 | X-11 | Close out `todo.md`: track these items as GitHub issues, or as checklists in this file. |
 
 ---
@@ -1097,8 +1100,8 @@ Each phase leaves the device working. The exit criteria are: all builds green, n
 
 | Phase | Work | Exit criteria |
 |---|---|---|
-| **0. Safety net** | Repair the Wokwi scenario (D-22). Restore CI (T-04 steps 2, 4, 5). Pin platform and library versions. Remove ArduinoJson, Unity from firmware envs, `-ffast-math`, and the obsolete flags (§7.1). Enable `LV_USE_ASSERT_OBJ` in debug. Capture a golden serial log. | CI green on `main`; scenario passes end to end |
-| **1. Critical fixes in place** | D-01 (stop deleting child objects), D-02 (delete splash timers on destroy), D-03 (always restore and set IDLE), D-04 (fatal state), D-07 (remove DiagnosticPanel), D-06 minimum (update `theme_` in `SetTheme`; fix the callback key), D-18 (buffer size). | New Wokwi cases for D-03, D-05e and D-06 pass |
+| **0. Safety net** | Repair the Wokwi scenario (D-22). Restore CI (T-04 steps 2, 4, 5). Decide the toolchain (Q-11) first, from `pio run -v` output: it fixes the C++ standard and what `lib/core` may use (float `std::from_chars`, for example, needs a newer GCC than the Arduino 2.x toolchain). A local PlatformIO install showed platform 8.0.0 with Arduino core 3.x, not the 6.x this plan assumed, so check which one the build really uses. Pin platform and library versions. Remove ArduinoJson, Unity from firmware envs, `-ffast-math`, and the obsolete flags (§7.1). Enable `LV_USE_ASSERT_OBJ` in debug. Capture a golden serial log. | CI green on `main`; scenario passes end to end |
+| **1. Critical fixes in place** | D-01 (stop deleting child objects), D-02 (delete splash timers on destroy), D-03 (always restore and set IDLE), D-04 (minimal guard only: skip `loop()` work and `esp_restart()` after a delay; the full H-01 fatal state arrives with the composition root), D-07 (remove DiagnosticPanel), D-06 minimum (update `theme_` in `SetTheme`; fix the callback key), D-18 (fix the comments; size choice is optional). | New Wokwi cases for D-03 (via the injection hook from T-03), D-07 and D-06 pass. D-05e is covered in Phase 6. |
 | **2. Tooling** | Warnings on project sources, `.clang-format`, `.clang-tidy`, cppcheck; `lib/core` skeleton and the `native` env. Fix what the warnings find. | `pio check` clean, or with justified suppressions |
 | **3. Core extraction** | Implement `DebouncedInput`, `ButtonFsm`, `ErrorLog`, `Units`, `ResolveDisplay`/`EffectiveTheme` and `AnalogChannel` in `lib/core`, with T-02 tests. Not wired up yet. | ~60+ host tests green |
 | **4. Input and policy cut-over** | Make `PanelManager` transitions deferred (a queue applied once per loop). Wire `Inputs` + `ResolveDisplay` into the loop. Delete `InterruptManager`, `TriggerHandler`, `ActionHandler`, `interrupts.h`, `Trigger`/`Action`, `UIState` and the GPIO and button sensors. Emit the same `[T]` events. | Scenario green; D-13 removed; no `SetUiState` left |
@@ -1108,7 +1111,9 @@ Each phase leaves the device working. The exit criteria are: all builds green, n
 | **8. Sensing semantics** | Apply the decisions on Q-01 to Q-03 (pressure scale, temperature transfer, units display); `analogReadMilliVolts`, filtering, plausibility. | Bench-calibrated against known inputs |
 | **9. Assets, config, docs** | Trim `lv_conf.h`, pre-scale A8 icons, adjust partitions (Q-13), rewrite docs (§10). | Flash and RAM report; docs reviewed |
 
-Phases 3 and 5 can run in parallel with 4 once Phase 2 lands.
+Phase 3 can run in parallel with Phase 4 once Phase 2 lands. Phases 4 and 5 both rewrite `PanelManager` and the panels, so run them in sequence. Phase 7 (composition root) removes the temporary wiring that Phases 4 to 6 otherwise need through globals, so consider doing it before Phase 4.
+
+**Alternative for a single developer.** After Phase 0 and the Phase 1 fixes, rebuild on a branch against the §2 behavioural spec, with the Wokwi scenario as the acceptance test, instead of nine incremental cut-overs that each need temporary glue (for example `ConfigPanel` is rewritten in Phase 5 and again in Phase 6). `main` stays working throughout.
 
 ---
 
@@ -1130,6 +1135,8 @@ Phases 3 and 5 can run in parallel with 4 once Phase 2 lands.
 | Q-12 | What should a short press on the error panel do? | Acknowledge and go to the next (code); or cycle without removing (docs) | Keep the code's behaviour and fix the docs |
 | Q-13 | Do you want over-the-air updates? | Add `ota_1`; or a single factory partition | Decide based on product need |
 | Q-14 | How should the settings menu be defined? | Run-time registration (today); or a static descriptor table | Static table (A-07) |
+| Q-15 | Wiring the dead settings (D-05) changes behaviour on existing devices: brightness would drop from the hard-coded 100% to the default 80, and stored offset, scale, rate and debounce values would start applying. | (a) Apply whatever is stored; (b) schema migration 1 resets the previously dead settings to defaults and sets the brightness default to 100 | (b) |
+| Q-16 | Once per-sensor `update_rate` applies, `system.update_rate` has no consumer. | Remove it; or keep it as the default for new per-sensor values | Remove it, and keep the NVS key readable for the migration |
 
 ---
 
