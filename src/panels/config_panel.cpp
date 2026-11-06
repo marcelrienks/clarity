@@ -189,6 +189,8 @@ void ConfigPanel::HandleShortPress()
     if (componentInitialized_) {
         configComponent_.SetCurrentIndex(currentMenuIndex_);
     }
+
+    log_t("ConfigPanel: %s option highlighted", menuItems_[currentMenuIndex_].label.c_str());
 }
 
 /**
@@ -308,8 +310,10 @@ ConfigPanel::MenuActionType ConfigPanel::ParseActionType(const std::string& acti
  */
 void ConfigPanel::HandleEnterSection(const std::string& sectionName)
 {
+    log_t("ConfigPanel: Entering section %s", sectionName.c_str());
     currentSectionName_ = sectionName;
     BuildSectionMenu(currentSectionName_);
+    log_t("ConfigPanel: Section %s menu loaded", currentSectionName_.c_str());
 }
 
 /**
@@ -379,6 +383,7 @@ void ConfigPanel::HandleSetConfigValue(const std::string& actionParam)
             if (configItem.key == itemKey) {
                 // Parse the string value into the correct type based on existing value
                 Config::ConfigValue newValue = configurationManager_->FromString(value, configItem.value);
+                log_t("ConfigPanel: Applying %s setting %s", fullKey.c_str(), value.c_str());
 
                 // Update the configuration
                 configurationManager_->UpdateConfig(fullKey, newValue);
@@ -390,6 +395,7 @@ void ConfigPanel::HandleSetConfigValue(const std::string& actionParam)
 
                 // Go back to section menu
                 BuildSectionMenu(sectionName);
+                log_t("ConfigPanel: Returned to section %s menu", sectionName.c_str());
                 return;
             }
         }
@@ -427,6 +433,7 @@ void ConfigPanel::HandleBackAction(const std::string& actionParam)
  */
 void ConfigPanel::HandlePanelExit()
 {
+    log_t("ConfigPanel: Executing exit function");
     if (panelManager_) {
         const char *restorationPanel = panelManager_->GetRestorationPanel();
         panelManager_->CreateAndLoadPanel(restorationPanel, true);
@@ -588,6 +595,7 @@ void ConfigPanel::ShowOptionsMenu(const std::string& fullKey, const Config::Conf
     }
 
     currentMenuIndex_ = 0;
+    log_t("ConfigPanel: Options menu for %s loaded", keyStr.c_str());
 }
 
 /**

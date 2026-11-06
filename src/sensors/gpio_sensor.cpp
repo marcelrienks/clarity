@@ -134,11 +134,13 @@ bool GpioSensor::HasStateChanged()
     bool currentState = readLogicalState();
     bool oldState = previousState_; // Save BEFORE DetectChange modifies it
 
-    // Add detailed GPIO state debugging for test automation
+    // Per-poll logging floods the serial port (~96% of test output), so it is opt-in
+    #ifdef GPIO_POLL_LOGS
     log_t("%s GPIO %d poll: current=%s, previous=%s",
           config_.name, config_.pin,
           readRawPinState() ? "HIGH" : "LOW",
           oldState ? "ACTIVE" : "INACTIVE");
+    #endif
 
     bool changed = DetectChange(currentState, previousState_);
 
