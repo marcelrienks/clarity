@@ -39,11 +39,11 @@ Goal: a trustworthy build and test baseline before any code changes.
 - [x] **0.2 Record the baseline.** Capture a golden serial log from `test-wokwi`, plus `pio run -t size` output and the linker map for each env.
   - [x] Size output and linker map for each env (see `docs/baseline/size.md`; maps kept outside the repo).
   - [x] Golden serial log from `test-wokwi` (`docs/baseline/serial-test-wokwi.txt`). The scenario stalls at step 104 (22 of 61 `wait-serial` matched), see `docs/baseline/size.md`.
-- [ ] **0.3 Repair the Wokwi scenario (D-22).**
-  - [ ] List the 9 `wait-serial` strings in `test/wokwi/scenario_automated.yaml` that the firmware no longer prints (`Button action detected: SHORT_PRESS` / `LONG_PRESS`, 7 `ConfigPanel: …` messages).
-  - [ ] Either restore the log lines or update the scenario to match the current output.
-  - [ ] Make the runner exit non-zero on timeout.
-  - [ ] Run end to end and confirm it passes.
+- [x] **0.3 Repair the Wokwi scenario (D-22).**
+  - [x] List the 9 `wait-serial` strings in `test/wokwi/scenario_automated.yaml` that the firmware no longer prints (`Button action detected: SHORT_PRESS` / `LONG_PRESS`, 7 `ConfigPanel: …` messages).
+  - [x] Either restore the log lines or update the scenario to match the current output. The 2 button strings now match `ShortPressActivate()` / `Long press triggered during hold`. The 7 `ConfigPanel:` messages were restored as `log_t` lines in `config_panel.cpp`. Poll logs in `gpio_sensor.cpp` are gated behind `GPIO_POLL_LOGS`.
+  - [x] Make the runner exit non-zero on timeout. The runner already did; it now also loops over the scenario parts and exits 1 if any part fails (verified on a timeout).
+  - [x] Run end to end and confirm it passes. The scenario no longer fits Wokwi's 5 minute session cap, so it is split into 5 parts (`scenario_automated_1..5_*.yaml`, see `docs/test.md`). All 5 pass through `wokwi_test_automation.sh` (about 7 minutes in total).
 - [ ] **0.4 Pin versions (B-01).** Pin `platform`, `lvgl/lvgl` (9.3.0) and `lovyan03/LovyanGFX` (1.2.7) to exact versions; make README match.
 - [ ] **0.5 Clean `platformio.ini` (§7.1).**
   - [ ] Remove ArduinoJson (unused, `storage_provider.h:7`).

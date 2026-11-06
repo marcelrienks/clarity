@@ -152,8 +152,9 @@ main() {
         exit 1
     fi
     
-    if [[ ! -f "${SCRIPT_DIR}/scenario_automated.yaml" ]]; then
-        log_error "Automation scenario not found: ${SCRIPT_DIR}/scenario_automated.yaml"
+    SCENARIOS=("${SCRIPT_DIR}"/scenario_automated_*.yaml)
+    if [[ ! -f "${SCENARIOS[0]}" ]]; then
+        log_error "No automation scenarios found: ${SCRIPT_DIR}/scenario_automated_*.yaml"
         exit 1
     fi
     
@@ -183,10 +184,23 @@ main() {
     
     # Run the automated test with explicit parameters (no file swapping needed)
     local elf_path="${PROJECT_ROOT}/.pio/build/test-wokwi/firmware.bin"
-    log_info "Executing: $WOKWI_CLI --elf $elf_path --diagram-file diagram_automated.json --scenario scenario_automated.yaml --timeout ${TIMEOUT}000"
-    log_info "Using test-wokwi environment firmware with push button automation"
-    
-    if $WOKWI_CLI --elf "$elf_path" --diagram-file diagram_automated.json --scenario scenario_automated.yaml --timeout ${TIMEOUT}000; then
+    # Wokwi caps a session at 5 minutes of wall-clock time, so the scenario is split into
+    # parts that each boot the firmware fresh. Every part must pass.
+    local failed=()
+    for scenario in "${SCENARIOS[@]}"; do
+        local name
+        name="$(basename "$scenario")"
+        log_info "Executing: $WOKWI_CLI --elf $elf_path --diagram-file diagram_automated.json --scenario $name --timeout ${TIMEOUT}000"
+        local started=$SECONDS
+        if $WOKWI_CLI --elf "$elf_path" --diagram-file diagram_automated.json --scenario "$name" --timeout ${TIMEOUT}000; then
+            log_success "$name passed in $((SECONDS - started))s"
+        else
+            log_error "$name FAILED after $((SECONDS - started))s"
+            failed+=("$name")
+        fi
+    done
+
+    if [[ ${#failed[@]} -eq 0 ]]; then
         log_success "✅ Automated integration test PASSED!"
         log_success "All trigger systems validated successfully"
         echo
@@ -203,7 +217,7 @@ main() {
         log_success "🎉 Full automation achieved! No manual interaction required."
         exit 0
     else
-        log_error "❌ Automated integration test FAILED!"
+        log_error "❌ Automated integration test FAILED! Failed scenarios: ${failed[*]}"
         log_warning "Check the automation scenario output above for details"
         exit 1
     fi

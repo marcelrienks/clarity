@@ -1,0 +1,89 @@
+name: 'Clarity Automated Integration Test - Part 1: Triggers'
+version: 1
+steps:
+  # Part 1 of 5. Wokwi caps a session at 5 min wall-clock, so each part boots fresh.
+  # Step 1: System Startup
+  # - System initialization completes
+  # - Splash panel loads with day theme  
+  # - Oil panel loads automatically after splash
+  - wait-serial: '[T] System ready'
+  - wait-serial: '[T] Panel transition requested: OemOilPanel'
+  - wait-serial: '[T] SplashPanel loaded successfully'
+  - wait-serial: '[T] Pressure reading:'
+  - wait-serial: '[T] Temperature reading:'
+  - delay: 300ms
+  
+  # Step 2: Real-time Sensor Interaction
+  # Skipped - requires analog pot inputs not available in automation
+  
+  # Step 3: Theme Change (Non-Blocking Style Trigger)
+  # - Night theme applied instantly to Oil Panel
+  # - Oil panel continues displaying without reload
+  # - STYLE trigger maintains and doesn't block restoration
+  - set-control:
+      part-id: trigger_btn4  # GPIO 33 - Lights
+      control: pressed
+      value: 1
+  - wait-serial: '[T] LightsOnActivate() - Setting NIGHT theme'
+  - wait-serial: '[T] SetTheme() called'
+  # Note: Panel should NOT reload, only theme changes
+  - delay: 300ms
+  
+  # Step 4: Panel Loading Trigger (IMPORTANT Priority)
+  # - Lock panel loads with IMPORTANT priority
+  # - Lights trigger still active, night theme maintained
+  # - Lock panel displays with night theme
+  - set-control:
+      part-id: trigger_btn3  # GPIO 27 - Lock
+      control: pressed
+      value: 1
+  - wait-serial: '[T] LockEngagedActivate() - Loading LOCK panel'
+  - wait-serial: '[T] Panel transition requested: LockPanel'
+  - wait-serial: '[T] LockPanel loaded successfully'
+  - delay: 300ms
+  
+  # Step 5: Higher Priority Key Trigger Override
+  # - Key panel loads with CRITICAL priority (overrides lock)
+  # - Red key icon displayed with night theme
+  - set-control:
+      part-id: trigger_btn2  # GPIO 26 - Key Not Present
+      control: pressed
+      value: 1
+  - wait-serial: '[T] KeyNotPresentActivate() - Loading KEY panel'
+  - wait-serial: '[T] Panel transition requested: KeyPanel'
+  - wait-serial: '[T] Key icon color set to RED'
+  - wait-serial: '[T] KeyPanel loaded successfully'
+  - delay: 300ms
+  
+  # Step 6: Same Priority Key State Transition
+  # - Key panel reloads with green icon
+  # - Key Not Present automatically deactivates
+  - set-control:
+      part-id: trigger_btn1  # GPIO 25 - Key Present
+      control: pressed
+      value: 1
+  - wait-serial: '[T] KeyPresentActivate() - Loading KEY panel'
+  - wait-serial: '[T] Panel transition requested: KeyPanel'
+  - wait-serial: '[T] Key icon color set to GREEN'
+  - wait-serial: '[T] KeyPanel loaded successfully'
+  - delay: 300ms
+  
+  # Step 7: Key State Reversal and Panel Persistence
+  # - Key Not Present already deactivated (automatically when Key Present activated)
+  # - Key panel remains with green icon (no state change)
+  # Note: This step demonstrates persistence - no action needed
+  - delay: 500ms  # Increased delay for GPIO stabilization
+  
+  # Step 8: Priority-Based Restoration Chain
+  # - Key Present deactivates → KeyNotPresent automatically activates (same type)
+  # - Key panel reloads with red icon
+  # Note: Both key triggers are mutually exclusive by sensor design
+  - set-control:
+      part-id: trigger_btn1  # GPIO 25 - Key Present
+      control: pressed
+      value: 0  # Deactivate
+  - wait-serial: '[T] KeyNotPresentActivate() - Loading KEY panel'
+  - wait-serial: '[T] Panel transition requested: KeyPanel'
+  - wait-serial: '[T] Key icon color set to RED'
+  - wait-serial: '[T] KeyPanel loaded successfully'
+  - delay: 300ms

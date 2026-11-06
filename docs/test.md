@@ -56,11 +56,20 @@ cd test/wokwi
 test/wokwi/
 ├── diagram_automated.json        # Hardware configuration with push buttons
 ├── diagram.json                  # Alternative hardware configuration
-├── scenario_automated.yaml       # Complete automated test specification
+├── scenario_automated_1..5_*.yaml # Automated test, split in 5 parts (each boots fresh, see below)
 ├── wokwi_test_automation.sh      # Cross-platform automated test runner
 ├── wokwi_automated.toml         # Automated testing configuration
 └── wokwi.toml                   # Base testing configuration
 ```
+
+### Scenario parts
+
+Wokwi caps a session at 5 minutes of wall-clock time and the simulator runs slowly, so the scenario is split into five parts that each boot the firmware fresh: triggers (steps 1-8), errors and restoration (9-13, starts with a preamble that rebuilds the step 8 trigger state), and three config parts (theme, sections, exit). `wokwi_test_automation.sh` runs them in order and exits non-zero if any part fails or times out. Each part takes 60-100 s.
+
+Timing notes from the repair (0.3):
+- Leave at least 1000 ms after anything that rebuilds a panel or menu before the next button press. 200-300 ms there stalled the simulator until the 5 minute cap.
+- `wait-serial` only sees output printed after its step starts, so put the waits right after the action that produces the line. Long presses fire while the button is still held, so wait before releasing.
+- Poll logs from `gpio_sensor.cpp` are off by default (about 96% of serial output). Define `GPIO_POLL_LOGS` to see them.
 
 ### Build Environments
 - **`test-wokwi`**: Clean integration testing (CORE_DEBUG_LEVEL=0 + TEST_LOGS)

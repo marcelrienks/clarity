@@ -1,0 +1,91 @@
+name: 'Clarity Automated Integration Test - Part 4: Config Sections'
+version: 1
+steps:
+  # Part 4 of 5. Wokwi caps a session at 5 min wall-clock, so each part boots fresh.
+  # Boot to the Oil panel
+  - wait-serial: '[T] System ready'
+  - wait-serial: '[T] Pressure reading:'
+  - delay: 300ms
+
+  # Step 14: Configuration Access via Button Action
+  # - Long press loads Config panel with main preference settings
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  # Long press fires while held, so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] Panel transition requested: ConfigPanel'
+  - wait-serial: '[T] ConfigPanel loaded successfully'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  # Give ConfigPanel time to finish building before the next press: a press 300ms
+  # after the load stalled the simulator in Wokwi (observed, cause not investigated)
+  - delay: 1000ms
+
+  # Step 15: Configuration Navigation to Theme Settings
+  # - Main menu order: Button, Display, Oil Press., Oil Temp., Splash Scr., System, Exit
+  # - Short press moves to Display (holds the Theme item)
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - wait-serial: '[T] ConfigPanel: Display option highlighted'
+  - delay: 200ms
+
+  # Step 16: Theme Submenu Access
+  # - Long press enters Display, long press again opens the Theme options (Day, Night)
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  # Long press fires while held, so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] ConfigPanel: Entering section'
+  - wait-serial: '[T] ConfigPanel: Section style_manager menu loaded'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 1000ms  # menu rebuilt: wait before the next press
+
+  # Step 19: Configuration Exit Navigation
+  # - Display section menu: Theme, Brightness, Back; long press on Back returns to the main menu
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - wait-serial: '[T] ConfigPanel: Brightness'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - wait-serial: '[T] ConfigPanel: Back option highlighted'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  # Long press fires while held, so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 200ms

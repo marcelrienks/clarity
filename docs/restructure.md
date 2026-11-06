@@ -194,7 +194,7 @@ There are three palettes: Day, Night and Error.
 
 ### 2.9 Test contract
 
-`test/wokwi/scenario_automated.yaml` drives the simulator and waits for `[T] …` serial lines from `log_t()`. **These strings are an interface.** Every message the scenario waits for must keep its exact text through the restructure, or the scenario must be updated in the same change. Today 9 of the expected messages are no longer printed (D-22).
+`test/wokwi/scenario_automated_*.yaml` (five parts) drive the simulator and waits for `[T] …` serial lines from `log_t()`. **These strings are an interface.** Every message the scenario waits for must keep its exact text through the restructure, or the scenario must be updated in the same change. Today 9 of the expected messages are no longer printed (D-22).
 
 ### 2.10 Documented behaviour that differs from the code
 
@@ -1017,7 +1017,7 @@ Options (Q-13):
 | Level | Tool | What it covers |
 |---|---|---|
 | Unit (host) | `pio test -e native` with Unity | Everything in `lib/core` |
-| Integration (simulated hardware) | Wokwi CLI + `scenario_automated.yaml` | Boot, priorities, restoration, error flow, config flow, theme |
+| Integration (simulated hardware) | Wokwi CLI + `scenario_automated_*.yaml` | Boot, priorities, restoration, error flow, config flow, theme |
 | Static | cppcheck, clang-tidy, warnings as errors on project sources | Defect classes in §3 |
 | Hardware smoke | Manual checklist per release | Display, ADC, backlight, real switches |
 
