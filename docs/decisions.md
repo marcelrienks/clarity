@@ -35,15 +35,15 @@ Two flag changes are needed for any of the four envs to build on core 3.3.12:
 1. Add `-D LV_KCONFIG_IGNORE`. Without it LVGL's `lv_blend_helium.S` includes `lv_conf_kconfig.h` → `esp_attr.h`, and the IDF include path is not passed to `.S` files. The project uses `lv_conf.h` through `LV_CONF_INCLUDE_SIMPLE`, so Kconfig handling is not needed.
 2. Remove `-D ARDUINO_USB_MODE=1` and `-D ARDUINO_USB_CDC_ON_BOOT=1` (`release`, `debug-upload`). On a classic ESP32 they make `HardwareSerial.h` reference `HWCDCSerial`, which does not exist (`chip-debug-report.cpp`). 0.5 already lists these flags for removal.
 
-Result with LVGL 9.3.0, LovyanGFX 1.2.7 and both changes (isolated copy of the project, 2026-11-05):
+Result with LVGL 9.3.0, LovyanGFX 1.2.7 and both changes (2026-11-06):
 
 | Env | Build | RAM | Flash (of 2 MB app partition) |
 |---|---|---|---|
 | `release` | OK | 10.8% | 64.5% (1,351,723 B) |
-| `debug-local` | OK | 10.9% | 69.7% (1,462,759 B) |
+| `debug-local` | OK | 10.9% | 69.8% (1,463,011 B) |
 | `debug-upload` | OK | 10.8% | 69.6% (1,458,879 B) |
-| `test-wokwi` | OK | 10.9% | 69.7% (1,462,759 B) |
+| `test-wokwi` | OK | 10.9% | 69.8% (1,463,011 B) |
 
-These numbers are a first size reference for 0.2. Neither flag change is in `platformio.ini` yet: 0.4 pins the versions and 0.5 removes the USB flags, and `-D LV_KCONFIG_IGNORE` should be added with 0.4 so the pins build.
+These numbers are the size reference for 0.5. Both flag changes are in `platformio.ini` since 0.4. `debug-local` and `test-wokwi` grew by 252 B against the first measurement (2026-11-05, 1,462,759 B), after the 0.3 log changes (restored `ConfigPanel:` messages in `config_panel.cpp`; cause not confirmed). `release` and `debug-upload` are unchanged. Re-measured 2026-11-06 in the project directory, not a clean copy.
 
 Note: while the VS Code PlatformIO Home processes are running, they can reinstall the floating library versions into `.pio/libdeps` mid-build. Verify builds from a copy of the project, or close VS Code first.

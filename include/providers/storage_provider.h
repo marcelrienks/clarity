@@ -4,7 +4,6 @@
 #include "definitions/configs.h"
 #include "definitions/constants.h"
 
-#include <ArduinoJson.h>
 #include <Preferences.h>
 #include <nvs_flash.h>
 #include <map>

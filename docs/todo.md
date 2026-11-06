@@ -49,16 +49,16 @@ Goal: a trustworthy build and test baseline before any code changes.
   - [x] Added `-D LV_KCONFIG_IGNORE` and removed `ARDUINO_USB_MODE` / `ARDUINO_USB_CDC_ON_BOOT`, both needed for the pins to build on core 3.3.12 (see `docs/decisions.md`). That covers the USB item in 0.5.
   - [x] All four envs build from a clean copy, sizes identical to the `decisions.md` table (`release` 1,351,723 B flash).
   - [x] README matches (LVGL 9.3.0, LovyanGFX 1.2.7, ArduinoJson 7.4.3, platform/core versions).
-- [ ] **0.5 Clean `platformio.ini` (§7.1).**
-  - [ ] Remove ArduinoJson (unused, `storage_provider.h:7`).
-  - [ ] Remove Unity from `release` and `debug-upload` `lib_deps`.
-  - [ ] Remove `-ffast-math`.
-  - [ ] Remove `-I lib`, `-I test`, redundant `-I include`.
-  - [ ] Remove obsolete flags: `LV_TICK_CUSTOM`, `LV_USE_FS_FATFS`, `LV_MEM_SIZE`/`LV_MEM_ADR` (until B-02), `ESP32=1`, the `+<../hal/esp32>` and `-<**/draw/nxp/vglite/**>` filters, the duplicate section-gc flags. (`ARDUINO_USB_*` already removed in 0.4.)
-  - [ ] Switch `-O0` to `-Og` in debug envs.
-  - [ ] Add `monitor_filters = esp32_exception_decoder`.
-  - [ ] Keep env names (`release`, `debug-upload`, `debug-local`, `test-wokwi`) for now, since `wokwi*.toml`, the test script and `.vscode/tasks.json` depend on them.
-  - [ ] Rebuild all four envs; compare size against the 0.2 baseline.
+- [x] **0.5 Clean `platformio.ini` (§7.1).**
+  - [x] Remove ArduinoJson (unused). The stray `#include <ArduinoJson.h>` in `storage_provider.h` is gone too; README entry removed.
+  - [x] Remove Unity from `release` and `debug-upload` `lib_deps`.
+  - [x] Remove `-ffast-math`.
+  - [x] Remove `-I lib`, `-I test`. `-I include` stays: LVGL builds as a library and finds `lv_conf.h` only through it (PlatformIO adds `include/` for project sources only, so §7.1 is wrong on this point).
+  - [x] Remove obsolete flags: `LV_TICK_CUSTOM`, `LV_USE_FS_FATFS`, `LV_MEM_SIZE`/`LV_MEM_ADR` (until B-02), `ESP32=1`, the `+<../hal/esp32>` and `-<**/draw/nxp/vglite/**>` filters, the duplicate section-gc flags. (`ARDUINO_USB_*` already removed in 0.4.)
+  - [x] Switch `-O0` to `-Og` in debug envs.
+  - [x] Add `monitor_filters = esp32_exception_decoder`.
+  - [x] Keep env names (`release`, `debug-upload`, `debug-local`, `test-wokwi`) for now, since `wokwi*.toml`, the test script and `.vscode/tasks.json` depend on them.
+  - [x] Rebuild all four envs; compare size against the 0.2 baseline. All build. Flash: `release` 1,339,299 B (-12,424), `debug-upload` 1,417,643 B (-41,236), `debug-local` and `test-wokwi` 1,421,731 B (-41,280); RAM -280 to -368 B. The Wokwi scenario has not been re-run on the `-Og` build.
 - [ ] **0.6 Enable LVGL asserts in debug.** `LV_USE_ASSERT_OBJ 1` (and `LV_USE_ASSERT_MEM_INTEGRITY 1`) in debug builds only. Switch Oil → Config and record whether D-01 triggers.
 - [ ] **0.7 Restore CI (T-04 steps 2, 4, 5).**
   - [ ] Add `.github/workflows/` with: `pio run` for all envs (upload `firmware.bin`, `.elf`, map), `pio run -t size`, Wokwi run on pull requests (check `WOKWI_CLI_TOKEN` and usage limits first).

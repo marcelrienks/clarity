@@ -124,7 +124,6 @@ cd test/wokwi && ./wokwi_run.sh
 - **[Arduino Framework](https://github.com/espressif/arduino-esp32)** - ESP32 hardware abstraction (Arduino core 3.3.12 via `espressif32` platform 8.0.0, pinned in `platformio.ini`)
 - **[LVGL 9.3.0](https://docs.lvgl.io/master/)** - Advanced graphics library optimized for embedded
 - **[LovyanGFX 1.2.7](https://github.com/lovyan03/LovyanGFX)** - High-performance display driver
-- **[ArduinoJson 7.4.3](https://arduinojson.org/)** - Efficient JSON parsing for configuration
 - **[Preferences 2.0.0](https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences)** - ESP32 NVS storage wrapper
 
 ### **Development Tools**
