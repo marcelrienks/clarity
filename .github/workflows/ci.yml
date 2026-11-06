@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [release, debug-upload, debug-local, test-wokwi]
+        env: [release, debug-upload, debug-local, test-wokwi, test-wokwi-release]
     steps:
       - uses: actions/checkout@v4
 

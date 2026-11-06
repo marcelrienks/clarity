@@ -80,7 +80,10 @@ Goal: a trustworthy build and test baseline before any code changes.
 
 Goal: remove S1 defects with minimal patches, before restructuring. Add a Wokwi case for each fix.
 
-- [ ] **1.1 Add the test-only error injection hook (T-03).** Compile into the Wokwi env only (for example `CLARITY_TEST_INJECT_ERROR`, or a scenario-driven input). Needed to test D-03 without relying on D-05e.
+- [x] **1.1 Add the test-only error injection hook (T-03).** Compile into the Wokwi env only (for example `CLARITY_TEST_INJECT_ERROR`, or a scenario-driven input). Needed to test D-03 without relying on D-05e.
+  - [x] `CLARITY_TEST_INJECT_ERROR` (`utilities/test_inject.h`, `src/utilities/test_inject.cpp`): a rising edge on GPIO 34 reports one `ERROR` via `ErrorManager`; no-op inline stubs without the flag, and a `#error` if combined with `CLARITY_DEBUG`. Hooked into `setup()` and `loop()` in `main.cpp`. A serial-driven input was rejected: the backlight PWM owns GPIO 3 (UART0 RX).
+  - [x] New env `test-wokwi-release` (no `CLARITY_DEBUG`, `-Os`, `TEST_LOGS`, `WOKWI_EMULATOR`, the flag), added to the CI build matrix. D-03 only reproduces without `CLARITY_DEBUG`, so `test-wokwi` cannot host it. `release` is byte-identical in size (1,339,299 B); `test-wokwi-release` is 1,343,335 B.
+  - [ ] Not exercised in Wokwi yet: the scenario and `wokwi*.toml` pointing at the new env arrive with 1.4.
 - [ ] **1.2 D-01: LVGL double delete.**
   - [ ] Remove `lv_obj_del` of `oilIcon_`, `lowLabel_`, `highLabel_`, `pivotCircle_`, `pivotHighlight_` in `~OemOilComponent`; they are children of `scale_`.
   - [ ] Stop deleting `scale_` there; only the panel's `screen_` is deleted.

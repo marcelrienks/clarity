@@ -74,6 +74,11 @@ Timing notes from the repair (0.3):
 ### Build Environments
 - **`test-wokwi`**: Clean integration testing (CORE_DEBUG_LEVEL=0 + TEST_LOGS)
 - **`debug-local`**: Full debug testing (CORE_DEBUG_LEVEL=5 + TEST_LOGS)
+- **`test-wokwi-release`**: Release-like build (no `CLARITY_DEBUG`, `-Os`) with `TEST_LOGS` and `CLARITY_TEST_INJECT_ERROR`. For defects that only show without `CLARITY_DEBUG` (D-03). No scenario uses it yet.
+
+### Error injection (`CLARITY_TEST_INJECT_ERROR`)
+
+Builds without `CLARITY_DEBUG` have no debug error trigger. With `CLARITY_TEST_INJECT_ERROR`, `utilities/test_inject.h` reports one `ERROR` ("Injected test error") on each rising edge of GPIO 34, the same pin as the debug error button (`btn2` in `diagram_automated.json`). It goes through `ErrorManager::ReportError`, so a scenario sees `[T] Error reported: ERROR` as with the debug button. Boot logs `[T] Test error injection armed`. The flag and `CLARITY_DEBUG` are mutually exclusive (compile error). Serial input is not an option: the backlight PWM owns GPIO 3 (UART0 RX).
 
 ### Hardware Configuration
 

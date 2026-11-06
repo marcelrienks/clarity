@@ -13,6 +13,7 @@
 #include "definitions/constants.h"
 #include "utilities/logging.h"
 #include "utilities/ticker.h"
+#include "utilities/test_inject.h"
 #include "definitions/types.h"
 #include "managers/configuration_manager.h"
 
@@ -215,6 +216,8 @@ void setup()
     styleManager->InitializeStyles();
     Ticker::handleLvTasks();
 
+    TestInject::Begin(gpioProvider.get());
+
     // Process initial trigger states to ensure correct system state at startup
     // This must happen after initialization but before loading the first panel
     // If a PANEL trigger is active, it will load its panel and we should skip default panel load
@@ -249,6 +252,7 @@ void loop()
 {
     // Always process - ActionHandler runs always, TriggerHandler only on IDLE
     interruptManager->Process();
+    TestInject::Poll();
 
     // Check for error panel trigger - must be processed when UI is IDLE to avoid conflicts
     static bool errorPanelTriggered = false;  // Track if error panel was already triggered
