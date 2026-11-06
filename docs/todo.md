@@ -44,13 +44,17 @@ Goal: a trustworthy build and test baseline before any code changes.
   - [x] Either restore the log lines or update the scenario to match the current output. The 2 button strings now match `ShortPressActivate()` / `Long press triggered during hold`. The 7 `ConfigPanel:` messages were restored as `log_t` lines in `config_panel.cpp`. Poll logs in `gpio_sensor.cpp` are gated behind `GPIO_POLL_LOGS`.
   - [x] Make the runner exit non-zero on timeout. The runner already did; it now also loops over the scenario parts and exits 1 if any part fails (verified on a timeout).
   - [x] Run end to end and confirm it passes. The scenario no longer fits Wokwi's 5 minute session cap, so it is split into 5 parts (`scenario_automated_1..5_*.yaml`, see `docs/test.md`). All 5 pass through `wokwi_test_automation.sh` (about 7 minutes in total).
-- [ ] **0.4 Pin versions (B-01).** Pin `platform`, `lvgl/lvgl` (9.3.0) and `lovyan03/LovyanGFX` (1.2.7) to exact versions; make README match.
+- [x] **0.4 Pin versions (B-01).** Pin `platform`, `lvgl/lvgl` (9.3.0) and `lovyan03/LovyanGFX` (1.2.7) to exact versions; make README match.
+  - [x] `platform = espressif32 @ 8.0.0`, `lvgl/lvgl @ 9.3.0`, `lovyan03/LovyanGFX @ 1.2.7`. ArduinoJson (7.4.3) and Unity (2.6.1) pinned too until 0.5 removes them.
+  - [x] Added `-D LV_KCONFIG_IGNORE` and removed `ARDUINO_USB_MODE` / `ARDUINO_USB_CDC_ON_BOOT`, both needed for the pins to build on core 3.3.12 (see `docs/decisions.md`). That covers the USB item in 0.5.
+  - [x] All four envs build from a clean copy, sizes identical to the `decisions.md` table (`release` 1,351,723 B flash).
+  - [x] README matches (LVGL 9.3.0, LovyanGFX 1.2.7, ArduinoJson 7.4.3, platform/core versions).
 - [ ] **0.5 Clean `platformio.ini` (§7.1).**
   - [ ] Remove ArduinoJson (unused, `storage_provider.h:7`).
   - [ ] Remove Unity from `release` and `debug-upload` `lib_deps`.
   - [ ] Remove `-ffast-math`.
   - [ ] Remove `-I lib`, `-I test`, redundant `-I include`.
-  - [ ] Remove obsolete flags: `LV_TICK_CUSTOM`, `LV_USE_FS_FATFS`, `LV_MEM_SIZE`/`LV_MEM_ADR` (until B-02), `ESP32=1`, the `+<../hal/esp32>` and `-<**/draw/nxp/vglite/**>` filters, `ARDUINO_USB_*`, the duplicate section-gc flags.
+  - [ ] Remove obsolete flags: `LV_TICK_CUSTOM`, `LV_USE_FS_FATFS`, `LV_MEM_SIZE`/`LV_MEM_ADR` (until B-02), `ESP32=1`, the `+<../hal/esp32>` and `-<**/draw/nxp/vglite/**>` filters, the duplicate section-gc flags. (`ARDUINO_USB_*` already removed in 0.4.)
   - [ ] Switch `-O0` to `-Og` in debug envs.
   - [ ] Add `monitor_filters = esp32_exception_decoder`.
   - [ ] Keep env names (`release`, `debug-upload`, `debug-local`, `test-wokwi`) for now, since `wokwi*.toml`, the test script and `.vscode/tasks.json` depend on them.
