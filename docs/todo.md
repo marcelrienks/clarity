@@ -58,8 +58,10 @@ Goal: a trustworthy build and test baseline before any code changes.
   - [x] Switch `-O0` to `-Og` in debug envs.
   - [x] Add `monitor_filters = esp32_exception_decoder`.
   - [x] Keep env names (`release`, `debug-upload`, `debug-local`, `test-wokwi`) for now, since `wokwi*.toml`, the test script and `.vscode/tasks.json` depend on them.
-  - [x] Rebuild all four envs; compare size against the 0.2 baseline. All build. Flash: `release` 1,339,299 B (-12,424), `debug-upload` 1,417,643 B (-41,236), `debug-local` and `test-wokwi` 1,421,731 B (-41,280); RAM -280 to -368 B. The Wokwi scenario has not been re-run on the `-Og` build.
-- [ ] **0.6 Enable LVGL asserts in debug.** `LV_USE_ASSERT_OBJ 1` (and `LV_USE_ASSERT_MEM_INTEGRITY 1`) in debug builds only. Switch Oil → Config and record whether D-01 triggers.
+  - [x] Rebuild all four envs; compare size against the 0.2 baseline. All build. Flash: `release` 1,339,299 B (-12,424), `debug-upload` 1,417,643 B (-41,236), `debug-local` and `test-wokwi` 1,421,731 B (-41,280); RAM -280 to -368 B. The Wokwi scenario passes on the `-Og` build (5 parts, 63 to 108 s each).
+- [x] **0.6 Enable LVGL asserts in debug.** `LV_USE_ASSERT_OBJ 1` (and `LV_USE_ASSERT_MEM_INTEGRITY 1`) in debug builds only. Switch Oil → Config and record whether D-01 triggers.
+  - [x] `lv_conf.h`: both asserts on under `CLARITY_DEBUG`, off otherwise. In debug `LV_ASSERT_HANDLER` is `abort();` (panic backtrace, decodable with `esp32_exception_decoder`) instead of the silent `while(1);`; release keeps the halt. `release` size unchanged (1,339,299 B), debug envs +6.4 KB.
+  - [x] Wokwi scenario on `test-wokwi`: 5 of 5 parts pass; parts 3 to 5 go Oil → Config and back. No assert, abort, backtrace or unexpected reset in the log (only the 5 power-on resets at part starts). D-01 does **not** trigger on this path. `ASSERT_OBJ` can miss a delete of an already-freed object if the memory is not reused, so D-01 stays open until 1.2 fixes it.
 - [ ] **0.7 Restore CI (T-04 steps 2, 4, 5).**
   - [ ] Add `.github/workflows/` with: `pio run` for all envs (upload `firmware.bin`, `.elf`, map), `pio run -t size`, Wokwi run on pull requests (check `WOKWI_CLI_TOKEN` and usage limits first).
   - [ ] Cache `~/.platformio`; trigger on push and pull request.
