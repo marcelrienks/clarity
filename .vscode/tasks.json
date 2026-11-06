@@ -4,7 +4,7 @@
         {
             "label": "Wokwi Integration Tests",
             "type": "shell",
-            "command": "${workspaceFolder}/test/wokwi/run_automated_tests.sh",
+            "command": "${workspaceFolder}/test/wokwi/wokwi_test_automation.sh",
             "group": "test",
             "presentation": {
                 "echo": true,
@@ -15,7 +15,7 @@
                 "clear": false
             },
             "problemMatcher": [],
-            "detail": "Runs all Wokwi integration tests with automated reporting (requires WOKWI_CLI_TOKEN)"
+            "detail": "Runs the five Wokwi scenario parts in order (requires WOKWI_CLI_TOKEN and a test-wokwi build)"
         },
         {
             "label": "Build for Wokwi Testing",

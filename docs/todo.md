@@ -67,8 +67,10 @@ Goal: a trustworthy build and test baseline before any code changes.
   - [x] `~/.platformio` cached on the `platformio.ini` hash; triggers on push and pull request. PlatformIO Core 6.2.0 and Wokwi CLI v0.29.1 pinned. The Linux CLI asset is `wokwi-cli-linuxstatic-x64` (the `wokwi-cli-linux` URL in `docs/test.md` was dead; fixed).
   - [x] Rewrote `.github/workflows/README.md` (it described three workflows that did not exist).
   - [x] Verified on GitHub (draft PR #55, v2 to main, marked ready once for the Wokwi job). All 4 builds green on push and on the PR. Wokwi job green: 5 of 5 parts pass (54, 88, 87, 88, 88 s, about 7 min). CI sizes: `release` 1,339,283 B (local 1,339,299 B), `debug-upload` 1,424,107 B, `debug-local` and `test-wokwi` 1,428,147 B; the debug increase over the 0.5 numbers is the 0.6 asserts. The phase exit "CI green on `main`" can only be met at merge, so the PR stays an unmerged draft until the todo is done; mark it ready only to run the Wokwi job.
-- [ ] **0.8 Fix broken tooling references.** `.vscode/tasks.json` points at the missing `run_automated_tests.sh`. README references deleted `wokwi_debug.sh` and `wokwi_run.sh` (D-22).
-- [ ] **0.9 Delete** the 394 KB capture `test/wokwi/wikwi-manual-test.txt` (§7.6).
+- [x] **0.8 Fix broken tooling references.** `.vscode/tasks.json` points at the missing `run_automated_tests.sh`. README references deleted `wokwi_debug.sh` and `wokwi_run.sh` (D-22).
+  - [x] The `.vscode/tasks.json` Wokwi task now runs `test/wokwi/wokwi_test_automation.sh`.
+  - [x] README "Testing & Simulation" now shows the `test-wokwi` build plus `wokwi_test_automation.sh`; the two deleted scripts are no longer referenced.
+- [x] **0.9 Delete** the 394 KB capture `test/wokwi/wikwi-manual-test.txt` (§7.6). Removed with `git rm`; nothing referenced it. The golden log for the baseline lives in `docs/baseline/serial-test-wokwi.txt`.
 
 **Exit:** CI green on `main`; scenario passes end to end; toolchain recorded.
 

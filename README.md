@@ -62,11 +62,9 @@ pio run -e release         # Optimized production build
 
 ### **Testing & Simulation**
 ```bash
-# Interactive manual testing with full verbose logs
-cd test/manual && ./wokwi_debug.sh
-
-# Automated integration testing with clean logs
-cd test/wokwi && ./wokwi_run.sh
+# Automated integration testing (5 Wokwi scenario parts, needs WOKWI_CLI_TOKEN)
+pio run -e test-wokwi
+cd test/wokwi && ./wokwi_test_automation.sh
 ```
 
 ---
