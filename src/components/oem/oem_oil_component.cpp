@@ -32,41 +32,13 @@ OemOilComponent::OemOilComponent(IStyleManager *styleManager)
 }
 
 /**
- * @brief Destructor that cleans up all LVGL objects created by the component
+ * @brief Destructor; deletes no LVGL objects
  *
- * Explicitly deletes all LVGL objects (scale, needle, icon, labels, pivot) to prevent
- * memory leaks. Styles are managed by StyleManager and don't require cleanup here.
+ * Every widget is a descendant of the panel's screen and is freed when the
+ * panel deletes that screen. Deleting any of them here would double-delete.
+ * Styles are managed by StyleManager and don't require cleanup here.
  */
-OemOilComponent::~OemOilComponent()
-{
-    // LVGL objects are managed by parent screen - explicit cleanup for safety
-    if (needleLine_)
-        lv_obj_del(needleLine_);
-    if (needleMiddle_)
-        lv_obj_del(needleMiddle_);
-    if (needleBase_)
-        lv_obj_del(needleBase_);
-    if (needleHighlightLine_)
-        lv_obj_del(needleHighlightLine_);
-    if (needleHighlightMiddle_)
-        lv_obj_del(needleHighlightMiddle_);
-    if (needleHighlightBase_)
-        lv_obj_del(needleHighlightBase_);
-    if (scale_)
-        lv_obj_del(scale_);
-    if (oilIcon_)
-        lv_obj_del(oilIcon_);
-    if (lowLabel_)
-        lv_obj_del(lowLabel_);
-    if (highLabel_)
-        lv_obj_del(highLabel_);
-    if (pivotCircle_)
-        lv_obj_del(pivotCircle_);
-    if (pivotHighlight_)
-        lv_obj_del(pivotHighlight_);
-
-    // No style cleanup needed - styles are managed by StyleManager
-}
+OemOilComponent::~OemOilComponent() = default;
 
 // ========== IComponent Implementation ==========
 

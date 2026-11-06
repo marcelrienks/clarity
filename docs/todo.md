@@ -85,10 +85,10 @@ Goal: remove S1 defects with minimal patches, before restructuring. Add a Wokwi 
   - [x] New env `test-wokwi-release` (no `CLARITY_DEBUG`, `-Os`, `TEST_LOGS`, `WOKWI_EMULATOR`, the flag), added to the CI build matrix. D-03 only reproduces without `CLARITY_DEBUG`, so `test-wokwi` cannot host it. `release` is byte-identical in size (1,339,299 B); `test-wokwi-release` is 1,343,335 B.
   - [ ] Not exercised in Wokwi yet: the scenario and `wokwi*.toml` pointing at the new env arrive with 1.4.
 - [ ] **1.2 D-01: LVGL double delete.**
-  - [ ] Remove `lv_obj_del` of `oilIcon_`, `lowLabel_`, `highLabel_`, `pivotCircle_`, `pivotHighlight_` in `~OemOilComponent`; they are children of `scale_`.
-  - [ ] Stop deleting `scale_` there; only the panel's `screen_` is deleted.
+  - [x] Remove `lv_obj_del` of `oilIcon_`, `lowLabel_`, `highLabel_`, `pivotCircle_`, `pivotHighlight_` in `~OemOilComponent`; they are children of `scale_`. The needle lines are children of `scale_` too, so the destructor is now `= default` and deletes nothing.
+  - [x] Stop deleting `scale_` there; only the panel's `screen_` is deleted.
   - [ ] Move `screen_` deletion in `OemOilPanel`, `ErrorPanel`, `ConfigPanel`, `SplashPanel` so it cannot run before component destructors.
-  - [ ] Verify with the LVGL asserts from 0.6.
+  - [x] Verify with the LVGL asserts from 0.6. `test-wokwi` (asserts on): 5 of 5 parts pass (part 5 needed one rerun after a Wokwi `503`); parts 3 to 5 go Oil → Config and back with no assert, abort or backtrace.
 - [ ] **1.3 D-02: splash timers.**
   - [ ] Keep handles for the three `lv_timer`s and delete them in `~SplashPanel`.
   - [ ] Initialise `blankScreen_` (`splash_panel.h:102`).
