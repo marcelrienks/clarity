@@ -119,7 +119,7 @@ chmod +x ~/bin/wokwi-cli
 **Option 2: Direct Download (Linux/WSL2)**
 ```bash
 # Download and install to ~/bin/
-curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linux -o ~/bin/wokwi-cli
+curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linuxstatic-x64 -o ~/bin/wokwi-cli
 chmod +x ~/bin/wokwi-cli
 ```
 
@@ -376,7 +376,7 @@ curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-ma
 chmod +x ~/bin/wokwi-cli
 
 # Install for Linux/WSL2
-curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linux -o ~/bin/wokwi-cli
+curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linuxstatic-x64 -o ~/bin/wokwi-cli
 chmod +x ~/bin/wokwi-cli
 
 # Add to PATH if needed
@@ -435,27 +435,10 @@ cd test/wokwi
 
 ## Integration with CI/CD
 
-### GitHub Actions Example
-```yaml
-name: Integration Test
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install PlatformIO
-        run: pip install platformio
-      - name: Install Wokwi CLI
-        run: |
-          curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linux -o /usr/local/bin/wokwi-cli
-          chmod +x /usr/local/bin/wokwi-cli
-      - name: Build Test Environment
-        run: pio run -e test-wokwi
-      - name: Run Integration Test
-        run: |
-          cd test/wokwi
-          timeout 180 ./wokwi_test_automation.sh
-```
+### GitHub Actions
+
+The workflow is `.github/workflows/ci.yml` (see `.github/workflows/README.md`). It builds all four envs on every push and pull request, and runs the 5-part Wokwi scenario on non-draft pull requests from this repository. It needs the `WOKWI_CLI_TOKEN` secret and costs about 7 Wokwi CI minutes per run.
+
+Wokwi CLI for Linux CI: `https://github.com/wokwi/wokwi-cli/releases/download/<tag>/wokwi-cli-linuxstatic-x64` (there is no `wokwi-cli-linux` asset).
 
 This comprehensive testing framework provides automated integration testing with flexible build environments - supporting both clean CI/CD output and full debugging capabilities, with intelligent duplicate suppression to maintain readable logs during extended operation.

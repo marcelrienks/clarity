@@ -63,9 +63,10 @@ Goal: a trustworthy build and test baseline before any code changes.
   - [x] `lv_conf.h`: both asserts on under `CLARITY_DEBUG`, off otherwise. In debug `LV_ASSERT_HANDLER` is `abort();` (panic backtrace, decodable with `esp32_exception_decoder`) instead of the silent `while(1);`; release keeps the halt. `release` size unchanged (1,339,299 B), debug envs +6.4 KB.
   - [x] Wokwi scenario on `test-wokwi`: 5 of 5 parts pass; parts 3 to 5 go Oil → Config and back. No assert, abort, backtrace or unexpected reset in the log (only the 5 power-on resets at part starts). D-01 does **not** trigger on this path. `ASSERT_OBJ` can miss a delete of an already-freed object if the memory is not reused, so D-01 stays open until 1.2 fixes it.
 - [ ] **0.7 Restore CI (T-04 steps 2, 4, 5).**
-  - [ ] Add `.github/workflows/` with: `pio run` for all envs (upload `firmware.bin`, `.elf`, map), `pio run -t size`, Wokwi run on pull requests (check `WOKWI_CLI_TOKEN` and usage limits first).
-  - [ ] Cache `~/.platformio`; trigger on push and pull request.
-  - [ ] Rewrite or delete `.github/workflows/README.md` (X-07).
+  - [x] Added `.github/workflows/ci.yml`: `build` matrix over all four envs (`pio run`, `pio run -t size` to the job summary, `firmware.bin`/`.elf`/`.map` uploaded as artifacts), and a `wokwi` job that runs `wokwi_test_automation.sh` (5 parts, about 7 CI minutes) on non-draft pull requests from this repo and on manual runs. It fails fast if `WOKWI_CLI_TOKEN` is not set. Forks and pushes skip it to save quota.
+  - [x] `~/.platformio` cached on the `platformio.ini` hash; triggers on push and pull request. PlatformIO Core 6.2.0 and Wokwi CLI v0.29.1 pinned. The Linux CLI asset is `wokwi-cli-linuxstatic-x64` (the `wokwi-cli-linux` URL in `docs/test.md` was dead; fixed).
+  - [x] Rewrote `.github/workflows/README.md` (it described three workflows that did not exist).
+  - [ ] Not yet run on GitHub: needs a push, the `WOKWI_CLI_TOKEN` repo secret, and a pull request to exercise the `wokwi` job. The parent item stays open until a run is green.
 - [ ] **0.8 Fix broken tooling references.** `.vscode/tasks.json` points at the missing `run_automated_tests.sh`. README references deleted `wokwi_debug.sh` and `wokwi_run.sh` (D-22).
 - [ ] **0.9 Delete** the 394 KB capture `test/wokwi/wikwi-manual-test.txt` (§7.6).
 

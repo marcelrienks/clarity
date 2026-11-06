@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PLATFORMIO_VERSION: 6.2.0
+  WOKWI_CLI_VERSION: v0.29.1
+
+jobs:
+  build:
+    name: Build ${{ matrix.env }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [release, debug-upload, debug-local, test-wokwi]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ env.PLATFORMIO_VERSION }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-${{ env.PLATFORMIO_VERSION }}-
+
+      - name: Install PlatformIO
+        run: pip install platformio==${{ env.PLATFORMIO_VERSION }}
+
+      - name: Build
+        run: pio run -e ${{ matrix.env }}
+
+      - name: Size
+        run: |
+          pio run -e ${{ matrix.env }} -t size | tee size.txt
+          {
+            echo "### Size: ${{ matrix.env }}"
+            echo '```'
+            cat size.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.env }}
+          path: |
+            .pio/build/${{ matrix.env }}/firmware.bin
+            .pio/build/${{ matrix.env }}/firmware.elf
+            .pio/build/${{ matrix.env }}/firmware.map
+          if-no-files-found: error
+          retention-days: 14
+
+  # One full run costs about 7 Wokwi CI minutes (5 scenario parts), so it runs on
+  # pull requests only, never on drafts or forks (no access to the token there).
+  wokwi:
+    name: Wokwi scenario
+    needs: build
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check token
+        run: |
+          if [ -z "$WOKWI_CLI_TOKEN" ]; then
+            echo "::error::WOKWI_CLI_TOKEN secret is not set"
+            exit 1
+          fi
+
+      - name: Download test-wokwi firmware
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-test-wokwi
+          path: .pio/build/test-wokwi
+
+      - name: Install Wokwi CLI
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -fsSL "https://github.com/wokwi/wokwi-cli/releases/download/${WOKWI_CLI_VERSION}/wokwi-cli-linuxstatic-x64" -o "$HOME/bin/wokwi-cli"
+          chmod +x "$HOME/bin/wokwi-cli"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Run scenario (5 parts)
+        run: ./test/wokwi/wokwi_test_automation.sh
