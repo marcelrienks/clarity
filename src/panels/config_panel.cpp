@@ -26,7 +26,7 @@ ConfigPanel::ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleM
                          IPanelManager *panelManager, IConfigurationManager *configurationManager)
     : gpioProvider_(gpio), displayProvider_(display), styleManager_(styleManager), panelManager_(panelManager),
       configurationManager_(configurationManager),
-      currentMenuIndex_(0), configComponent_(), componentInitialized_(false)
+      configComponent_(), componentInitialized_(false), currentMenuIndex_(0)
 {
     log_v("ConfigPanel constructor called");
 }
@@ -863,7 +863,7 @@ std::string ConfigPanel::FormatNumericValue(float value, const Config::ConfigIte
     } else {
         // Format float with 1 decimal place
         char buffer[32];
-        snprintf(buffer, sizeof(buffer), "%.1f", value);
+        snprintf(buffer, sizeof(buffer), "%.1f", static_cast<double>(value));
         valueStr = buffer;
     }
 

@@ -12,9 +12,9 @@
 #include <memory>
 #include <string>
 
-#define MAIN_DEFAULT LV_PART_MAIN | LV_STATE_DEFAULT
-#define ITEMS_DEFAULT LV_PART_ITEMS | LV_STATE_DEFAULT
-#define INDICATOR_DEFAULT LV_PART_INDICATOR | LV_STATE_DEFAULT
+#define MAIN_DEFAULT (static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT)
+#define ITEMS_DEFAULT (static_cast<lv_style_selector_t>(LV_PART_ITEMS) | LV_STATE_DEFAULT)
+#define INDICATOR_DEFAULT (static_cast<lv_style_selector_t>(LV_PART_INDICATOR) | LV_STATE_DEFAULT)
 
 /**
  * @class StyleManager

@@ -37,7 +37,7 @@ static PanelManager* instancePtr_ = nullptr;
 PanelManager::PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *styleManager,
                            IConfigurationManager *configurationManager, InterruptManager* interruptManager)
     : gpioProvider_(gpio), displayProvider_(display), styleManager_(styleManager),
-      configurationManager_(configurationManager), interruptManager_(interruptManager),
+      interruptManager_(interruptManager), configurationManager_(configurationManager),
       errorManager_(ErrorManager::Instance())
 {
     log_v("PanelManager() constructor called");

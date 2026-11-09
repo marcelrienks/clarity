@@ -21,8 +21,8 @@
  * and creates sensors for key presence, lock status, lights, and debug error.
  */
 TriggerHandler::TriggerHandler(IGpioProvider* gpioProvider)
-    : gpioProvider_(gpioProvider),
-      triggerCount_(0)
+    : triggerCount_(0),
+      gpioProvider_(gpioProvider)
 {
     // Initialize priority tracking
     for (int i = 0; i < 3; i++) {

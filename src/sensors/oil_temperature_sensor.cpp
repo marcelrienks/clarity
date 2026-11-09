@@ -147,7 +147,7 @@ Reading OilTemperatureSensor::GetReading()
         {
             // Use char buffer to avoid std::to_string allocation in error path
             static char errorBuffer[64];
-            snprintf(errorBuffer, sizeof(errorBuffer), "Raw reading out of range: %d", rawValue);
+            snprintf(errorBuffer, sizeof(errorBuffer), "Raw reading out of range: %ld", static_cast<long>(rawValue));
             ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "OilTemperatureSensor", errorBuffer);
             return std::monostate{}; // Return invalid reading
         }

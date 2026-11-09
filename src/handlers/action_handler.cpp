@@ -30,12 +30,12 @@ static bool action_handler_config_registered = []() {
  * for precise button action detection.
  */
 ActionHandler::ActionHandler(IGpioProvider* gpioProvider)
-    : gpioProvider_(gpioProvider),
-      pendingActionType_(ButtonAction::NONE),
+    : pendingActionType_(ButtonAction::NONE),
       hasPendingAction_(false),
       buttonState_(ButtonState::IDLE),
       buttonPressStartTime_(0),
-      buttonPressEndTime_(0)
+      buttonPressEndTime_(0),
+      gpioProvider_(gpioProvider)
 {
     // Create and initialize ButtonSensor owned by this handler
     if (gpioProvider_) {
@@ -149,9 +149,6 @@ void ActionHandler::UpdateButtonState() {
     bool current_pressed = IsButtonPressed();
     unsigned long current_time = millis();
 
-    static unsigned long last_debug_time = 0;
-    ButtonState previous_state = buttonState_;
-
     // State machine transitions
     switch (buttonState_) {
         case ButtonState::IDLE:
@@ -259,7 +256,6 @@ void ActionHandler::StartButtonTiming() {
  */
 void ActionHandler::StopButtonTiming() {
     buttonPressEndTime_ = millis();
-    unsigned long duration = buttonPressEndTime_ - buttonPressStartTime_;
 }
 
 /**

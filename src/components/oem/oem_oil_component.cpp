@@ -290,8 +290,6 @@ void OemOilComponent::create_icon()
  */
 void OemOilComponent::create_labels()
 {
-    const ThemeColors &colours = styleManager_->GetThemeColors();
-
     // Create "L" label for low end
     lowLabel_ = lv_label_create(scale_);
     lv_label_set_text(lowLabel_, UIConstants::GAUGE_LOW_LABEL);

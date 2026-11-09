@@ -350,40 +350,6 @@ int SplashPanel::GetAnimationTime() const
 
 // ========== IActionService Interface Implementation ==========
 
-/**
- * @brief Static function for handling short button press during splash
- * @param panelContext Pointer to the splash panel instance (unused)
- *
- * Short press actions are disabled during splash screen animation to prevent
- * interference with the animation sequence. This maintains visual consistency
- * and prevents unintended actions during the splash display.
- */
-static void SplashPanelShortPress(void* panelContext)
-{
-    log_v("SplashPanelShortPress() called");
-    // No action during splash screen animation
-}
-
-/**
- * @brief Static function for handling long button press during splash
- * @param panelContext Pointer to the splash panel instance
- *
- * Long press during splash screen loads the configuration panel. This provides
- * a quick way to access settings during system startup without waiting for
- * the splash animation to complete.
- */
-static void SplashPanelLongPress(void* panelContext)
-{
-    log_v("SplashPanelLongPress() called");
-
-    auto* panel = static_cast<SplashPanel*>(panelContext);
-    if (panel)
-    {
-        // Call public method to handle the long press
-        panel->HandleLongPress();
-    }
-}
-
 // ========== Action Handler Methods ==========
 
 /**

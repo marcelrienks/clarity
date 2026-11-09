@@ -2,7 +2,12 @@
 
 #define LGFX_USE_V1
 
+// Third-party header: keep project warning flags from firing inside it
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#pragma GCC diagnostic ignored "-Woverloaded-virtual"
 #include <LovyanGFX.hpp>
+#pragma GCC diagnostic pop
 #include <lvgl.h>
 #include "definitions/constants.h"
 

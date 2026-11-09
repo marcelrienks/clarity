@@ -313,58 +313,6 @@ void ErrorPanel::ShowPanelCompletionCallback(lv_event_t *event)
 
 // ========== IActionService Interface Implementation ==========
 
-/**
- * @brief Static function for handling short button press during error display
- * @param panelContext Pointer to the error panel instance
- *
- * Handles short button press events by cycling through error messages.
- * Provides safe casting and null pointer checking before delegating to
- * the instance method for error navigation.
- */
-static void ErrorPanelShortPress(void* panelContext)
-{
-    log_i("ErrorPanelShortPress() called with context=%p", panelContext);
-    auto* panel = static_cast<ErrorPanel*>(panelContext);
-    
-    if (panel)
-    {
-        log_t("ErrorPanel: Calling HandleShortPress() on valid panel instance");
-        panel->HandleShortPress();
-    }
-    else
-    {
-        log_e("ErrorPanel: Cannot cycle errors - invalid context (null panel)");
-        ErrorManager::Instance().ReportError(ErrorLevel::ERROR, PanelNames::ERROR,
-                                            "Cannot cycle errors - invalid context");
-    }
-}
-
-/**
- * @brief Static function for handling long button press during error display
- * @param panelContext Pointer to the error panel instance
- *
- * Handles long button press events by dismissing the error panel and returning
- * to the previous panel. Provides safe casting and null pointer checking before
- * delegating to the instance method for panel navigation.
- */
-static void ErrorPanelLongPress(void* panelContext)
-{
-    log_i("ErrorPanelLongPress() called with context=%p", panelContext);
-    auto* panel = static_cast<ErrorPanel*>(panelContext);
-    
-    if (panel)
-    {
-        log_t("ErrorPanel: Calling HandleLongPress() on valid panel instance");
-        panel->HandleLongPress();
-    }
-    else
-    {
-        log_e("ErrorPanel: Cannot execute long press - invalid context (null panel)");
-        ErrorManager::Instance().ReportError(ErrorLevel::ERROR, PanelNames::ERROR,
-                                            "Cannot execute long press - invalid context");
-    }
-}
-
 // ========== Action Handler Methods ==========
 
 /**
@@ -458,7 +406,7 @@ void ErrorPanel::AdvanceToNextError()
         return;
     }
 
-    size_t oldIndex = currentErrorIndex_;
+    [[maybe_unused]] size_t oldIndex = currentErrorIndex_;
 
     // Remove the current error from both our local list AND the ErrorManager
     if (currentErrorIndex_ < currentErrors_.size())

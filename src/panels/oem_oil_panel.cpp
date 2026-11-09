@@ -181,18 +181,7 @@ void OemOilPanel::Load()
     // Log heap status before critical operation
     
     // Validate screen object pointer and basic properties
-    if (screen_) {
-        // Check if LVGL object is valid by accessing safe properties
-        lv_obj_t* parent = lv_obj_get_parent(screen_);
-        
-        // Check object coordinates (safe to read)
-        lv_coord_t x = lv_obj_get_x(screen_);
-        lv_coord_t y = lv_obj_get_y(screen_);
-        
-        // Check object size
-        lv_coord_t w = lv_obj_get_width(screen_);
-        lv_coord_t h = lv_obj_get_height(screen_);
-    } else {
+    if (!screen_) {
         log_e("  screen_ is NULL!");
         ErrorManager::Instance().ReportCriticalError("OemOilPanel",
                                                      "screen_ is NULL during periodic check");
@@ -915,40 +904,6 @@ int32_t OemOilPanel::MapTemperatureValue(int32_t sensorValue)
 }
 
 // ========== IActionService Interface Implementation ==========
-
-/**
- * @brief Static function for handling short button press during oil monitoring
- * @param panelContext Pointer to the oil panel instance (unused)
- *
- * Currently provides no action for short button presses during oil monitoring.
- * The OEM oil panel is primarily a monitoring display without direct short press
- * interaction functionality.
- */
-static void OemOilPanelShortPress(void* panelContext)
-{
-    log_v("OemOilPanelShortPress() called");
-    // No action for short press on oil panel
-}
-
-/**
- * @brief Static function for handling long button press during oil monitoring
- * @param panelContext Pointer to the oil panel instance
- *
- * Handles long button press events by navigating to the configuration panel.
- * Provides safe casting and null pointer checking before delegating to the
- * instance method for panel navigation and settings access.
- */
-static void OemOilPanelLongPress(void* panelContext)
-{
-    log_v("OemOilPanelLongPress() called");
-    auto* panel = static_cast<OemOilPanel*>(panelContext);
-    
-    if (panel)
-    {
-        // Call public method to handle the long press
-        panel->HandleLongPress();
-    }
-}
 
 // ========== Action Handler Methods ==========
 

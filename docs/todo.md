@@ -119,7 +119,10 @@ Goal: remove S1 defects with minimal patches, before restructuring. Add a Wokwi 
 
 Goal: static feedback, and a host test target that Phase 3 can fill.
 
-- [ ] **2.1 Warnings (§7.1).** Add `build_src_flags` (`-Wall -Wextra -Wshadow -Wnon-virtual-dtor -Woverloaded-virtual -Wdouble-promotion -Wformat=2 -Wimplicit-fallthrough -Wnull-dereference`) so only project sources are affected. Fix what they find.
+- [x] **2.1 Warnings (§7.1).** Add `build_src_flags` (`-Wall -Wextra -Wshadow -Wnon-virtual-dtor -Woverloaded-virtual -Wdouble-promotion -Wformat=2 -Wimplicit-fallthrough -Wnull-dereference`) so only project sources are affected. Fix what they find.
+  - [x] Flags added to `esp32_base`. First `release` build gave 95 distinct warnings: 29 `-Wshadow` (constructor parameters renamed with an `In` suffix, three globals shadowed by parameters), 12 `-Wreorder` (initialiser lists reordered to declaration order), 8 `-Wdeprecated-enum-enum-conversion` (`LV_PART_x | LV_STATE_DEFAULT` now cast to `lv_style_selector_t`), 15 unused variables, 6 unused static press handlers in the Error, Oil and Splash panels (deleted, never referenced), 2 `-Wformat` (`int32_t` with `%d`), 1 `-Wdouble-promotion`. Log-only variables are `[[maybe_unused]]`.
+  - [x] Warnings fired inside LovyanGFX headers (`-Wnon-virtual-dtor`, `-Woverloaded-virtual`) because `build_src_flags` also applies to library headers included from project code. The two `#include <LovyanGFX.hpp>` sites (`main.h`, `device_provider.h`) are wrapped in a diagnostic push/pop.
+  - [x] `release`, `test-wokwi` and `test-wokwi-release` build with 0 warnings (`release` 1,339,231 B). `debug-upload` shows one pre-existing `CORE_DEBUG_LEVEL redefined` warning per file (`-D CORE_DEBUG_LEVEL=3` against the debug build type's own define), unrelated to the new flags and left for 2.3 or Phase 9. Wokwi parts 1 and 6 pass.
 - [ ] **2.2 Formatting and style (B-03, C-07).** Restore `.clang-format` (deleted in `d3d7308`); add `.editorconfig` and `.clang-tidy` (checks listed in §7.6, excluding `include/icons` and `lv_conf.h`).
 - [ ] **2.3 Static analysis.** Add `check_tool = cppcheck, clangtidy` and run `pio check`. Fix findings or add justified inline suppressions.
 - [ ] **2.4 `lib/core` skeleton.**

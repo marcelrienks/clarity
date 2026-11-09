@@ -25,7 +25,12 @@
 #define UI_VERSION "4.1.0"
 
 // ========== System/Library Includes ==========
+// Third-party header: keep project warning flags from firing inside it
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#pragma GCC diagnostic ignored "-Woverloaded-virtual"
 #include <LovyanGFX.hpp>
+#pragma GCC diagnostic pop
 #include <lvgl.h>
 
 // ========== Project Includes ==========

@@ -39,7 +39,7 @@ void ClarityComponent::Render(lv_obj_t *screen, const ComponentLocation &locatio
     lv_label_set_text(splash, UIConstants::APP_NAME);
 
     // Apply the current theme's text style
-    lv_obj_add_style(splash, &styleManager_->GetTextStyle(), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_add_style(splash, &styleManager_->GetTextStyle(), static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
 
     // Apply location settings
     lv_obj_align(splash, location.align, location.x_offset, location.y_offset);

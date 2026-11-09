@@ -38,7 +38,7 @@ public:
     static InterruptManager& Instance();
 
     // ========== Public Interface Methods ==========
-    void Init(IGpioProvider* gpioProvider = nullptr);
+    void Init(IGpioProvider* gpio = nullptr);
     void Process();
     void ProcessInitialTriggerStates();
     bool RegisterTrigger(const Trigger& trigger);

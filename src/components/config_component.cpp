@@ -281,7 +281,6 @@ lv_color_t ConfigComponent::GetThemeGradientColor(int distanceFromCenter, bool i
         return isSelected ? lv_color_hex(Colors::WHITE) : lv_color_hex(Colors::DAY_FALLBACK);
     }
 
-    const ThemeColors& colors = styleManager_->GetThemeColors();
     const std::string& theme = styleManager_->GetCurrentTheme();
     
     if (isSelected)

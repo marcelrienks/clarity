@@ -41,7 +41,7 @@ void ErrorManager::ReportError(ErrorLevel level, const char *source, const std::
     TrimErrorQueue();
 
     // Log error with appropriate level
-    const char *levelStr = (level == ErrorLevel::WARNING) ? "WARNING"
+    [[maybe_unused]] const char *levelStr = (level == ErrorLevel::WARNING) ? "WARNING"
                            : (level == ErrorLevel::ERROR) ? "ERROR"
                                                           : "CRITICAL";
     log_e("[%s] %s: %s", levelStr, source, errorInfo.message);

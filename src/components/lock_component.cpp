@@ -41,7 +41,7 @@ void LockComponent::Render(lv_obj_t *screen, const ComponentLocation &location, 
     if (styleManager_)
     {
         lv_color_t lock_colour = styleManager_->GetThemeColors().lockEngaged;
-        lv_obj_set_style_image_recolor(lockIcon_, lock_colour, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_image_recolor_opa(lockIcon_, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_image_recolor(lockIcon_, lock_colour, static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
+        lv_obj_set_style_image_recolor_opa(lockIcon_, LV_OPA_COVER, static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
     }
 }

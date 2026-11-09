@@ -61,8 +61,8 @@ class PanelManager : public IPanelManager,
 {
   public:
     // ========== Constructors/Destructor ==========
-    PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *styleManager,
-                 IConfigurationManager *configurationManager, InterruptManager* interruptManager = nullptr);
+    PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *style,
+                 IConfigurationManager *config, InterruptManager* interrupts = nullptr);
     PanelManager(const PanelManager &) = delete;
     PanelManager &operator=(const PanelManager &) = delete;
     ~PanelManager();

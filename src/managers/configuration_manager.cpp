@@ -121,9 +121,7 @@ void ConfigurationManager::RegisterAllSchemas() {
     }
 
     auto& functions = GetSchemaFunctions();
-    size_t totalFunctions = functions.size();
-
-    log_i("Registering %zu configuration schemas", totalFunctions);
+    log_i("Registering %zu configuration schemas", functions.size());
 
     size_t successCount = 0;
     for (auto func : functions) {

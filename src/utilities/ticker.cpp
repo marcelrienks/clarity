@@ -28,7 +28,6 @@ void Ticker::handleDynamicDelay(uint32_t startTime)
 void Ticker::handleLvTasks()
 {
     static uint32_t lastTickIncrement = 0;
-    static uint32_t lastTaskRun = 0;
 
     uint32_t currentTime = millis();
 
@@ -42,5 +41,4 @@ void Ticker::handleLvTasks()
 
     // Process all pending tasks
     lv_timer_handler();
-    lastTaskRun = currentTime;
 }

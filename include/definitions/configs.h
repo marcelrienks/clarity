@@ -56,10 +56,10 @@ struct ConfigMetadata {
     bool advanced = false;       ///< Whether to show in advanced settings only
 
     ConfigMetadata() = default;
-    ConfigMetadata(const std::string& constraints, ConfigItemType type = ConfigItemType::Selection)
-        : constraints(constraints), itemType(type) {}
-    ConfigMetadata(const std::string& constraints, const std::string& unit, ConfigItemType type = ConfigItemType::Value)
-        : constraints(constraints), unit(unit), itemType(type) {}
+    ConfigMetadata(const std::string& constraintsIn, ConfigItemType type = ConfigItemType::Selection)
+        : constraints(constraintsIn), itemType(type) {}
+    ConfigMetadata(const std::string& constraintsIn, const std::string& unitIn, ConfigItemType type = ConfigItemType::Value)
+        : constraints(constraintsIn), unit(unitIn), itemType(type) {}
 };
 
 /**
@@ -78,18 +78,18 @@ struct ConfigItem {
 
     ConfigItem() = default;
 
-    ConfigItem(const std::string& key,
-               const std::string& displayName,
-               const ConfigValue& defaultValue)
-        : key(key), displayName(displayName),
-          value(defaultValue), defaultValue(defaultValue) {}
+    ConfigItem(const std::string& keyIn,
+               const std::string& displayNameIn,
+               const ConfigValue& defaultValueIn)
+        : key(keyIn), displayName(displayNameIn),
+          value(defaultValueIn), defaultValue(defaultValueIn) {}
 
-    ConfigItem(const std::string& key,
-               const std::string& displayName,
-               const ConfigValue& defaultValue,
-               const ConfigMetadata& metadata)
-        : key(key), displayName(displayName),
-          value(defaultValue), defaultValue(defaultValue), metadata(metadata) {}
+    ConfigItem(const std::string& keyIn,
+               const std::string& displayNameIn,
+               const ConfigValue& defaultValueIn,
+               const ConfigMetadata& metadataIn)
+        : key(keyIn), displayName(displayNameIn),
+          value(defaultValueIn), defaultValue(defaultValueIn), metadata(metadataIn) {}
 };
 
 /**
@@ -107,10 +107,10 @@ struct ConfigSection {
 
     ConfigSection() = default;
 
-    ConfigSection(const std::string& componentName,
-                  const std::string& sectionName,
-                  const std::string& displayName)
-        : componentName(componentName), sectionName(sectionName), displayName(displayName) {}
+    ConfigSection(const std::string& componentNameIn,
+                  const std::string& sectionNameIn,
+                  const std::string& displayNameIn)
+        : componentName(componentNameIn), sectionName(sectionNameIn), displayName(displayNameIn) {}
 
     /**
      * @brief Add a configuration item to this section

@@ -23,16 +23,16 @@ struct GpioSensorConfig {
     bool debugOnly;                 ///< true if sensor is only available in debug builds
 
     constexpr GpioSensorConfig(
-        uint8_t pin,
-        uint8_t pinMode,
-        const char* name,
-        bool activeHigh = true,
-        bool debugOnly = false)
-        : pin(pin)
-        , pinMode(pinMode)
-        , name(name)
-        , activeHigh(activeHigh)
-        , debugOnly(debugOnly) {}
+        uint8_t pinIn,
+        uint8_t pinModeIn,
+        const char* nameIn,
+        bool activeHighIn = true,
+        bool debugOnlyIn = false)
+        : pin(pinIn)
+        , pinMode(pinModeIn)
+        , name(nameIn)
+        , activeHigh(activeHighIn)
+        , debugOnly(debugOnlyIn) {}
 };
 
 /**

@@ -132,7 +132,7 @@ bool GpioSensor::HasStateChanged()
     #endif
 
     bool currentState = readLogicalState();
-    bool oldState = previousState_; // Save BEFORE DetectChange modifies it
+    [[maybe_unused]] bool oldState = previousState_; // Save BEFORE DetectChange modifies it
 
     // Per-poll logging floods the serial port (~96% of test output), so it is opt-in
     #ifdef GPIO_POLL_LOGS
@@ -199,7 +199,7 @@ void GpioSensor::OnInterruptTriggered()
     }
     else {
         // Generic interrupt handling for other sensors
-        bool currentState = readLogicalState();
+        [[maybe_unused]] bool currentState = readLogicalState();
         log_t("%s current state: %s", config_.name, currentState ? "ACTIVE" : "INACTIVE");
     }
 }

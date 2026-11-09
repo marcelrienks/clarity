@@ -47,15 +47,15 @@ static constexpr uint32_t INIT_FAILED_RESTART_DELAY_MS = 5000;
 
 /**
  * @brief Static method to register system configuration schema without instance
- * @param configurationManager Service to register schema with
+ * @param configManager Service to register schema with
  *
  * Called automatically at program startup through ConfigRegistry.
  * Registers the SystemConfig configuration schema without
  * requiring a manager instance to exist.
  */
-void SystemConfig::RegisterConfigSchema(IConfigurationManager* configurationManager)
+void SystemConfig::RegisterConfigSchema(IConfigurationManager* configManager)
 {
-    if (!configurationManager) {
+    if (!configManager) {
         log_e("SystemConfig::RegisterConfigSchema: ConfigurationManager is null - system config registration failed!");
         ErrorManager::Instance().ReportCriticalError("SystemConfig",
                                                      "ConfigManager null - system config failed");
@@ -63,7 +63,7 @@ void SystemConfig::RegisterConfigSchema(IConfigurationManager* configurationMana
     }
 
     // Check if already registered to prevent duplicates
-    if (configurationManager->IsSchemaRegistered(ConfigConstants::Sections::SYSTEM)) {
+    if (configManager->IsSchemaRegistered(ConfigConstants::Sections::SYSTEM)) {
         return;
     }
 
@@ -73,7 +73,7 @@ void SystemConfig::RegisterConfigSchema(IConfigurationManager* configurationMana
     section.AddItem(updateRateConfig);
     section.AddItem(showSplashConfig);
 
-    configurationManager->RegisterConfigSection(section);
+    configManager->RegisterConfigSection(section);
     log_i("SystemConfig configuration schema registered (static)");
 }
 

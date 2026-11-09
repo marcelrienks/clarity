@@ -51,18 +51,18 @@ struct ComponentLocation
     ComponentLocation() = default;
 
     /// Constructor for absolute positioning
-    ComponentLocation(lv_coord_t x, lv_coord_t y) : x(x), y(y)
+    ComponentLocation(lv_coord_t xIn, lv_coord_t yIn) : x(xIn), y(yIn)
     {
     }
 
     /// Constructor for relative alignment with optional offsets
-    ComponentLocation(lv_align_t align, lv_coord_t x_offset = 0, lv_coord_t y_offset = 0)
-        : align(align), x_offset(x_offset), y_offset(y_offset)
+    ComponentLocation(lv_align_t alignIn, lv_coord_t xOffsetIn = 0, lv_coord_t yOffsetIn = 0)
+        : align(alignIn), x_offset(xOffsetIn), y_offset(yOffsetIn)
     {
     }
 
     /// Constructor for rotation start point of scales
-    ComponentLocation(int32_t rotation) : rotation(rotation)
+    ComponentLocation(int32_t rotationIn) : rotation(rotationIn)
     {
     }
 };
