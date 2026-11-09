@@ -65,7 +65,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # One full run costs about 7 Wokwi CI minutes (5 scenario parts), so it runs on
+  # One full run costs about 9 Wokwi CI minutes (6 scenario parts), so it runs on
   # pull requests only, never on drafts or forks (no access to the token there).
   wokwi:
     name: Wokwi scenario
@@ -95,6 +95,12 @@ jobs:
           name: firmware-test-wokwi
           path: .pio/build/test-wokwi
 
+      - name: Download test-wokwi-release firmware
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-test-wokwi-release
+          path: .pio/build/test-wokwi-release
+
       - name: Install Wokwi CLI
         run: |
           mkdir -p "$HOME/bin"
@@ -102,5 +108,5 @@ jobs:
           chmod +x "$HOME/bin/wokwi-cli"
           echo "$HOME/bin" >> "$GITHUB_PATH"
 
-      - name: Run scenario (5 parts)
+      - name: Run scenario (6 parts)
         run: ./test/wokwi/wokwi_test_automation.sh

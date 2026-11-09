@@ -12,8 +12,8 @@ One workflow: [`ci.yml`](ci.yml).
 ## Wokwi job
 
 - Needs the repository secret `WOKWI_CLI_TOKEN` (token from <https://wokwi.com/dashboard/ci>; Settings, Secrets and variables, Actions). The job fails with a clear error if it is missing.
-- One full run costs about 7 Wokwi CI minutes against the monthly quota. That is why it skips pushes, drafts and forks (forks get no secrets).
-- Wokwi cuts every session at 5 minutes, so the scenario is split into 5 parts (see [docs/test.md](../../docs/test.md)). To debug one part, run `wokwi-cli` on that part locally instead of re-running the whole job.
+- One full run costs about 9 Wokwi CI minutes against the monthly quota. That is why it skips pushes, drafts and forks (forks get no secrets).
+- Wokwi cuts every session at 5 minutes, so the scenario is split into 6 parts (see [docs/test.md](../../docs/test.md)). To debug one part, run `wokwi-cli` on that part locally instead of re-running the whole job.
 
 ## Not in CI yet
 

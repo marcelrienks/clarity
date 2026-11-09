@@ -1,0 +1,52 @@
+name: 'Clarity Automated Integration Test - Part 6: Error Panel Lock-up (release build)'
+version: 1
+steps:
+  # Part 6 of 6. Runs on the test-wokwi-release firmware (no CLARITY_DEBUG, error injection
+  # on GPIO 34), selected by the _release suffix in the file name. D-03 only reproduces
+  # without CLARITY_DEBUG: after the last error is viewed with a short press, the UI used
+  # to stay BUSY on an empty error panel and ignore all input.
+  - wait-serial: '[T] System ready'
+  - wait-serial: '[T] Pressure reading:'
+  - delay: 300ms
+
+  # Inject one error: the error panel loads
+  - set-control:
+      part-id: btn2  # GPIO 34 - injected error
+      control: pressed
+      value: 1
+  - wait-serial: '[T] Error reported: ERROR'
+  - wait-serial: '[T] ErrorPanel loaded successfully'
+  - set-control:
+      part-id: btn2
+      control: pressed
+      value: 0
+  - delay: 300ms
+
+  # Short press views the only error: the list becomes empty and the panel must restore
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - delay: 800ms  # Short press: held below the long press threshold (1500ms)
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - wait-serial: '[T] ErrorPanel::HandleShortPress() - Manual cycling to next error'
+  - wait-serial: '[T] CheckRestoration() called'
+  - wait-serial: '[T] No blocking interrupts - restoring to ''OemOilPanel'''
+  - wait-serial: '[T] OemOilPanel loaded successfully'
+  - delay: 1000ms
+
+  # The UI still responds: a long press on the Oil panel opens Config
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] ConfigPanel loaded successfully'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 300ms

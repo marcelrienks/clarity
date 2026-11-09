@@ -56,7 +56,7 @@ cd test/wokwi
 test/wokwi/
 ├── diagram_automated.json        # Hardware configuration with push buttons
 ├── diagram.json                  # Alternative hardware configuration
-├── scenario_automated_1..5_*.yaml # Automated test, split in 5 parts (each boots fresh, see below)
+├── scenario_automated_1..6_*.yaml # Automated test, split in 6 parts (each boots fresh, see below)
 ├── wokwi_test_automation.sh      # Cross-platform automated test runner
 ├── wokwi_automated.toml         # Automated testing configuration
 └── wokwi.toml                   # Base testing configuration
@@ -64,7 +64,7 @@ test/wokwi/
 
 ### Scenario parts
 
-Wokwi caps a session at 5 minutes of wall-clock time and the simulator runs slowly, so the scenario is split into five parts that each boot the firmware fresh: triggers (steps 1-8), errors and restoration (9-13, starts with a preamble that rebuilds the step 8 trigger state), and three config parts (theme, sections, exit). `wokwi_test_automation.sh` runs them in order and exits non-zero if any part fails or times out. Each part takes 60-100 s.
+Wokwi caps a session at 5 minutes of wall-clock time and the simulator runs slowly, so the scenario is split into six parts that each boot the firmware fresh: triggers (steps 1-8), errors and restoration (9-13, starts with a preamble that rebuilds the step 8 trigger state), three config parts (theme, sections, exit), and an error panel lock-up check on the release-like firmware (part 6). A scenario file named `*_release.yaml` runs on the `test-wokwi-release` build instead of `test-wokwi`, so build both before running the suite. `wokwi_test_automation.sh` runs them in order and exits non-zero if any part fails or times out. Each part takes 60-100 s.
 
 Timing notes from the repair (0.3):
 - Leave at least 1000 ms after anything that rebuilds a panel or menu before the next button press. 200-300 ms there stalled the simulator until the 5 minute cap.
@@ -74,7 +74,7 @@ Timing notes from the repair (0.3):
 ### Build Environments
 - **`test-wokwi`**: Clean integration testing (CORE_DEBUG_LEVEL=0 + TEST_LOGS)
 - **`debug-local`**: Full debug testing (CORE_DEBUG_LEVEL=5 + TEST_LOGS)
-- **`test-wokwi-release`**: Release-like build (no `CLARITY_DEBUG`, `-Os`) with `TEST_LOGS` and `CLARITY_TEST_INJECT_ERROR`. For defects that only show without `CLARITY_DEBUG` (D-03). No scenario uses it yet.
+- **`test-wokwi-release`**: Release-like build (no `CLARITY_DEBUG`, `-Os`) with `TEST_LOGS` and `CLARITY_TEST_INJECT_ERROR`. For defects that only show without `CLARITY_DEBUG` (D-03). Used by `scenario_automated_6_error_release.yaml`.
 
 ### Error injection (`CLARITY_TEST_INJECT_ERROR`)
 

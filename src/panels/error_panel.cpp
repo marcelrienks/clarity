@@ -228,19 +228,22 @@ void ErrorPanel::Update()
         log_i("ErrorPanel: No errors remaining - triggering auto-restoration");
         ErrorManager::Instance().SetErrorPanelActive(false);
 
-        // Auto-restore using CheckRestoration to handle active triggers
+        // Auto-restore using CheckRestoration to handle active triggers. This must run in
+        // release builds too: Update() runs with the UI BUSY, and nothing else sets it IDLE
         if (panelManager_)
         {
             log_i("ErrorPanel: No errors remaining - checking for active triggers before restoration");
 
-            #ifdef CLARITY_DEBUG
-            // In debug builds, manually trigger restoration since debug error sensor
-            // state is GPIO-controlled, not error-state-controlled
+            // CheckRestoration may replace this panel, so keep the manager pointer and do not touch members afterwards
+            IPanelManager *panelManager = panelManager_;
             PanelManager::Instance().CheckRestoration();
-            log_i("ErrorPanel: Auto-restoration triggered for debug build");
-            #endif
 
-            // In production, error triggers would naturally deactivate when errors are resolved
+            // Nothing replaced this panel (no restoration target): still leave the UI in a defined state
+            if (strcmp(panelManager->GetCurrentPanel(), PanelNames::ERROR) == 0)
+            {
+                panelManager->SetUiState(UIState::IDLE);
+            }
+
             return; // Exit early to prevent callback execution on replaced panel
         }
     }

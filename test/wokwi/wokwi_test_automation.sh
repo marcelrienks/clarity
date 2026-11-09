@@ -168,6 +168,14 @@ main() {
         log_error "Firmware not built. Run: pio run -e test-wokwi"
         exit 1
     fi
+
+    # Scenarios named *_release.yaml run on the test-wokwi-release firmware
+    for scenario in "${SCENARIOS[@]}"; do
+        if [[ "$scenario" == *_release.yaml ]] && [[ ! -f "${PROJECT_ROOT}/.pio/build/test-wokwi-release/firmware.bin" ]]; then
+            log_error "Firmware not built for $(basename "$scenario"). Run: pio run -e test-wokwi-release"
+            exit 1
+        fi
+    done
     
     # Check if wokwi-cli is available
     if ! command -v $WOKWI_CLI &> /dev/null; then
@@ -183,13 +191,16 @@ main() {
     cd "${SCRIPT_DIR}"
     
     # Run the automated test with explicit parameters (no file swapping needed)
-    local elf_path="${PROJECT_ROOT}/.pio/build/test-wokwi/firmware.bin"
     # Wokwi caps a session at 5 minutes of wall-clock time, so the scenario is split into
     # parts that each boot the firmware fresh. Every part must pass.
     local failed=()
     for scenario in "${SCENARIOS[@]}"; do
         local name
         name="$(basename "$scenario")"
+        local elf_path="${PROJECT_ROOT}/.pio/build/test-wokwi/firmware.bin"
+        if [[ "$name" == *_release.yaml ]]; then
+            elf_path="${PROJECT_ROOT}/.pio/build/test-wokwi-release/firmware.bin"
+        fi
         log_info "Executing: $WOKWI_CLI --elf $elf_path --diagram-file diagram_automated.json --scenario $name --timeout ${TIMEOUT}000"
         local started=$SECONDS
         if $WOKWI_CLI --elf "$elf_path" --diagram-file diagram_automated.json --scenario "$name" --timeout ${TIMEOUT}000; then

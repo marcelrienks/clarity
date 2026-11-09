@@ -83,7 +83,7 @@ Goal: remove S1 defects with minimal patches, before restructuring. Add a Wokwi 
 - [x] **1.1 Add the test-only error injection hook (T-03).** Compile into the Wokwi env only (for example `CLARITY_TEST_INJECT_ERROR`, or a scenario-driven input). Needed to test D-03 without relying on D-05e.
   - [x] `CLARITY_TEST_INJECT_ERROR` (`utilities/test_inject.h`, `src/utilities/test_inject.cpp`): a rising edge on GPIO 34 reports one `ERROR` via `ErrorManager`; no-op inline stubs without the flag, and a `#error` if combined with `CLARITY_DEBUG`. Hooked into `setup()` and `loop()` in `main.cpp`. A serial-driven input was rejected: the backlight PWM owns GPIO 3 (UART0 RX).
   - [x] New env `test-wokwi-release` (no `CLARITY_DEBUG`, `-Os`, `TEST_LOGS`, `WOKWI_EMULATOR`, the flag), added to the CI build matrix. D-03 only reproduces without `CLARITY_DEBUG`, so `test-wokwi` cannot host it. `release` is byte-identical in size (1,339,299 B); `test-wokwi-release` is 1,343,335 B.
-  - [ ] Not exercised in Wokwi yet: the scenario and `wokwi*.toml` pointing at the new env arrive with 1.4.
+  - [x] Exercised in Wokwi by 1.4: `scenario_automated_6_error_release.yaml` runs on `test-wokwi-release`.
 - [x] **1.2 D-01: LVGL double delete.**
   - [x] Remove `lv_obj_del` of `oilIcon_`, `lowLabel_`, `highLabel_`, `pivotCircle_`, `pivotHighlight_` in `~OemOilComponent`; they are children of `scale_`. The needle lines are children of `scale_` too, so the destructor is now `= default` and deletes nothing.
   - [x] Stop deleting `scale_` there; only the panel's `screen_` is deleted.
@@ -92,9 +92,9 @@ Goal: remove S1 defects with minimal patches, before restructuring. Add a Wokwi 
 - [x] **1.3 D-02: splash timers.**
   - [x] One rolling `timer_` handle instead of three: the timers are one-shot and chained (fade-in → display → fade-out), so only one is pending at a time. `~SplashPanel` deletes it if pending. Each callback sets `timer_ = nullptr` on entry because it deletes its own timer; this matters most in the fade-out callback, where `OnPanelLoadComplete` may destroy the panel and the destructor would otherwise delete the firing timer a second time.
   - [x] `blankScreen_` initialised to `nullptr` (`splash_panel.h`). Verified: `release` and `test-wokwi` build; Wokwi 5 of 5 parts pass (84, 139, 144, 123, 133 s), no assert, abort or backtrace. No scenario case added, since the timer leak needs a splash destroyed mid-animation, which no current path does.
-- [ ] **1.4 D-03: error panel lock-up.**
-  - [ ] In `ErrorPanel::Update`, always restore and always reach a defined UI state when the list becomes empty, in release as well as debug.
-  - [ ] Wokwi case: injected error → short press through to the end → UI responds.
+- [x] **1.4 D-03: error panel lock-up.**
+  - [x] `ErrorPanel::Update` now calls `CheckRestoration()` when the list becomes empty in every build (the `#ifdef CLARITY_DEBUG` is gone). If nothing replaced the panel (no restoration target), it sets the UI IDLE, so it always ends in a defined state. It keeps the manager pointer in a local, since `CheckRestoration()` normally destroys the panel.
+  - [x] Wokwi case: new part 6, `scenario_automated_6_error_release.yaml`. Injected error (GPIO 34) → short press views the only error → `CheckRestoration() called`, restore to `OemOilPanel` → long press opens Config, proving input works. Runs on `test-wokwi-release`: `wokwi_test_automation.sh` picks that firmware for any `*_release.yaml`, and CI downloads the `firmware-test-wokwi-release` artifact for the Wokwi job. Confirmed it fails without the fix (stalls after the short press, no `CheckRestoration()`, until the 5 minute cap) and passes with it. Full suite: 6 of 6 parts pass (81, 145, 143, 124, 132, 104 s). Wokwi CI cost is now about 9 minutes per run.
 - [ ] **1.5 D-04: failed init.** Minimal guard: skip `loop()` work if `initializeServices()` failed, then `esp_restart()` after a delay. The full fatal state (H-01) arrives in Phase 7.
 - [ ] **1.6 D-07: DiagnosticPanel.** Remove it from `PANEL_OPTIONS` (Q-10) and validate the stored default panel on load. Wokwi case: a stored `DiagnosticPanel` value falls back to Oil.
 - [ ] **1.7 D-06 minimum.**
