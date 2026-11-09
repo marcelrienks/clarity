@@ -50,6 +50,16 @@ StorageProvider::StorageProvider() {
         return;
     }
 
+#ifdef CLARITY_TEST_SEED_INVALID_PANEL
+    // Test only: store a removed panel name as the default panel (D-07)
+    {
+        Preferences seed;
+        seed.begin(GetSectionNamespace(ConfigConstants::Sections::SYSTEM).c_str(), false);
+        seed.putString(ConfigConstants::Items::DEFAULT_PANEL, "DiagnosticPanel");
+        seed.end();
+    }
+#endif
+
     // Create default sections
 
     // Load all registered sections
@@ -208,7 +218,19 @@ bool StorageProvider::LoadConfigSection(const std::string& sectionName) {
     for (auto& item : section.items) {
         // Only overwrite default if value exists in NVS
         if (preferences_.isKey(item.key.c_str())) {
-            item.value = LoadValueFromNVS(preferences_, item.key, item.defaultValue);
+            Config::ConfigValue stored = LoadValueFromNVS(preferences_, item.key, item.defaultValue);
+
+            // A stored selection that is no longer an allowed option (for example a
+            // removed panel) falls back to the default instead of failing later (D-07)
+            if (item.metadata.itemType == Config::ConfigItemType::Selection &&
+                std::holds_alternative<std::string>(stored) &&
+                !ValidateEnumValue(std::get<std::string>(stored), item.metadata.constraints)) {
+                log_w("Stored value '%s' for %s.%s is not an allowed option, using default",
+                      std::get<std::string>(stored).c_str(), sectionName.c_str(), item.key.c_str());
+                log_t("Invalid stored value for %s.%s, using default", sectionName.c_str(), item.key.c_str());
+                continue;
+            }
+            item.value = stored;
         }
         // Otherwise preserve the default value in item.value
     }

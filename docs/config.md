@@ -40,7 +40,7 @@ The following tree shows all configuration sections as they appear in the Config
 │   └── Duration → 1500ms, 1750ms, 2000ms, 2500ms (default: 1500ms)
 │
 ├── ⚙️ System
-│   ├── Default Panel → OemOilPanel, ConfigPanel, DiagnosticPanel (default: OemOilPanel)
+│   ├── Default Panel → OemOilPanel, ConfigPanel (default: OemOilPanel)
 │   ├── Update Rate → 100, 250, 500, 750, 1000, 1500, 2000 ms (default: 500)
 │   └── Show Splash → true/false (default: true)
 │
@@ -125,7 +125,7 @@ inline Config::ConfigItem defaultPanelConfig(
     ConfigConstants::Items::DEFAULT_PANEL,
     UIStrings::ConfigLabels::DEFAULT_PANEL,
     std::string(ConfigConstants::Panels::OEM_OIL_PANEL),
-    Config::ConfigMetadata("OemOilPanel,ConfigPanel,DiagnosticPanel",
+    Config::ConfigMetadata("OemOilPanel,ConfigPanel",
                           Config::ConfigItemType::Selection)
 );
 

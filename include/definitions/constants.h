@@ -28,7 +28,6 @@ namespace PanelNames {
     static constexpr const char* OIL = "OemOilPanel";
     static constexpr const char* CONFIG = "ConfigPanel";
     static constexpr const char* ERROR = "ErrorPanel";
-    static constexpr const char* DIAGNOSTIC = "DiagnosticPanel";
     static constexpr const char* KEY = "KeyPanel";
     static constexpr const char* LOCK = "LockPanel";
     static constexpr const char* SPLASH = "SplashPanel";
@@ -311,7 +310,7 @@ namespace ConfigConstants {
         static constexpr const char* THEMES = "Day,Night";
 
         // Panel options
-        static constexpr const char* PANEL_OPTIONS = "OemOilPanel,ConfigPanel,DiagnosticPanel";
+        static constexpr const char* PANEL_OPTIONS = "OemOilPanel,ConfigPanel";
 
         // Update rate options (milliseconds)
         static constexpr const char* UPDATE_RATES = "250,500,1000,2000";

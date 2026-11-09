@@ -95,7 +95,11 @@ show_usage() {
     echo "Clarity Wokwi Test Automation"
     echo
     echo "USAGE:"
-    echo "  $0 [--help|-h|help]"
+    echo "  $0 [--help|-h|help] [PART...]"
+    echo
+    echo "PART is a scenario part number (1-6), for example: $0 6"
+    echo "With no PART every part runs. Each part costs Wokwi CI minutes, so while"
+    echo "developing run only the part that covers the change."
     echo
     echo "This script runs the fully automated Clarity integration test"
     echo "using push button simulation for complete automation."
@@ -157,6 +161,26 @@ main() {
         log_error "No automation scenarios found: ${SCRIPT_DIR}/scenario_automated_*.yaml"
         exit 1
     fi
+
+    # Optional part numbers on the command line select which parts run
+    if [[ $# -gt 0 ]]; then
+        local selected=()
+        local part match
+        for part in "$@"; do
+            if [[ ! "$part" =~ ^[0-9]+$ ]]; then
+                log_error "Invalid part '$part'. Use a part number, for example: $0 6"
+                exit 1
+            fi
+            match=("${SCRIPT_DIR}"/scenario_automated_${part}_*.yaml)
+            if [[ ! -f "${match[0]}" ]]; then
+                log_error "No scenario for part $part"
+                exit 1
+            fi
+            selected+=("${match[0]}")
+        done
+        SCENARIOS=("${selected[@]}")
+        log_info "Running selected parts only: $*"
+    fi
     
     # Check that we have either wokwi.toml or wokwi_automated.toml for base config
     if [[ ! -f "${SCRIPT_DIR}/wokwi.toml" ]] && [[ ! -f "${SCRIPT_DIR}/wokwi_automated.toml" ]]; then
@@ -164,15 +188,15 @@ main() {
         exit 1
     fi
     
-    if [[ ! -f "${PROJECT_ROOT}/.pio/build/test-wokwi/firmware.bin" ]]; then
-        log_error "Firmware not built. Run: pio run -e test-wokwi"
-        exit 1
-    fi
-
     # Scenarios named *_release.yaml run on the test-wokwi-release firmware
     for scenario in "${SCENARIOS[@]}"; do
-        if [[ "$scenario" == *_release.yaml ]] && [[ ! -f "${PROJECT_ROOT}/.pio/build/test-wokwi-release/firmware.bin" ]]; then
-            log_error "Firmware not built for $(basename "$scenario"). Run: pio run -e test-wokwi-release"
+        if [[ "$scenario" == *_release.yaml ]]; then
+            if [[ ! -f "${PROJECT_ROOT}/.pio/build/test-wokwi-release/firmware.bin" ]]; then
+                log_error "Firmware not built for $(basename "$scenario"). Run: pio run -e test-wokwi-release"
+                exit 1
+            fi
+        elif [[ ! -f "${PROJECT_ROOT}/.pio/build/test-wokwi/firmware.bin" ]]; then
+            log_error "Firmware not built for $(basename "$scenario"). Run: pio run -e test-wokwi"
             exit 1
         fi
     done

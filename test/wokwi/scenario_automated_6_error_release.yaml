@@ -5,7 +5,11 @@ steps:
   # on GPIO 34), selected by the _release suffix in the file name. D-03 only reproduces
   # without CLARITY_DEBUG: after the last error is viewed with a short press, the UI used
   # to stay BUSY on an empty error panel and ignore all input.
+  # D-07: this firmware seeds the removed 'DiagnosticPanel' as the stored default panel
+  # (CLARITY_TEST_SEED_INVALID_PANEL); load must reject it and fall back to Oil
+  # (the load is logged after System ready)
   - wait-serial: '[T] System ready'
+  - wait-serial: '[T] Invalid stored value for system.default_panel, using default'
   - wait-serial: '[T] Pressure reading:'
   - delay: 300ms
 

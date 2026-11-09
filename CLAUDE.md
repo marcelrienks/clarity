@@ -14,6 +14,7 @@
 - `pio` is not on `PATH`. Use `~/.platformio/penv/bin/pio` (or prepend `~/.platformio/penv/bin` to `PATH`).
 - Envs: `release`, `debug-upload`, `debug-local`, `test-wokwi`, `test-wokwi-release`. Build with `pio run -e <env>`.
 - Wokwi scenario suite: `bash test/wokwi/wokwi_test_automation.sh` (builds nothing; run `pio run -e test-wokwi` and `pio run -e test-wokwi-release` first). 6 parts, about 9 minutes in total in CI, each under the 5 minute free-plan session cap.
+- Wokwi runs cost CI minutes. Per change, run only the part that covers it: `bash test/wokwi/wokwi_test_automation.sh <part>` (for example `6`; several parts can be listed). Parts: 1 triggers, 2 errors and restoration, 3 config theme, 4 config sections, 5 config exit, 6 error panel on the release-like firmware. Run the full suite (no argument) only when the user asks, or at the end of a phase.
 
 ## Wokwi token
 

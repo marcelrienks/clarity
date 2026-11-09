@@ -4,6 +4,7 @@ One line per resolved decision from [restructure.md](restructure.md) §12 (X-10)
 
 | ID | Decision | Date |
 |---|---|---|
+| Q-10 | Remove `DiagnosticPanel` from the default panel options (`PANEL_OPTIONS`) and `PanelNames`; no such panel exists. A stored selection that is no longer an allowed option falls back to the default on load. | 2026-11-09 |
 | Q-11 | Stay on `platformio/platform-espressif32` 8.0.0 (Arduino core 3.3.12, IDF 5.5.5, GCC 14.2.0). It already gives the C++20 toolchain pioarduino was meant to provide, so no switch. LVGL 9.3.0 and LovyanGFX 1.2.7 build and link on it with the flag changes below. Pin the platform exactly in 0.4. | 2026-11-05 |
 
 ## Q-11 toolchain findings (task 0.1)

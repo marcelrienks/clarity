@@ -64,6 +64,8 @@ test/wokwi/
 
 ### Scenario parts
 
+To save Wokwi CI minutes, pass part numbers to run only the parts that cover a change, for example `./wokwi_test_automation.sh 6` or `./wokwi_test_automation.sh 3 4`. With no argument every part runs; do that before a push or at the end of a phase.
+
 Wokwi caps a session at 5 minutes of wall-clock time and the simulator runs slowly, so the scenario is split into six parts that each boot the firmware fresh: triggers (steps 1-8), errors and restoration (9-13, starts with a preamble that rebuilds the step 8 trigger state), three config parts (theme, sections, exit), and an error panel lock-up check on the release-like firmware (part 6). A scenario file named `*_release.yaml` runs on the `test-wokwi-release` build instead of `test-wokwi`, so build both before running the suite. `wokwi_test_automation.sh` runs them in order and exits non-zero if any part fails or times out. Each part takes 60-100 s.
 
 Timing notes from the repair (0.3):
