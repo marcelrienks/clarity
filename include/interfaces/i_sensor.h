@@ -52,6 +52,8 @@
 class ISensor
 {
   public:
+    virtual ~ISensor() = default;
+
     // Core Interface Methods
     virtual void Init() = 0;
     virtual Reading GetReading() = 0;

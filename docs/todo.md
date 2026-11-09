@@ -107,9 +107,9 @@ Goal: remove S1 defects with minimal patches, before restructuring. Add a Wokwi 
   - [x] Wokwi case in part 3: after Day → Night the scenario expects `Theme applied: Night`, then repeats the menu path back to Day and expects `Theme applied: Day`. `release`, `test-wokwi` and `test-wokwi-release` build; part 3 passes (178 s, under the 5 minute cap). Only part 3 was run.
 - [x] **1.8 D-18.** Fix the contradictory buffer-size comments. Choosing the line count is optional.
   - [x] Line count chosen deliberately: 60 lines (a quarter of the screen), sized as `SCREEN_WIDTH * BUFFER_LINE_COUNT * BYTES_PER_PIXEL` with 2 bytes for RGB565 instead of `sizeof(lv_color_t)`. The byte size is unchanged (28,800 B per buffer, ~57.6 KB for both), so there is no behaviour or RAM change. Both stale comments (`~38KB`, `~57KB`) now agree. `release` builds (1,339,183 B flash, RAM 35,356 B). No Wokwi run: no logic changed.
-- [ ] **1.9 Interim safety items.**
-  - [ ] Add virtual destructors to `IComponent` and `ISensor` (D-17).
-  - [ ] Handle `std::stoi` failure in `SplashPanel::GetAnimationTime()` (D-23, would abort on every boot with a corrupt value).
+- [x] **1.9 Interim safety items.**
+  - [x] `IComponent` and `ISensor` have `virtual ~X() = default;` (D-17).
+  - [x] `SplashPanel::GetAnimationTime()` parses with `std::from_chars` (D-23): a non-numeric or trailing-garbage value logs `Invalid splash duration '<v>', using default` and falls back to the default; the result is clamped to >= 0 so a too-small duration no longer gives a negative animation time. `release`, `test-wokwi` and `test-wokwi-release` build (`release` 1,339,291 B). Part 1 passes (boot through splash); no corrupt-value Wokwi case, since seeding one needs another test hook.
 
 **Exit:** new Wokwi cases for D-03, D-07 and D-06 pass. D-05e is covered in Phase 6.
 

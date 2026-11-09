@@ -7,6 +7,7 @@
 #include "utilities/logging.h"
 #include "managers/configuration_manager.h"
 #include <algorithm>
+#include <charconv>
 #include <esp32-hal-log.h>
 
 // Self-registration at program startup
@@ -317,16 +318,34 @@ int SplashPanel::GetAnimationTime() const
     log_v("GetAnimationTime() called");
 
     // Get splash duration using type-safe config system
-    int splashDuration = std::stoi(TimingConstants::Splash::DEFAULT_DURATION); // Default value
+    // std::stoi would throw (abort) on a corrupt stored value, so parse without exceptions
+    const auto parseDuration = [](const std::string &text, int &out) {
+        int value = 0;
+        const char *end = text.data() + text.size();
+        auto result = std::from_chars(text.data(), end, value);
+        if (result.ec != std::errc() || result.ptr != end) {
+            return false;
+        }
+        out = value;
+        return true;
+    };
+
+    int splashDuration = 0;
+    parseDuration(TimingConstants::Splash::DEFAULT_DURATION, splashDuration); // Default value
     if (configurationManager_) {
         if (auto durationValue = configurationManager_->QueryConfig<std::string>(CONFIG_DURATION)) {
-            splashDuration = std::stoi(*durationValue);
+            int parsed = 0;
+            if (parseDuration(*durationValue, parsed)) {
+                splashDuration = parsed;
+            } else {
+                log_w("Invalid splash duration '%s', using default", durationValue->c_str());
+            }
         }
     }
 
-    int animTime = (splashDuration - TimingConstants::Splash::DISPLAY_TIME_MS) / 2;
+    int animTime = (splashDuration - static_cast<int>(TimingConstants::Splash::DISPLAY_TIME_MS)) / 2;
 
-    return animTime;
+    return std::max(animTime, 0);
 }
 
 // ========== IActionService Interface Implementation ==========
