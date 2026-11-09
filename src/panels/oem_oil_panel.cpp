@@ -72,7 +72,7 @@ OemOilPanel::~OemOilPanel()
         screen_ = nullptr;
     }
 
-    // Components are now stack-allocated and will be automatically destroyed
+    // Components delete no LVGL objects, so destroying them after the screen is safe
 
     if (oemOilPressureSensor_)
     {

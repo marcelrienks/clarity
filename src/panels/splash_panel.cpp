@@ -50,14 +50,16 @@ SplashPanel::~SplashPanel()
     if (screen_)
     {
         lv_obj_del(screen_);
+        screen_ = nullptr;
     }
 
     if (blankScreen_)
     {
         lv_obj_del(blankScreen_);
+        blankScreen_ = nullptr;
     }
 
-    // Component is now stack-allocated and will be automatically destroyed
+    // Components delete no LVGL objects, so destroying them after the screens is safe
 }
 
 // ========== Public Interface Methods ==========

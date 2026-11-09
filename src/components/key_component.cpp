@@ -18,18 +18,11 @@ KeyComponent::KeyComponent(IStyleManager *styleManager) : keyIcon_(nullptr), sty
 }
 
 /**
- * @brief Destructor that cleans up the key icon
+ * @brief Destructor; deletes nothing
  *
- * Deletes the LVGL key icon object if it exists to prevent memory leaks.
- * Uses LVGL's object deletion function for proper cleanup.
+ * The key icon is a child of the panel's screen and is deleted with it.
  */
-KeyComponent::~KeyComponent()
-{
-    if (keyIcon_)
-    {
-        lv_obj_del(keyIcon_);
-    }
-}
+KeyComponent::~KeyComponent() = default;
 
 // ========== IComponent Implementation ==========
 

@@ -41,9 +41,10 @@ ErrorPanel::~ErrorPanel()
     if (screen_)
     {
         lv_obj_delete(screen_);
+        screen_ = nullptr;
     }
 
-    // Component is now stack-allocated and will be automatically destroyed
+    // Components delete no LVGL objects, so destroying them after the screen is safe
 
     // Reset error panel active flag when panel is destroyed
     ErrorManager::Instance().SetErrorPanelActive(false);

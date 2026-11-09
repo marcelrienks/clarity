@@ -10,15 +10,8 @@ LockComponent::LockComponent(IStyleManager *styleManager) : lockIcon_(nullptr), 
     log_v("LockComponent constructor called");
 }
 
-LockComponent::~LockComponent()
-{
-    log_v("~LockComponent() destructor called");
-    
-    if (lockIcon_)
-    {
-        lv_obj_del(lockIcon_);
-    }
-}
+// The lock icon is a child of the panel's screen and is deleted with it.
+LockComponent::~LockComponent() = default;
 
 // ========== IComponent Implementation ==========
 

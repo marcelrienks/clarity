@@ -42,8 +42,7 @@ ConfigPanel::~ConfigPanel()
 {
     log_v("~ConfigPanel() destructor called");
 
-    // Component is now stack-allocated and will be automatically destroyed
-
+    // Components delete no LVGL objects, so destroying them after the screen is safe
     if (screen_)
     {
         lv_obj_delete(screen_);
