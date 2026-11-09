@@ -42,7 +42,7 @@
  *
  * @design_pattern Dependency Injectable - managed through service container
  * @thread_safety LVGL display callbacks are thread-safe
- * @memory_usage ~57KB for dual display buffers (240*60*2*2 bytes)
+ * @memory_usage ~57.6KB for dual display buffers (240*60*2*2 bytes)
  *
  * @context This is the main hardware interface that all panels and components
  * render to. The display is 240x240 pixels with a round form factor.
@@ -72,11 +72,11 @@ private:
     lgfx::Light_PWM lightInstance_;
     lgfx::Bus_SPI busInstance_;
 
-    // Optimized buffer configuration for memory efficiency
-    // Using 40 lines (1/6 of screen) reduces memory usage from ~57KB to ~38KB
-    // while maintaining smooth rendering performance
-    static constexpr unsigned int BUFFER_LINE_COUNT = 40; // Reduced from 60 for memory optimization
+    // Two partial-render buffers of 60 lines each (a quarter of the 240 line screen).
+    // RGB565 is 2 bytes per pixel: 240 * 60 * 2 = 28.8KB per buffer, ~57.6KB in total.
+    static constexpr unsigned int BUFFER_LINE_COUNT = 60;
+    static constexpr unsigned int BYTES_PER_PIXEL = 2; // LV_COLOR_FORMAT_RGB565
     static constexpr unsigned int LV_BUFFER_SIZE =
-        (SCREEN_WIDTH * BUFFER_LINE_COUNT * sizeof(lv_color_t));
+        (SCREEN_WIDTH * BUFFER_LINE_COUNT * BYTES_PER_PIXEL);
     uint8_t lvBuffer_[2][LV_BUFFER_SIZE];
 };
