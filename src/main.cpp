@@ -16,6 +16,7 @@
 #include "utilities/test_inject.h"
 #include "definitions/types.h"
 #include "managers/configuration_manager.h"
+#include <esp_system.h>
 
 // Self-registration at program startup
 static bool system_config_registered = []() {
@@ -36,6 +37,11 @@ std::unique_ptr<IConfigurationManager> configurationManager;
 std::unique_ptr<PanelManager> panelManager;
 InterruptManager *interruptManager;
 ErrorManager *errorManager;
+
+// Set when initializeServices() fails; loop() then does nothing but wait for the restart
+static bool initFailed = false;
+static uint32_t initFailedAtMs = 0;
+static constexpr uint32_t INIT_FAILED_RESTART_DELAY_MS = 5000;
 
 // ========== System Configuration ==========
 
@@ -205,6 +211,9 @@ void setup()
 
     if (!initializeServices())
     {
+        log_e("Service initialization failed - restarting in %u ms", (unsigned)INIT_FAILED_RESTART_DELAY_MS);
+        initFailed = true;
+        initFailedAtMs = millis();
         return;
     }
 
@@ -250,6 +259,17 @@ void setup()
  */
 void loop()
 {
+    // Init failed: managers may be null, so touch nothing and restart after a delay
+    if (initFailed)
+    {
+        if (millis() - initFailedAtMs >= INIT_FAILED_RESTART_DELAY_MS)
+        {
+            esp_restart();
+        }
+        delay(10);
+        return;
+    }
+
     // Always process - ActionHandler runs always, TriggerHandler only on IDLE
     interruptManager->Process();
     TestInject::Poll();
