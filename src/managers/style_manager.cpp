@@ -111,8 +111,9 @@ void StyleManager::SetTheme(const char *theme)
     {
         return;
     }
-    // Note: THEME member is no longer updated here - it serves only as a fallback
-    // The source of truth is always the preference service
+    // Track the applied theme so ApplyCurrentTheme() compares against what is on screen
+    theme_ = theme;
+    log_t("StyleManager: Theme applied: %s", theme);
 
     // Select the current theme colors
     ThemeColors colours = GetColours(theme);
@@ -411,6 +412,6 @@ void StyleManager::RegisterConfigCallback()
         RefreshConfig();
     };
 
-    configurationManager_->RegisterChangeCallback(CONFIG_SECTION, callback);
-    log_i("StyleManager: Registered config callback for section: %s", CONFIG_SECTION);
+    configurationManager_->RegisterChangeCallback(CONFIG_THEME, callback);
+    log_i("StyleManager: Registered config callback for key: %s", CONFIG_THEME);
 }

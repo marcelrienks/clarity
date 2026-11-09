@@ -91,9 +91,40 @@ steps:
   # Long press fires while held, so wait before releasing
   - wait-serial: '[T] Long press triggered during hold'
   - wait-serial: '[T] ConfigPanel: Applying style_manager.theme setting Night'
+  # D-06: the change callback applies the theme to the styles right away
+  - wait-serial: '[T] StyleManager: Theme applied: Night'
   - wait-serial: '[T] ConfigPanel: Returned to section style_manager menu'
   - set-control:
       part-id: btn1
       control: pressed
       value: 0
   - delay: 1000ms  # menu rebuilt: wait before the next press
+
+  # Step 19: Theme round trip back to Day (D-06)
+  # - Section menu starts on Theme, its options start on Day: long press opens, long press applies
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  # Long press fires while held, so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] ConfigPanel: Options menu for style_manager.theme loaded'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 1000ms  # menu rebuilt: wait before the next press
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  # Long press fires while held, so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] ConfigPanel: Applying style_manager.theme setting Day'
+  - wait-serial: '[T] StyleManager: Theme applied: Day'
+  - wait-serial: '[T] ConfigPanel: Returned to section style_manager menu'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 1000ms

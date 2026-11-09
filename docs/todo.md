@@ -101,10 +101,10 @@ Goal: remove S1 defects with minimal patches, before restructuring. Add a Wokwi 
   - [x] `DiagnosticPanel` removed from `PANEL_OPTIONS`, `PanelNames` and `docs/config.md`; Q-10 recorded in `docs/decisions.md`. `StorageProvider::LoadConfigSection` checks every stored `Selection` value against its allowed options; an invalid one keeps the default and logs `[T] Invalid stored value for <section>.<key>, using default`.
   - [x] Wokwi case in part 6 (`test-wokwi-release`): `CLARITY_TEST_SEED_INVALID_PANEL` seeds `DiagnosticPanel` as the stored default panel at boot; the scenario expects the invalid-value line after `System ready`, then the boot reaches `OemOilPanel`. Part 6 passes (95 s). Only part 6 was run, since the change touches storage load and the part 6 firmware; the full suite is left for the end of the phase. `release`, `test-wokwi` and `test-wokwi-release` build (`release` 1,339,167 B).
   - [x] `wokwi_test_automation.sh` now takes part numbers (`... 6`) to run only the parts covering a change, to save CI minutes.
-- [ ] **1.7 D-06 minimum.**
-  - [ ] Update `theme_` in `StyleManager::SetTheme`.
-  - [ ] Fix the change-callback key (`"style_manager"` → the full key).
-  - [ ] Wokwi case: Config Day → Night → Day round trip.
+- [x] **1.7 D-06 minimum.**
+  - [x] `StyleManager::SetTheme` now updates `theme_` and logs `[T] StyleManager: Theme applied: <theme>`. This also fixes the stale Error palette: after the error panel sets `Error`, `ApplyCurrentTheme()` sees a difference and re-applies the configured theme.
+  - [x] The change callback registers on `CONFIG_THEME` (`style_manager.theme`) instead of `"style_manager"`, so a theme change in Config applies to the styles at once.
+  - [x] Wokwi case in part 3: after Day → Night the scenario expects `Theme applied: Night`, then repeats the menu path back to Day and expects `Theme applied: Day`. `release`, `test-wokwi` and `test-wokwi-release` build; part 3 passes (178 s, under the 5 minute cap). Only part 3 was run.
 - [ ] **1.8 D-18.** Fix the contradictory buffer-size comments. Choosing the line count is optional.
 - [ ] **1.9 Interim safety items.**
   - [ ] Add virtual destructors to `IComponent` and `ISensor` (D-17).
