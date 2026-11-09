@@ -89,9 +89,9 @@ Goal: remove S1 defects with minimal patches, before restructuring. Add a Wokwi 
   - [x] Stop deleting `scale_` there; only the panel's `screen_` is deleted.
   - [x] Make `screen_` the single owner of its LVGL children, so deletion order no longer matters. `KeyComponent` and `LockComponent` deleted their icons (children of `screen_`) in their destructors; both are now `= default`. No component in any of the six panels deletes LVGL objects now, so `OemOilPanel`, `ErrorPanel`, `ConfigPanel` and `SplashPanel` deleting `screen_` in the destructor body (before member destruction) is safe. `ErrorPanel` and `SplashPanel` also null `screen_` / `blankScreen_`. `grep lv_obj_del` shows only panel screen deletes remain.
   - [x] Verify with the LVGL asserts from 0.6. `test-wokwi` (asserts on): 5 of 5 parts pass (part 5 needed one rerun after a Wokwi `503`); parts 3 to 5 go Oil → Config and back with no assert, abort or backtrace. Re-run after the screen-ownership change: `release` and `test-wokwi` build, 5 of 5 parts pass (85, 136, 142, 111, 133 s), no assert, abort or backtrace in the log.
-- [ ] **1.3 D-02: splash timers.**
-  - [ ] Keep handles for the three `lv_timer`s and delete them in `~SplashPanel`.
-  - [ ] Initialise `blankScreen_` (`splash_panel.h:102`).
+- [x] **1.3 D-02: splash timers.**
+  - [x] One rolling `timer_` handle instead of three: the timers are one-shot and chained (fade-in → display → fade-out), so only one is pending at a time. `~SplashPanel` deletes it if pending. Each callback sets `timer_ = nullptr` on entry because it deletes its own timer; this matters most in the fade-out callback, where `OnPanelLoadComplete` may destroy the panel and the destructor would otherwise delete the firing timer a second time.
+  - [x] `blankScreen_` initialised to `nullptr` (`splash_panel.h`). Verified: `release` and `test-wokwi` build; Wokwi 5 of 5 parts pass (84, 139, 144, 123, 133 s), no assert, abort or backtrace. No scenario case added, since the timer leak needs a splash destroyed mid-animation, which no current path does.
 - [ ] **1.4 D-03: error panel lock-up.**
   - [ ] In `ErrorPanel::Update`, always restore and always reach a defined UI state when the list becomes empty, in release as well as debug.
   - [ ] Wokwi case: injected error → short press through to the end → UI responds.

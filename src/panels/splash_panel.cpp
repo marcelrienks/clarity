@@ -47,6 +47,13 @@ SplashPanel::~SplashPanel()
 {
     log_v("~SplashPanel() destructor called");
 
+    // A pending timer would fire with a dangling panel pointer
+    if (timer_)
+    {
+        lv_timer_del(timer_);
+        timer_ = nullptr;
+    }
+
     if (screen_)
     {
         lv_obj_del(screen_);
@@ -110,7 +117,7 @@ void SplashPanel::Load()
     lv_screen_load_anim(screen_, LV_SCR_LOAD_ANIM_FADE_IN, GetAnimationTime(), 0, false);
 
     // Schedule the fade-in animation
-    lv_timer_create(SplashPanel::fade_in_timer_callback, GetAnimationTime(), this);
+    timer_ = lv_timer_create(SplashPanel::fade_in_timer_callback, GetAnimationTime(), this);
 
     log_t("SplashPanel loaded successfully");
 }
@@ -152,6 +159,9 @@ void SplashPanel::fade_in_timer_callback(lv_timer_t *fadeInTimer)
         return;
     }
 
+    // This callback now owns the firing timer, so the destructor must not delete it
+    panel->timer_ = nullptr;
+
     // During display period, no animations are running - set IDLE to allow actions
     if (panel->panelManager_)
     {
@@ -159,7 +169,7 @@ void SplashPanel::fade_in_timer_callback(lv_timer_t *fadeInTimer)
     }
 
     // Create a timer for the callback
-    lv_timer_create(SplashPanel::display_timer_callback, TimingConstants::Splash::DISPLAY_TIME_MS, panel);
+    panel->timer_ = lv_timer_create(SplashPanel::display_timer_callback, TimingConstants::Splash::DISPLAY_TIME_MS, panel);
 
     // Remove the fade_in_timer after transition
     lv_timer_del(fadeInTimer);
@@ -187,6 +197,9 @@ void SplashPanel::display_timer_callback(lv_timer_t *fadeOutTimer)
         return;
     }
 
+    // This callback now owns the firing timer, so the destructor must not delete it
+    panel->timer_ = nullptr;
+
     // About to start fade-out animation - set BUSY
     if (panel->panelManager_)
     {
@@ -196,8 +209,8 @@ void SplashPanel::display_timer_callback(lv_timer_t *fadeOutTimer)
     lv_screen_load_anim(panel->blankScreen_, LV_SCR_LOAD_ANIM_FADE_OUT, panel->GetAnimationTime(), 0, false);
 
     // Schedule the fade-out animation
-    lv_timer_create(SplashPanel::fade_out_timer_callback, panel->GetAnimationTime() + TimingConstants::Splash::DELAY_TIME_MS,
-                    panel); // NOTE: the delay time is essential, to give LVGL and the code time to cleanup, else memory
+    panel->timer_ = lv_timer_create(SplashPanel::fade_out_timer_callback,
+                                    panel->GetAnimationTime() + TimingConstants::Splash::DELAY_TIME_MS, panel); // NOTE: the delay time is essential, to give LVGL and the code time to cleanup, else memory
                             // becomes corrupted
 
     // Delete the animation_timer
@@ -225,6 +238,9 @@ void SplashPanel::fade_out_timer_callback(lv_timer_t *fadeOutTimer)
         lv_timer_del(fadeOutTimer);
         return;
     }
+
+    // OnPanelLoadComplete below may destroy the panel; this callback deletes its own timer
+    panel->timer_ = nullptr;
 
     if (!panel->panelManager_) {
         log_e("SplashPanel::fade_out_timer_callback: PanelManager is null!");

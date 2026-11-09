@@ -99,6 +99,7 @@ class SplashPanel : public IPanel
     lv_obj_t* screen_ = nullptr;
     ClarityComponent component_;
     bool componentInitialized_ = false;
-    lv_obj_t *blankScreen_;
+    lv_obj_t *blankScreen_ = nullptr;
+    lv_timer_t *timer_ = nullptr; // The one pending phase timer; each callback hands it on or clears it
 
 };
