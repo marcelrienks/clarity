@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [release, debug-upload, debug-local, test-wokwi, test-wokwi-release]
+        env: [release, debug-upload, debug-local, test-wokwi, test-wokwi-release, test-wokwi-splash, test-wokwi-failinit]
     steps:
       - uses: actions/checkout@v4
 
@@ -101,6 +101,18 @@ jobs:
           name: firmware-test-wokwi-release
           path: .pio/build/test-wokwi-release
 
+      - name: Download test-wokwi-splash firmware
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-test-wokwi-splash
+          path: .pio/build/test-wokwi-splash
+
+      - name: Download test-wokwi-failinit firmware
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-test-wokwi-failinit
+          path: .pio/build/test-wokwi-failinit
+
       - name: Install Wokwi CLI
         run: |
           mkdir -p "$HOME/bin"
@@ -108,5 +120,5 @@ jobs:
           chmod +x "$HOME/bin/wokwi-cli"
           echo "$HOME/bin" >> "$GITHUB_PATH"
 
-      - name: Run scenario (6 parts)
+      - name: Run scenario (8 parts)
         run: ./test/wokwi/wokwi_test_automation.sh

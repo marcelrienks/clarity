@@ -8,7 +8,9 @@ steps:
   # D-07: this firmware seeds the removed 'DiagnosticPanel' as the stored default panel
   # (CLARITY_TEST_SEED_INVALID_PANEL); load must reject it and fall back to Oil
   # (the load is logged after System ready)
+  # D-23: the firmware also seeds 'abc' as the splash duration; the splash must reject it
   - wait-serial: '[T] System ready'
+  - wait-serial: '[T] Invalid splash duration ''abc'', using default'
   - wait-serial: '[T] Invalid stored value for system.default_panel, using default'
   - wait-serial: '[T] Pressure reading:'
   - delay: 300ms

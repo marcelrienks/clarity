@@ -60,6 +60,16 @@ StorageProvider::StorageProvider() {
     }
 #endif
 
+#ifdef CLARITY_TEST_SEED_INVALID_SPLASH
+    // Test only: store a non-numeric splash duration (D-23)
+    {
+        Preferences seed;
+        seed.begin(GetSectionNamespace(ConfigConstants::Sections::SPLASH_PANEL).c_str(), false);
+        seed.putString(ConfigConstants::Items::DURATION, "abc");
+        seed.end();
+    }
+#endif
+
     // Create default sections
 
     // Load all registered sections

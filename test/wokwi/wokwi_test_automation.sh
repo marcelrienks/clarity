@@ -91,13 +91,24 @@ log_step() {
     echo -e "${PURPLE}[STEP]${NC} $1"
 }
 
+# Firmware env for a scenario file: the suffix before .yaml picks the env
+# (_release, _splash, _failinit -> test-wokwi-<suffix>), no suffix means test-wokwi
+env_for_scenario() {
+    case "$1" in
+        *_release.yaml)  echo "test-wokwi-release" ;;
+        *_splash.yaml)   echo "test-wokwi-splash" ;;
+        *_failinit.yaml) echo "test-wokwi-failinit" ;;
+        *)               echo "test-wokwi" ;;
+    esac
+}
+
 show_usage() {
     echo "Clarity Wokwi Test Automation"
     echo
     echo "USAGE:"
     echo "  $0 [--help|-h|help] [PART...]"
     echo
-    echo "PART is a scenario part number (1-6), for example: $0 6"
+    echo "PART is a scenario part number (1-8), for example: $0 6"
     echo "With no PART every part runs. Each part costs Wokwi CI minutes, so while"
     echo "developing run only the part that covers the change."
     echo
@@ -188,15 +199,12 @@ main() {
         exit 1
     fi
     
-    # Scenarios named *_release.yaml run on the test-wokwi-release firmware
+    # Each scenario runs on the firmware its file name suffix selects (env_for_scenario)
     for scenario in "${SCENARIOS[@]}"; do
-        if [[ "$scenario" == *_release.yaml ]]; then
-            if [[ ! -f "${PROJECT_ROOT}/.pio/build/test-wokwi-release/firmware.bin" ]]; then
-                log_error "Firmware not built for $(basename "$scenario"). Run: pio run -e test-wokwi-release"
-                exit 1
-            fi
-        elif [[ ! -f "${PROJECT_ROOT}/.pio/build/test-wokwi/firmware.bin" ]]; then
-            log_error "Firmware not built for $(basename "$scenario"). Run: pio run -e test-wokwi"
+        local env
+        env="$(env_for_scenario "$scenario")"
+        if [[ ! -f "${PROJECT_ROOT}/.pio/build/${env}/firmware.bin" ]]; then
+            log_error "Firmware not built for $(basename "$scenario"). Run: pio run -e ${env}"
             exit 1
         fi
     done
@@ -221,10 +229,7 @@ main() {
     for scenario in "${SCENARIOS[@]}"; do
         local name
         name="$(basename "$scenario")"
-        local elf_path="${PROJECT_ROOT}/.pio/build/test-wokwi/firmware.bin"
-        if [[ "$name" == *_release.yaml ]]; then
-            elf_path="${PROJECT_ROOT}/.pio/build/test-wokwi-release/firmware.bin"
-        fi
+        local elf_path="${PROJECT_ROOT}/.pio/build/$(env_for_scenario "$name")/firmware.bin"
         log_info "Executing: $WOKWI_CLI --elf $elf_path --diagram-file diagram_automated.json --scenario $name --timeout ${TIMEOUT}000"
         local started=$SECONDS
         if $WOKWI_CLI --elf "$elf_path" --diagram-file diagram_automated.json --scenario "$name" --timeout ${TIMEOUT}000; then

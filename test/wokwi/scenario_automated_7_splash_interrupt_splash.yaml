@@ -1,0 +1,27 @@
+name: 'Clarity Automated Integration Test - Part 7: Splash destroyed mid-animation (D-02)'
+version: 1
+steps:
+  # Part 7 of 8. Runs on the test-wokwi-splash firmware (debug, LVGL asserts on), selected
+  # by the _splash suffix in the file name. The firmware destroys the splash halfway through
+  # its fade-in. Before D-02 was fixed the splash left its pending timer behind, which then
+  # fired on the freed panel. The timer would have fired within 1 s, so the scenario waits
+  # past that and checks the UI still runs and responds.
+  - wait-serial: '[T] System ready'
+  - wait-serial: '[T] SplashPanel loaded successfully'
+  - wait-serial: '[T] Test: interrupting splash mid fade-in'
+  - wait-serial: '[T] OemOilPanel loaded successfully'
+  - wait-serial: '[T] Pressure reading:'
+  - delay: 4000ms
+
+  # Still alive and responsive: a long press on the Oil panel opens Config
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] ConfigPanel loaded successfully'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 300ms

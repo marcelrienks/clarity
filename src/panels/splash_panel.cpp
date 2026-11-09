@@ -120,6 +120,18 @@ void SplashPanel::Load()
     // Schedule the fade-in animation
     timer_ = lv_timer_create(SplashPanel::fade_in_timer_callback, GetAnimationTime(), this);
 
+#ifdef CLARITY_TEST_SPLASH_INTERRUPT
+    // Test only (D-02): destroy this panel while its fade-in timer is pending
+    lv_timer_t *interrupt = lv_timer_create(
+        [](lv_timer_t *t) {
+            auto *panel = static_cast<SplashPanel *>(lv_timer_get_user_data(t));
+            log_t("Test: interrupting splash mid fade-in");
+            panel->panelManager_->CreateAndLoadPanel(PanelNames::OIL, true);
+        },
+        GetAnimationTime() / 2, this);
+    lv_timer_set_repeat_count(interrupt, 1);
+#endif
+
     log_t("SplashPanel loaded successfully");
 }
 
@@ -339,6 +351,7 @@ int SplashPanel::GetAnimationTime() const
                 splashDuration = parsed;
             } else {
                 log_w("Invalid splash duration '%s', using default", durationValue->c_str());
+                log_t("Invalid splash duration '%s', using default", durationValue->c_str());
             }
         }
     }

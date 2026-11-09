@@ -56,7 +56,7 @@ cd test/wokwi
 test/wokwi/
 ├── diagram_automated.json        # Hardware configuration with push buttons
 ├── diagram.json                  # Alternative hardware configuration
-├── scenario_automated_1..6_*.yaml # Automated test, split in 6 parts (each boots fresh, see below)
+├── scenario_automated_1..8_*.yaml # Automated test, split in 8 parts (each boots fresh, see below)
 ├── wokwi_test_automation.sh      # Cross-platform automated test runner
 ├── wokwi_automated.toml         # Automated testing configuration
 └── wokwi.toml                   # Base testing configuration
@@ -66,7 +66,7 @@ test/wokwi/
 
 To save Wokwi CI minutes, pass part numbers to run only the parts that cover a change, for example `./wokwi_test_automation.sh 6` or `./wokwi_test_automation.sh 3 4`. With no argument every part runs; do that before a push or at the end of a phase.
 
-Wokwi caps a session at 5 minutes of wall-clock time and the simulator runs slowly, so the scenario is split into six parts that each boot the firmware fresh: triggers (steps 1-8), errors and restoration (9-13, starts with a preamble that rebuilds the step 8 trigger state), three config parts (theme, sections, exit), and an error panel lock-up check on the release-like firmware (part 6). A scenario file named `*_release.yaml` runs on the `test-wokwi-release` build instead of `test-wokwi`, so build both before running the suite. `wokwi_test_automation.sh` runs them in order and exits non-zero if any part fails or times out. Each part takes 60-100 s.
+Wokwi caps a session at 5 minutes of wall-clock time and the simulator runs slowly, so the scenario is split into eight parts that each boot the firmware fresh: triggers (steps 1-8), errors and restoration (9-13, starts with a preamble that rebuilds the step 8 trigger state), three config parts (theme, sections, exit), and an error panel lock-up check on the release-like firmware (part 6), a splash destroyed mid-animation (part 7) and a forced init failure (part 8). The file name suffix picks the firmware: `*_release.yaml` runs on `test-wokwi-release`, `*_splash.yaml` on `test-wokwi-splash`, `*_failinit.yaml` on `test-wokwi-failinit`, no suffix on `test-wokwi`. Build all four before running the suite. `wokwi_test_automation.sh` runs them in order and exits non-zero if any part fails or times out. Each part takes 60-100 s.
 
 Timing notes from the repair (0.3):
 - Leave at least 1000 ms after anything that rebuilds a panel or menu before the next button press. 200-300 ms there stalled the simulator until the 5 minute cap.
@@ -76,7 +76,9 @@ Timing notes from the repair (0.3):
 ### Build Environments
 - **`test-wokwi`**: Clean integration testing (CORE_DEBUG_LEVEL=0 + TEST_LOGS)
 - **`debug-local`**: Full debug testing (CORE_DEBUG_LEVEL=5 + TEST_LOGS)
-- **`test-wokwi-release`**: Release-like build (no `CLARITY_DEBUG`, `-Os`) with `TEST_LOGS` and `CLARITY_TEST_INJECT_ERROR`. For defects that only show without `CLARITY_DEBUG` (D-03). Used by `scenario_automated_6_error_release.yaml`.
+- **`test-wokwi-release`**: Release-like build (no `CLARITY_DEBUG`, `-Os`) with `TEST_LOGS` and `CLARITY_TEST_INJECT_ERROR`. For defects that only show without `CLARITY_DEBUG` (D-03). Also seeds a removed default panel (`CLARITY_TEST_SEED_INVALID_PANEL`, D-07) and a non-numeric splash duration (`CLARITY_TEST_SEED_INVALID_SPLASH`, D-23). Used by `scenario_automated_6_error_release.yaml`.
+- **`test-wokwi-splash`**: Debug build (LVGL asserts on) with `CLARITY_TEST_SPLASH_INTERRUPT`, which destroys the splash halfway through its fade-in (D-02). Used by `scenario_automated_7_splash_interrupt_splash.yaml`.
+- **`test-wokwi-failinit`**: Release-like build with `CLARITY_TEST_FAIL_INIT`, which makes `initializeServices()` fail so the restart path runs (D-04). Used by `scenario_automated_8_init_failure_failinit.yaml`.
 
 ### Error injection (`CLARITY_TEST_INJECT_ERROR`)
 

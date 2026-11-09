@@ -104,6 +104,12 @@ bool initializeServices()
 {
     log_i("Starting Clarity service initialization with dual factory pattern...");
 
+#ifdef CLARITY_TEST_FAIL_INIT
+    // Test only (D-04): force the failed-init path
+    log_t("Test: forcing service initialization failure");
+    return false;
+#endif
+
     providerFactory = std::make_unique<ProviderFactory>();
     if (!providerFactory) {
         log_e("Failed to create ProviderFactory - %s", "allocation failed");
@@ -212,6 +218,7 @@ void setup()
     if (!initializeServices())
     {
         log_e("Service initialization failed - restarting in %u ms", (unsigned)INIT_FAILED_RESTART_DELAY_MS);
+        log_t("Service initialization failed - restarting");
         initFailed = true;
         initFailedAtMs = millis();
         return;
