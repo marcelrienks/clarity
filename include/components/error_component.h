@@ -40,7 +40,7 @@ class ErrorComponent : public IComponent
   public:
     // ========== Constructors and Destructor ==========
     explicit ErrorComponent(IStyleManager *style_manager);
-    virtual ~ErrorComponent();
+    ~ErrorComponent() override;
 
     // ========== Public Interface Methods ==========
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;

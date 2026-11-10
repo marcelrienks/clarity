@@ -96,7 +96,7 @@ class TriggerHandler
     static constexpr size_t MAX_TRIGGERS = 16;
 
     // Trigger storage
-    Trigger triggers_[MAX_TRIGGERS];
+    Trigger triggers_[MAX_TRIGGERS]{};
     size_t trigger_count_ = 0;
 
     // Priority tracking for blocking logic

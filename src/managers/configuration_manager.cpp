@@ -146,7 +146,8 @@ void ConfigurationManager::RegisterAllSchemas()
     }
 
     initialized_ = true;
-    log_i("Configuration registration complete: %zu/%zu schemas registered successfully", successCount, totalFunctions);
+    log_i("Configuration registration complete: %zu/%zu schemas registered successfully", success_count,
+          functions.size());
 
     // Load all configuration sections from NVS after registration
     if (!LoadAllConfigSections())
@@ -168,7 +169,9 @@ void ConfigurationManager::RegisterAllSchemas()
 bool ConfigurationManager::RegisterConfigSection(const config::ConfigSection &section)
 {
     if (!EnsureStorageReady())
+    {
         return false;
+    }
     return storage_provider_->RegisterConfigSection(section);
 }
 
@@ -182,7 +185,9 @@ bool ConfigurationManager::RegisterConfigSection(const config::ConfigSection &se
 std::vector<std::string> ConfigurationManager::GetRegisteredSectionNames() const
 {
     if (!EnsureStorageReady())
+    {
         return {};
+    }
     return storage_provider_->GetRegisteredSectionNames();
 }
 
@@ -197,7 +202,9 @@ std::vector<std::string> ConfigurationManager::GetRegisteredSectionNames() const
 std::optional<config::ConfigSection> ConfigurationManager::GetConfigSection(const std::string &section_name) const
 {
     if (!EnsureStorageReady())
+    {
         return std::nullopt;
+    }
     return storage_provider_->GetConfigSection(section_name);
 }
 
@@ -212,7 +219,9 @@ std::optional<config::ConfigSection> ConfigurationManager::GetConfigSection(cons
 bool ConfigurationManager::SaveConfigSection(const std::string &section_name)
 {
     if (!EnsureStorageReady())
+    {
         return false;
+    }
     return storage_provider_->SaveConfigSection(section_name);
 }
 
@@ -227,7 +236,9 @@ bool ConfigurationManager::SaveConfigSection(const std::string &section_name)
 bool ConfigurationManager::LoadConfigSection(const std::string &section_name)
 {
     if (!EnsureStorageReady())
+    {
         return false;
+    }
     return storage_provider_->LoadConfigSection(section_name);
 }
 
@@ -241,7 +252,9 @@ bool ConfigurationManager::LoadConfigSection(const std::string &section_name)
 bool ConfigurationManager::SaveAllConfigSections()
 {
     if (!EnsureStorageReady())
+    {
         return false;
+    }
     return storage_provider_->SaveAllConfigSections();
 }
 
@@ -255,7 +268,9 @@ bool ConfigurationManager::SaveAllConfigSections()
 bool ConfigurationManager::LoadAllConfigSections()
 {
     if (!EnsureStorageReady())
+    {
         return false;
+    }
     return storage_provider_->LoadAllConfigSections();
 }
 
@@ -271,7 +286,9 @@ bool ConfigurationManager::LoadAllConfigSections()
 bool ConfigurationManager::ValidateConfigValue(const std::string &full_key, const config::ConfigValue &value) const
 {
     if (!EnsureStorageReady())
+    {
         return false;
+    }
     return storage_provider_->ValidateConfigValue(full_key, value);
 }
 
@@ -287,7 +304,9 @@ bool ConfigurationManager::ValidateConfigValue(const std::string &full_key, cons
 uint32_t ConfigurationManager::RegisterChangeCallback(const std::string &full_key, ConfigChangeCallback callback)
 {
     if (!EnsureStorageReady())
+    {
         return 0;
+    }
     return storage_provider_->RegisterChangeCallback(full_key, callback);
 }
 
@@ -302,7 +321,9 @@ uint32_t ConfigurationManager::RegisterChangeCallback(const std::string &full_ke
 bool ConfigurationManager::IsSchemaRegistered(const std::string &section_name) const
 {
     if (!EnsureStorageReady())
+    {
         return false;
+    }
     return storage_provider_->IsSchemaRegistered(section_name);
 }
 
@@ -319,7 +340,9 @@ bool ConfigurationManager::IsSchemaRegistered(const std::string &section_name) c
 std::string ConfigurationManager::GetTypeName(const config::ConfigValue &value) const
 {
     if (!EnsureStorageReady())
+    {
         return "unknown";
+    }
     return storage_provider_->GetTypeName(value);
 }
 
@@ -335,7 +358,9 @@ std::string ConfigurationManager::GetTypeName(const config::ConfigValue &value) 
 bool ConfigurationManager::TypesMatch(const config::ConfigValue &a, const config::ConfigValue &b) const
 {
     if (!EnsureStorageReady())
+    {
         return false;
+    }
     return storage_provider_->TypesMatch(a, b);
 }
 
@@ -350,7 +375,9 @@ bool ConfigurationManager::TypesMatch(const config::ConfigValue &a, const config
 std::string ConfigurationManager::ToString(const config::ConfigValue &value) const
 {
     if (!EnsureStorageReady())
+    {
         return "";
+    }
     return storage_provider_->ToString(value);
 }
 
@@ -367,7 +394,9 @@ config::ConfigValue ConfigurationManager::FromString(const std::string &str,
                                                      const config::ConfigValue &template_value) const
 {
     if (!EnsureStorageReady())
+    {
         return std::monostate{};
+    }
     return storage_provider_->FromString(str, template_value);
 }
 
@@ -382,7 +411,9 @@ config::ConfigValue ConfigurationManager::FromString(const std::string &str,
 bool ConfigurationManager::IsNumeric(const config::ConfigValue &value) const
 {
     if (!EnsureStorageReady())
+    {
         return false;
+    }
     return storage_provider_->IsNumeric(value);
 }
 
@@ -399,7 +430,9 @@ bool ConfigurationManager::IsNumeric(const config::ConfigValue &value) const
 std::optional<config::ConfigValue> ConfigurationManager::QueryConfigImpl(const std::string &full_key) const
 {
     if (!EnsureStorageReady())
+    {
         return std::nullopt;
+    }
     return storage_provider_->QueryConfigValue(full_key);
 }
 
@@ -415,7 +448,9 @@ std::optional<config::ConfigValue> ConfigurationManager::QueryConfigImpl(const s
 bool ConfigurationManager::UpdateConfigImpl(const std::string &full_key, const config::ConfigValue &value)
 {
     if (!EnsureStorageReady())
+    {
         return false;
+    }
     return storage_provider_->UpdateConfigValue(full_key, value);
 }
 

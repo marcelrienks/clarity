@@ -271,9 +271,9 @@ bool PanelManager::IsCurrentPanelTriggerDriven() const
  * to IDLE to allow other triggers to be processed. This callback ensures
  * proper coordination between the trigger system and panel lifecycle.
  */
-void PanelManager::TriggerPanelSwitchCallback(const char *trigger_id)
+void PanelManager::TriggerPanelSwitchCallback([[maybe_unused]] const char *trigger_id)
 {
-    log_v("TriggerPanelSwitchCallback() called for trigger: %s", triggerId);
+    log_v("TriggerPanelSwitchCallback() called for trigger: %s", trigger_id);
     SetUiState(UIState::IDLE);
 }
 
@@ -512,7 +512,7 @@ void PanelManager::UpdatePanelButtonFunctions(IPanel *panel)
         return;
     }
 
-    log_i("UpdatePanelButtonFunctions: Setting current panel - panel=%p", (void *)actionService);
+    log_i("UpdatePanelButtonFunctions: Setting current panel - panel=%p", (void *)action_service);
 
     // Set the current panel for direct method calls
     interrupt_manager_->SetCurrentPanel(action_service);

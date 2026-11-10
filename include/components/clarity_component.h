@@ -29,7 +29,7 @@ class ClarityComponent : public IComponent
   public:
     // ========== Constructors and Destructor ==========
     explicit ClarityComponent(IStyleManager *style_manager);
-    virtual ~ClarityComponent() = default;
+    ~ClarityComponent() override = default;
 
     // ========== Public Interface Methods ==========
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;

@@ -36,7 +36,7 @@ class StorageProvider : public IStorageProvider
     StorageProvider();
     StorageProvider(const StorageProvider &) = delete;
     StorageProvider &operator=(const StorageProvider &) = delete;
-    ~StorageProvider() = default;
+    ~StorageProvider() override = default;
 
     // ========== IStorageProvider Implementation ==========
 

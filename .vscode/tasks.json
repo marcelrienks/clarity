@@ -15,7 +15,7 @@
                 "clear": false
             },
             "problemMatcher": [],
-            "detail": "Runs the five Wokwi scenario parts in order (requires WOKWI_CLI_TOKEN and a test-wokwi build)"
+            "detail": "Runs the eight Wokwi scenario parts in order (requires WOKWI_CLI_TOKEN and a build of each test-wokwi env)"
         },
         {
             "label": "Build for Wokwi Testing",

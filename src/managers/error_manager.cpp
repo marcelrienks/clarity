@@ -44,7 +44,7 @@ void ErrorManager::ReportError(ErrorLevel level, const char *source, const std::
     [[maybe_unused]] const char *level_str = (level == ErrorLevel::WARNING) ? "WARNING"
                                              : (level == ErrorLevel::ERROR) ? "ERROR"
                                                                             : "CRITICAL";
-    log_e("[%s] %s: %s", level_str, source, errorInfo.message);
+    log_e("[%s] %s: %s", level_str, source, error_info.message);
     log_t("Error reported: %s", level_str);
 }
 
@@ -103,7 +103,7 @@ void ErrorManager::AcknowledgeError(size_t error_index)
         // Critical errors remain visible until explicitly cleared
         if (error_queue_[error_index].level != ErrorLevel::CRITICAL)
         {
-            error_queue_.erase(error_queue_.begin() + error_index);
+            error_queue_.erase(error_queue_.begin() + static_cast<std::ptrdiff_t>(error_index));
         }
     }
 }

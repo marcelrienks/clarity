@@ -70,7 +70,7 @@ class StyleManager : public IStyleManager, public IConfig
     explicit StyleManager(const char *theme);
     StyleManager(const StyleManager &) = delete;
     StyleManager &operator=(const StyleManager &) = delete;
-    ~StyleManager();
+    ~StyleManager() override;
 
     // ========== Static Methods ==========
     static StyleManager &Instance();
@@ -182,17 +182,17 @@ class StyleManager : public IStyleManager, public IConfig
     bool initialized_ = false;
 
     // Core Style Objects
-    lv_style_t background_style_;    // Style for backgrounds
-    lv_style_t text_style_;          // Style for general text
-    lv_style_t gauge_normal_style_;  // Style for gauges in normal range
-    lv_style_t gauge_warning_style_; // Style for gauges in warning range
-    lv_style_t gauge_danger_style_;  // Style for gauges in danger range
+    lv_style_t background_style_{};    // Style for backgrounds
+    lv_style_t text_style_{};          // Style for general text
+    lv_style_t gauge_normal_style_{};  // Style for gauges in normal range
+    lv_style_t gauge_warning_style_{}; // Style for gauges in warning range
+    lv_style_t gauge_danger_style_{};  // Style for gauges in danger range
 
     // Shared gauge component styles (replaces per-component allocation)
-    lv_style_t gauge_indicator_style_;      // Style for gauge major ticks
-    lv_style_t gauge_items_style_;          // Style for gauge minor ticks
-    lv_style_t gauge_main_style_;           // Style for gauge main part
-    lv_style_t gauge_danger_section_style_; // Style for danger zone sections
+    lv_style_t gauge_indicator_style_{};      // Style for gauge major ticks
+    lv_style_t gauge_items_style_{};          // Style for gauge minor ticks
+    lv_style_t gauge_main_style_{};           // Style for gauge main part
+    lv_style_t gauge_danger_section_style_{}; // Style for danger zone sections
 
     // Theme color references from styles.h
     const ThemeColors &day_theme_colours_ = theme_definitions::DAY_THEME;

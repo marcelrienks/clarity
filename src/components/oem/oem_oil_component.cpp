@@ -313,7 +313,7 @@ void OemOilComponent::CreateLabels()
 
     // Calculate label positions based on scale rotation and angle range
     // Allow derived classes to customize label positioning (e.g., for reversed scales)
-    int32_t l_angle, h_angle;
+    int32_t l_angle = 0, h_angle = 0;
     GetLabelAngles(l_angle, h_angle);
 
     // Use same radius for both labels - they should be equidistant from pivot

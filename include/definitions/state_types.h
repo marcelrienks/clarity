@@ -64,12 +64,12 @@ struct Trigger
  */
 struct ErrorInfo
 {
-    ErrorLevel level;                                             ///< Severity level of the error
-    const char *source;                                           ///< Component/manager that reported the error
-    char message[data_constants::error_info::MAX_MESSAGE_LENGTH]; ///< Fixed-size error message buffer (optimized for
-                                                                  ///< embedded)
-    unsigned long timestamp;                                      ///< millis() timestamp when error occurred
-    bool acknowledged;                                            ///< Whether user has acknowledged the error
+    ErrorLevel level;                                               ///< Severity level of the error
+    const char *source;                                             ///< Component/manager that reported the error
+    char message[data_constants::error_info::MAX_MESSAGE_LENGTH]{}; ///< Fixed-size error message buffer (optimized for
+                                                                    ///< embedded)
+    unsigned long timestamp;                                        ///< millis() timestamp when error occurred
+    bool acknowledged;                                              ///< Whether user has acknowledged the error
 
     // Constructor to maintain compatibility with std::string API
     ErrorInfo() : level(ErrorLevel::WARNING), source(nullptr), timestamp(0), acknowledged(false)

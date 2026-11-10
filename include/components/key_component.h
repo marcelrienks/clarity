@@ -31,7 +31,7 @@ class KeyComponent : public IComponent
   public:
     // ========== Constructors and Destructor ==========
     explicit KeyComponent(IStyleManager *style_manager);
-    virtual ~KeyComponent();
+    ~KeyComponent() override;
 
     // ========== Public Interface Methods ==========
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;

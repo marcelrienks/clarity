@@ -57,9 +57,7 @@ ActionHandler::ActionHandler(IGpioProvider *gpio_provider)
  * ButtonSensor is automatically cleaned up through unique_ptr. No manual
  * cleanup required for GPIO resources as they're managed by the provider.
  */
-ActionHandler::~ActionHandler()
-{
-}
+ActionHandler::~ActionHandler() = default;
 
 // ========== Public Interface Methods ==========
 
@@ -93,9 +91,9 @@ void ActionHandler::SetPendingAction(ButtonAction action_type)
     has_pending_action_ = true;
 
     log_i("Set pending action: %s",
-          actionType == ButtonAction::SHORT_PRESS  ? ui_strings::button_action_strings::SHORT_PRESS
-          : actionType == ButtonAction::LONG_PRESS ? ui_strings::button_action_strings::LONG_PRESS
-                                                   : ui_strings::button_action_strings::NONE);
+          action_type == ButtonAction::SHORT_PRESS  ? ui_strings::button_action_strings::SHORT_PRESS
+          : action_type == ButtonAction::LONG_PRESS ? ui_strings::button_action_strings::LONG_PRESS
+                                                    : ui_strings::button_action_strings::NONE);
 }
 
 /**
@@ -139,7 +137,7 @@ void ActionHandler::ExecutePendingActions()
         return;
     }
 
-    log_i("ExecutePendingActions: Executing %s press", pendingActionType_ == ButtonAction::SHORT_PRESS
+    log_i("ExecutePendingActions: Executing %s press", pending_action_type_ == ButtonAction::SHORT_PRESS
                                                            ? ui_strings::button_action_strings::SHORT
                                                            : ui_strings::button_action_strings::LONG);
 
@@ -344,6 +342,7 @@ bool ActionHandler::IsButtonPressed() const
     }
 
     // Check what type the reading actually is
+    // NOLINTBEGIN(bugprone-branch-clone): the bodies only look identical when log_w compiles out (CORE_DEBUG_LEVEL=0)
     if (std::holds_alternative<int32_t>(reading))
     {
         log_w("IsButtonPressed: Got int32_t reading instead of bool: %d", std::get<int32_t>(reading));
@@ -356,6 +355,7 @@ bool ActionHandler::IsButtonPressed() const
     {
         log_w("IsButtonPressed: Got unexpected reading type");
     }
+    // NOLINTEND(bugprone-branch-clone)
 
     return false;
 }

@@ -31,7 +31,7 @@ class LockComponent : public IComponent
   public:
     // ========== Constructors and Destructor ==========
     explicit LockComponent(IStyleManager *style_manager);
-    virtual ~LockComponent();
+    ~LockComponent() override;
 
     // ========== Public Interface Methods ==========
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;

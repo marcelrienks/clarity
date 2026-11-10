@@ -249,13 +249,19 @@ const ThemeColors &StyleManager::GetColours(const std::string &theme) const
 {
     log_v("GetColours() called");
     if (theme.empty())
+    {
         return day_theme_colours_; // Default fallback
+    }
 
     // Map theme names to color schemes
     if (theme == themes::NIGHT)
+    {
         return night_theme_colours_;
+    }
     if (theme == themes::ERROR)
+    {
         return error_theme_colours_;
+    }
 
     return day_theme_colours_; // Fallback for unknown themes
 }
@@ -293,7 +299,7 @@ const std::string &StyleManager::GetCurrentTheme() const
 void StyleManager::SwitchTheme(const char *theme_name)
 {
     log_v("SwitchTheme() called");
-    log_v("Direct theme switch requested to: %s", themeName);
+    log_v("Direct theme switch requested to: %s", theme_name);
     SetTheme(theme_name);
 }
 
@@ -431,8 +437,8 @@ void StyleManager::RegisterConfigCallback()
     }
 
     // Register callback that calls RefreshConfig when our section changes
-    auto callback = [this](const std::string &full_key, const std::optional<config::ConfigValue> &old_value,
-                           const config::ConfigValue &new_value) { RefreshConfig(); };
+    auto callback = [this](const std::string & /*full_key*/, const std::optional<config::ConfigValue> & /*old_value*/,
+                           const config::ConfigValue & /*new_value*/) { RefreshConfig(); };
 
     configuration_manager_->RegisterChangeCallback(CONFIG_THEME, callback);
     log_i("StyleManager: Registered config callback for key: %s", CONFIG_THEME);

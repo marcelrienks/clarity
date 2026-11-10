@@ -33,7 +33,7 @@ ConfigComponent::ConfigComponent(IPanelManager *panel_manager, IStyleManager *st
  * Main rendering method that creates and displays the configuration UI.
  * Delegates to Init() for actual UI creation. Part of IComponent interface.
  */
-void ConfigComponent::Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display)
+void ConfigComponent::Render(lv_obj_t *screen, const ComponentLocation & /*location*/, IDisplayProvider * /*display*/)
 {
     log_v("Render() called");
     Init(screen);
@@ -46,7 +46,7 @@ void ConfigComponent::Render(lv_obj_t *screen, const ComponentLocation &location
  * This method is part of IComponent interface but is not applicable
  * for configuration menu which uses specific methods for updates.
  */
-void ConfigComponent::SetValue(int32_t value)
+void ConfigComponent::SetValue(int32_t /*value*/)
 {
     log_v("SetValue() called");
     // Not used for config menu - updates handled via specific methods
@@ -64,7 +64,7 @@ void ConfigComponent::SetValue(int32_t value)
  */
 void ConfigComponent::ExecuteAction(const std::string &action_type, const std::string &action_param)
 {
-    log_v("ExecuteAction() called with type: %s, param: %s", actionType.c_str(), actionParam.c_str());
+    log_v("ExecuteAction() called with type: %s, param: %s", action_type.c_str(), action_param.c_str());
 
     if (action_type == ui_strings::action_types::SUBMENU)
     {
@@ -90,7 +90,7 @@ void ConfigComponent::ExecuteAction(const std::string &action_type, const std::s
     }
     else
     {
-        log_w("Unknown action type: %s", actionType.c_str());
+        log_w("Unknown action type: %s", action_type.c_str());
     }
 }
 
@@ -321,13 +321,15 @@ lv_color_t ConfigComponent::GetThemeGradientColor(int distance_from_center, bool
         uint8_t blue = base_color & 0xFF;
 
         // Reduce intensity based on distance (further = darker)
-        float intensity = 1.0f - (distance_from_center * 0.3f);
+        float intensity = 1.0f - (static_cast<float>(distance_from_center) * 0.3f);
         if (intensity < 0.2f)
+        {
             intensity = 0.2f; // Minimum visibility
+        }
 
-        red = (uint8_t)(red * intensity);
-        green = (uint8_t)(green * intensity);
-        blue = (uint8_t)(blue * intensity);
+        red = static_cast<uint8_t>(static_cast<float>(red) * intensity);
+        green = static_cast<uint8_t>(static_cast<float>(green) * intensity);
+        blue = static_cast<uint8_t>(static_cast<float>(blue) * intensity);
 
         // Gradient color calculation completed
 
@@ -340,11 +342,13 @@ lv_color_t ConfigComponent::GetThemeGradientColor(int distance_from_center, bool
         uint8_t gray = (base_color >> 16) & 0xFF;
 
         // Reduce intensity based on distance (further = darker)
-        float intensity = 1.0f - (distance_from_center * 0.3f);
+        float intensity = 1.0f - (static_cast<float>(distance_from_center) * 0.3f);
         if (intensity < 0.2f)
+        {
             intensity = 0.2f; // Minimum visibility
+        }
 
-        gray = (uint8_t)(gray * intensity);
+        gray = static_cast<uint8_t>(static_cast<float>(gray) * intensity);
         // Grayscale color calculation completed
         return lv_color_hex((gray << 16) | (gray << 8) | gray);
     }
@@ -455,7 +459,7 @@ void ConfigComponent::UpdateMenuDisplay()
                 lv_obj_set_style_text_color(menu_labels_[i], GetThemeGradientColor(distance_from_center), LV_PART_MAIN);
 
                 // Progressive font size reduction - more dramatic stepping
-                const lv_font_t *font;
+                const lv_font_t *font = nullptr;
                 switch (distance_from_center)
                 {
                     case 1:

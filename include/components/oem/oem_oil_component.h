@@ -48,7 +48,7 @@ class OemOilComponent : public IComponent
   public:
     // ========== Constructors and Destructor ==========
     OemOilComponent(IStyleManager *style_manager);
-    virtual ~OemOilComponent();
+    ~OemOilComponent() override;
 
     // ========== Public Interface Methods ==========
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;

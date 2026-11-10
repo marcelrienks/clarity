@@ -42,7 +42,7 @@ class SplashPanel : public IPanel
     // ========== Constructors and Destructor ==========
     SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
                 IPanelManager *panel_manager, IConfigurationManager *configuration_manager = nullptr);
-    ~SplashPanel();
+    ~SplashPanel() override;
 
     // ========== Public Interface Methods ==========
     static constexpr const char *NAME = panel_names::SPLASH;

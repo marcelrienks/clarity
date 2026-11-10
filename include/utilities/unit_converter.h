@@ -22,7 +22,7 @@ namespace unit_converter
  * @param bar Pressure in Bar
  * @return Pressure in PSI
  */
-inline constexpr float BarToPsi(float bar)
+constexpr float BarToPsi(float bar)
 {
     return bar * 14.5038f;
 }
@@ -32,7 +32,7 @@ inline constexpr float BarToPsi(float bar)
  * @param bar Pressure in Bar
  * @return Pressure in kPa
  */
-inline constexpr float BarToKpa(float bar)
+constexpr float BarToKpa(float bar)
 {
     return bar * 100.0f;
 }
@@ -42,7 +42,7 @@ inline constexpr float BarToKpa(float bar)
  * @param psi Pressure in PSI
  * @return Pressure in Bar
  */
-inline constexpr float PsiToBar(float psi)
+constexpr float PsiToBar(float psi)
 {
     return psi / 14.5038f;
 }
@@ -52,7 +52,7 @@ inline constexpr float PsiToBar(float psi)
  * @param kpa Pressure in kPa
  * @return Pressure in Bar
  */
-inline constexpr float KpaToBar(float kpa)
+constexpr float KpaToBar(float kpa)
 {
     return kpa / 100.0f;
 }
@@ -65,7 +65,7 @@ inline constexpr float KpaToBar(float kpa)
  * @param celsius Temperature in Celsius
  * @return Temperature in Fahrenheit
  */
-inline constexpr float CelsiusToFahrenheit(float celsius)
+constexpr float CelsiusToFahrenheit(float celsius)
 {
     return (celsius * 9.0f / 5.0f) + 32.0f;
 }
@@ -75,7 +75,7 @@ inline constexpr float CelsiusToFahrenheit(float celsius)
  * @param fahrenheit Temperature in Fahrenheit
  * @return Temperature in Celsius
  */
-inline constexpr float FahrenheitToCelsius(float fahrenheit)
+constexpr float FahrenheitToCelsius(float fahrenheit)
 {
     return (fahrenheit - 32.0f) * 5.0f / 9.0f;
 }

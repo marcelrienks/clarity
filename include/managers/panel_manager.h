@@ -64,7 +64,7 @@ class PanelManager : public IPanelManager, public IActionHandler
                  InterruptManager *interrupts = nullptr);
     PanelManager(const PanelManager &) = delete;
     PanelManager &operator=(const PanelManager &) = delete;
-    ~PanelManager();
+    ~PanelManager() override;
 
     // ========== Static Methods ==========
     // Singleton access for new interrupt architecture

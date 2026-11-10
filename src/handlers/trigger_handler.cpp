@@ -73,9 +73,7 @@ TriggerHandler::TriggerHandler(IGpioProvider *gpio_provider) : trigger_count_(0)
  * GPIO sensors are automatically cleaned up through unique_ptr.
  * No manual cleanup required for GPIO resources.
  */
-TriggerHandler::~TriggerHandler()
-{
-}
+TriggerHandler::~TriggerHandler() = default;
 
 /**
  * @brief Main processing loop for trigger evaluation

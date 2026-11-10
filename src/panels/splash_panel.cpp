@@ -56,15 +56,19 @@ SplashPanel::~SplashPanel()
         timer_ = nullptr;
     }
 
+    // While the fade-in screen load is pending LVGL still holds screen_ as the load target. Freeing it now
+    // would make the next lv_screen_load dereference it, so let the next load finish the animation first and
+    // free both screens afterwards. Without a pending load nothing else references them
+    const bool load_pending = screen_ && lv_anim_get(screen_, nullptr);
     if (screen_)
     {
-        lv_obj_del(screen_);
+        load_pending ? lv_obj_delete_async(screen_) : lv_obj_del(screen_);
         screen_ = nullptr;
     }
 
     if (blank_screen_)
     {
-        lv_obj_del(blank_screen_);
+        load_pending ? lv_obj_delete_async(blank_screen_) : lv_obj_del(blank_screen_);
         blank_screen_ = nullptr;
     }
 

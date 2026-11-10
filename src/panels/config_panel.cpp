@@ -25,8 +25,7 @@
 ConfigPanel::ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
                          IPanelManager *panel_manager, IConfigurationManager *configuration_manager)
     : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager), panel_manager_(panel_manager),
-      configuration_manager_(configuration_manager), config_component_(), component_initialized_(false),
-      current_menu_index_(0)
+      configuration_manager_(configuration_manager), component_initialized_(false), current_menu_index_(0)
 {
     log_v("ConfigPanel constructor called");
 }
@@ -73,7 +72,9 @@ void ConfigPanel::Init()
     screen_ = display_provider_->CreateScreen();
 
     if (!style_manager_)
+    {
         return;
+    }
 
     style_manager_->ApplyThemeToScreen(screen_);
 
@@ -110,7 +111,9 @@ void ConfigPanel::Load()
 
     // Initialize the config component with the screen
     if (!screen_)
+    {
         return;
+    }
 
     // Mark component as initialized
     component_initialized_ = true;
@@ -280,7 +283,7 @@ void ConfigPanel::ExecuteMenuAction(const ConfigComponent::MenuItem &item)
         case MenuActionType::UNKNOWN:
         default:
             log_w("ExecuteMenuAction - Unknown action type: %s (enum: %d)", item.actionType.c_str(),
-                  static_cast<int>(actionType));
+                  static_cast<int>(action_type));
             break;
     }
 }
@@ -383,7 +386,7 @@ void ConfigPanel::HandleSetConfigValue(const std::string &action_param)
     size_t colon_pos = action_param.find(':');
     if (colon_pos == std::string::npos)
     {
-        log_e("HandleSetConfigValue - Invalid set_config_value format: %s", actionParam.c_str());
+        log_e("HandleSetConfigValue - Invalid set_config_value format: %s", action_param.c_str());
         return;
     }
 
@@ -417,7 +420,7 @@ void ConfigPanel::HandleSetConfigValue(const std::string &action_param)
                 return;
             }
         }
-        log_e("HandleSetConfigValue - Config item not found for key: %s", itemKey.c_str());
+        log_e("HandleSetConfigValue - Config item not found for key: %s", item_key.c_str());
     }
     else
     {
@@ -432,7 +435,7 @@ void ConfigPanel::HandleSetConfigValue(const std::string &action_param)
  * Navigates back from submenu to section menu or from section to main menu.
  * Uses stored section name to determine appropriate navigation target.
  */
-void ConfigPanel::HandleBackAction(const std::string &action_param)
+void ConfigPanel::HandleBackAction(const std::string & /*action_param*/)
 {
 
     // If we're in a section menu, go back to main menu
@@ -514,7 +517,7 @@ void ConfigPanel::BuildDynamicMenus()
     }
 
     current_menu_index_ = 0;
-    log_i("Built dynamic menu with %zu sections", sectionNames.size());
+    log_i("Built dynamic menu with %zu sections", section_names.size());
 }
 
 /**
@@ -601,8 +604,10 @@ void ConfigPanel::ShowOptionsMenu(const std::string &full_key, const config::Con
 {
     log_i("ShowOptionsMenu() for key: %s", full_key.c_str());
 
-    // Make a copy of full_key to avoid reference invalidation when menu_items_ is cleared
-    std::string key_str = full_key;
+    // Make a copy of full_key to avoid reference invalidation when menu_items_ is cleared: callers pass a
+    // reference into menu_items_, so a reference here would dangle after clear()
+    // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
+    const std::string key_str = full_key;
 
     menu_items_.clear();
 
@@ -659,8 +664,8 @@ void ConfigPanel::ShowBooleanToggle(const std::string &full_key, const config::C
         auto [section_name, item_key] = ParseConfigKey(full_key);
         BuildSectionMenu(section_name);
 
-        log_i("Toggled %s from %s to %s", full_key.c_str(), *currentValue ? "true" : "false",
-              newValue ? "true" : "false");
+        log_i("Toggled %s from %s to %s", full_key.c_str(), *current_value ? "true" : "false",
+              new_value ? "true" : "false");
     }
 }
 
@@ -676,7 +681,9 @@ std::vector<std::string> ConfigPanel::ParseOptions(const std::string &constraint
 {
     std::vector<std::string> options;
     if (constraints.empty())
+    {
         return options;
+    }
 
     std::stringstream ss(constraints);
     std::string option;
@@ -773,7 +780,7 @@ void ConfigPanel::ShowNumericOptionsMenu(const std::string &full_key, const conf
  * Displays current string value in read-only format.
  * String editing not supported through menu interface.
  */
-void ConfigPanel::ShowStringOptionsMenu(const std::string &full_key, const config::ConfigItem &item)
+void ConfigPanel::ShowStringOptionsMenu(const std::string & /*full_key*/, const config::ConfigItem &item)
 {
     // For string types without options, just show current value
     ConfigComponent::MenuItem current_item;
@@ -829,7 +836,7 @@ ConfigComponent::MenuItem ConfigPanel::CreateMenuItemWithSelection(const std::st
  */
 ConfigPanel::NumericRange ConfigPanel::ParseNumericRange(const config::ConfigItem &item) const
 {
-    NumericRange range;
+    NumericRange range{};
     range.minValue = 0;
     range.maxValue = 100;
     range.currentValue = std::stof(configuration_manager_->ToString(item.value));

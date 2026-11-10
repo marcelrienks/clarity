@@ -56,12 +56,12 @@ class BaseSensor : public ISensor
 {
   public:
     // ========== Constructors and Destructor ==========
-    virtual ~BaseSensor() = default;
+    ~BaseSensor() override = default;
 
     // ========== Public Interface Methods ==========
     // ISensor interface methods (must be implemented by concrete sensors)
-    virtual void Init() = 0;
-    virtual Reading GetReading() = 0;
+    void Init() override = 0;
+    Reading GetReading() override = 0;
 
     virtual bool HasStateChanged() = 0;
 

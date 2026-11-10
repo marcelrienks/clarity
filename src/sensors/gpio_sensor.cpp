@@ -151,6 +151,7 @@ bool GpioSensor::HasStateChanged()
               current_state ? "ACTIVE" : "INACTIVE");
 
         // Special case logging for key sensors to maintain compatibility
+        // NOLINTBEGIN(bugprone-branch-clone): the bodies only look identical when log_t compiles out (no TEST_LOGS)
         if (config_.pin == gpio_pins::KEY_PRESENT)
         {
             log_t("KeyPresentSensor state changed: %s -> %s", old_state ? "PRESENT" : "NOT_PRESENT",
@@ -165,6 +166,7 @@ bool GpioSensor::HasStateChanged()
         {
             log_t("Lights sensor state changed: %s -> %s", old_state ? "ON" : "OFF", current_state ? "ON" : "OFF");
         }
+        // NOLINTEND(bugprone-branch-clone)
     }
 
     return changed;
@@ -186,6 +188,7 @@ void GpioSensor::OnInterruptTriggered()
     if (config_.pin == gpio_pins::LIGHTS)
     {
         bool current_state = ReadLogicalState();
+        // NOLINTBEGIN(bugprone-branch-clone): the bodies only look identical when log_t compiles out (no TEST_LOGS)
         if (current_state)
         {
             log_t("Lights turned on - system could switch to night theme");
@@ -194,6 +197,7 @@ void GpioSensor::OnInterruptTriggered()
         {
             log_t("Lights turned off - system could switch to day theme");
         }
+        // NOLINTEND(bugprone-branch-clone)
     }
     else if (config_.pin == gpio_pins::DEBUG_ERROR)
     {

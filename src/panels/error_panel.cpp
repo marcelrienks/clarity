@@ -22,8 +22,7 @@
 ErrorPanel::ErrorPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
                        IPanelManager *panel_manager)
     : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager), panel_manager_(panel_manager),
-      error_component_(style_manager), component_initialized_(false), panel_loaded_(false), previous_theme_(),
-      current_error_index_(0)
+      error_component_(style_manager), component_initialized_(false), panel_loaded_(false), current_error_index_(0)
 {
     log_v("ErrorPanel constructor called");
 }
@@ -203,7 +202,7 @@ void ErrorPanel::Update()
         {
             current_errors_.push_back(new_error);
             SortErrorsBySeverity();
-            log_i("Added new error to unviewed list: %s - %s", newError.source, newError.message);
+            log_i("Added new error to unviewed list: %s - %s", new_error.source, new_error.message);
         }
     }
 
@@ -407,7 +406,7 @@ void ErrorPanel::AdvanceToNextError()
     if (current_error_index_ < current_errors_.size())
     {
         ErrorInfo viewed_error = current_errors_[current_error_index_];
-        log_i("Removing viewed error: %s - %s", viewedError.source, viewedError.message);
+        log_i("Removing viewed error: %s - %s", viewed_error.source, viewed_error.message);
 
         // Track this error as viewed
         viewed_errors_.push_back(viewed_error);
@@ -415,7 +414,7 @@ void ErrorPanel::AdvanceToNextError()
         // Note: We cannot remove individual errors from ErrorManager, only clear all
 
         // Remove from our local list
-        current_errors_.erase(current_errors_.begin() + current_error_index_);
+        current_errors_.erase(current_errors_.begin() + static_cast<std::ptrdiff_t>(current_error_index_));
     }
 
     // Adjust index for the removal - stay at same position (which now shows next error)
@@ -425,8 +424,8 @@ void ErrorPanel::AdvanceToNextError()
         current_error_index_ = 0;
     }
 
-    log_i("AdvanceToNextError: Removed viewed error %zu, now showing error %zu/%zu", oldIndex, current_error_index_ + 1,
-          current_errors_.size());
+    log_i("AdvanceToNextError: Removed viewed error %zu, now showing error %zu/%zu", old_index,
+          current_error_index_ + 1, current_errors_.size());
 
     // Update the component to display the new current error
     if (component_initialized_ && !current_errors_.empty())

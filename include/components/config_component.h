@@ -46,7 +46,7 @@ class ConfigComponent : public IComponent
 
     // ========== Constructors and Destructor ==========
     ConfigComponent(IPanelManager *panel_manager = nullptr, IStyleManager *style_manager = nullptr);
-    ~ConfigComponent() = default;
+    ~ConfigComponent() override = default;
 
     // ========== Public Interface Methods ==========
     void ExecuteAction(const std::string &action_type, const std::string &action_param);

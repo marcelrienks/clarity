@@ -34,7 +34,7 @@ class ConfigurationManager : public IConfigurationManager
     ConfigurationManager();
     ConfigurationManager(const ConfigurationManager &) = delete;
     ConfigurationManager &operator=(const ConfigurationManager &) = delete;
-    ~ConfigurationManager();
+    ~ConfigurationManager() override;
 
     // ========== Static Methods ==========
     static ConfigurationManager &Instance();

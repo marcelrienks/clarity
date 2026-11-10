@@ -69,26 +69,26 @@ class BasePanel : public IPanel
     /**
      * @brief Virtual destructor ensuring proper cleanup of LVGL screen
      */
-    virtual ~BasePanel();
+    ~BasePanel() override;
 
     // ========== Public Interface Methods ==========
     /**
      * @brief Initialize panel - validate providers and setup screen
      * @details Template method - calls CustomInit() for derived class setup
      */
-    void Init() final;
+    void Init() override final;
 
     /**
      * @brief Load panel content and display on screen
      * @details Template method - calls CreateContent() and PostLoad() hooks
      */
-    void Load() final;
+    void Load() override final;
 
     /**
      * @brief Update panel with fresh data
      * @details Template method - calls UpdateContent() and resets UI state
      */
-    void Update() final;
+    void Update() override final;
 
     /**
      * @brief Inject panel and style service dependencies
@@ -154,7 +154,7 @@ class BasePanel : public IPanel
      * @brief Handle short button press - override for panel-specific behavior
      * @details Default implementation does nothing
      */
-    virtual void HandleShortPress()
+    void HandleShortPress() override
     {
     }
 
@@ -162,7 +162,7 @@ class BasePanel : public IPanel
      * @brief Handle long button press - override for panel-specific behavior
      * @details Default implementation does nothing
      */
-    virtual void HandleLongPress()
+    void HandleLongPress() override
     {
     }
 

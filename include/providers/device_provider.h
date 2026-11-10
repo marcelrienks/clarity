@@ -25,12 +25,12 @@
 // Pins - use constants from centralized location
 #define SCLK 18
 #define MOSI 23
-#define MISO -1
+#define MISO (-1)
 #define DC 16
 #define CS 22
 #define RST 4
 #define BL 3
-#define BUZZER -1
+#define BUZZER (-1)
 
 /**
  * @class DeviceProvider
@@ -59,7 +59,7 @@ class DeviceProvider : public lgfx::LGFX_Device
     DeviceProvider();
     DeviceProvider(const DeviceProvider &) = delete;
     DeviceProvider &operator=(const DeviceProvider &) = delete;
-    ~DeviceProvider() = default;
+    ~DeviceProvider() override = default;
 
     // ========== Public Interface Methods ==========
     void Prepare();
@@ -71,7 +71,7 @@ class DeviceProvider : public lgfx::LGFX_Device
     static void DisplayFlushCallback(lv_display_t *display, const lv_area_t *area, unsigned char *data);
 
     // ========== Private Data Members ==========
-    lv_obj_t *screen_;
+    lv_obj_t *screen_{};
 
     lgfx::Panel_GC9A01 panel_instance_; // Waveshare Round 1.28inch LCD Display Module
     lgfx::Light_PWM light_instance_;
@@ -82,5 +82,5 @@ class DeviceProvider : public lgfx::LGFX_Device
     static constexpr unsigned int BUFFER_LINE_COUNT = 60;
     static constexpr unsigned int BYTES_PER_PIXEL = 2; // LV_COLOR_FORMAT_RGB565
     static constexpr unsigned int LV_BUFFER_SIZE = (SCREEN_WIDTH * BUFFER_LINE_COUNT * BYTES_PER_PIXEL);
-    uint8_t lv_buffer_[2][LV_BUFFER_SIZE];
+    uint8_t lv_buffer_[2][LV_BUFFER_SIZE]{};
 };

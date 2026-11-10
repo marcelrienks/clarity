@@ -30,10 +30,8 @@ class SemaphoreGuard
  * Initializes the storage system with thread-safe access and NVS backend.
  * Handles NVS initialization errors and prepares storage for configuration data.
  */
-StorageProvider::StorageProvider()
+StorageProvider::StorageProvider() : config_mutex_(xSemaphoreCreateMutex()) // thread safety semaphore
 {
-    // Initialize thread safety semaphore
-    config_mutex_ = xSemaphoreCreateMutex();
     if (!config_mutex_)
     {
         log_e("Failed to create config mutex");
@@ -71,7 +69,9 @@ StorageProvider::StorageProvider()
     // Create default sections
 
     // Load all registered sections
-    LoadAllConfigSections();
+    // StorageProvider is never subclassed, so the call cannot reach an override
+    // cppcheck-suppress virtualCallInConstructor
+    StorageProvider::LoadAllConfigSections();
 
     log_i("ConfigurationManager initialized");
 }
@@ -517,7 +517,7 @@ std::string StorageProvider::GetSectionNamespace(const std::string &section_name
     std::string ns = section_prefix + section_name;
     if (ns.length() > MAX_NAMESPACE_LEN)
     {
-        ns = ns.substr(0, MAX_NAMESPACE_LEN);
+        ns.resize(MAX_NAMESPACE_LEN);
     }
     return ns;
 }
@@ -534,11 +534,15 @@ std::string StorageProvider::GetSectionNamespace(const std::string &section_name
 bool StorageProvider::ValidateIntRange(int value, const std::string &constraints) const
 {
     if (constraints.empty())
+    {
         return true;
+    }
 
     size_t dash_pos = constraints.find('-');
     if (dash_pos == std::string::npos)
+    {
         return true;
+    }
 
     try
     {
@@ -564,11 +568,15 @@ bool StorageProvider::ValidateIntRange(int value, const std::string &constraints
 bool StorageProvider::ValidateFloatRange(float value, const std::string &constraints) const
 {
     if (constraints.empty())
+    {
         return true;
+    }
 
     size_t dash_pos = constraints.find('-');
     if (dash_pos == std::string::npos)
+    {
         return true;
+    }
 
     try
     {
@@ -594,7 +602,9 @@ bool StorageProvider::ValidateFloatRange(float value, const std::string &constra
 bool StorageProvider::ValidateEnumValue(const std::string &value, const std::string &constraints) const
 {
     if (constraints.empty())
+    {
         return true;
+    }
 
     auto options = ParseOptions(constraints);
     return std::find(options.begin(), options.end(), value) != options.end();

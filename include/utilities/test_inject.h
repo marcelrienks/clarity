@@ -21,7 +21,7 @@ namespace test_inject
 {
 #ifdef CLARITY_TEST_INJECT_ERROR
 /// Configure the injection pin and seed its state so a held button is not an edge
-void Begin(IGpioProvider *gpioProvider);
+void Begin(IGpioProvider *gpio_provider);
 
 /// Call once per loop; reports one error per rising edge
 void Poll();

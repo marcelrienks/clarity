@@ -95,7 +95,7 @@ int32_t OemOilTemperatureComponent::MapValueForDisplay(int32_t value) const
     log_v("map_value_for_display: max_val=%d", max_val);
 
     int32_t mapped_value = max_val - value;
-    log_v("map_value_for_display: returning mapped value=%d", mappedValue);
+    log_v("map_value_for_display: returning mapped value=%d", mapped_value);
 
     return mapped_value;
 }

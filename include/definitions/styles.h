@@ -141,10 +141,8 @@ inline lv_color_t GetErrorColor(ErrorLevel level)
             return lv_color_hex(0xFF0000); // Red
         case ErrorLevel::ERROR:
             return lv_color_hex(0xFFFF00); // Yellow
-        case ErrorLevel::WARNING:
+        default:                           // WARNING and anything unknown
             return lv_color_hex(0xFFFFFF); // White
-        default:
-            return lv_color_hex(0xFFFFFF); // Default to white
     }
 }
 } // namespace style_utils

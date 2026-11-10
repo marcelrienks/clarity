@@ -11,19 +11,19 @@
 namespace
 {
 IGpioProvider *gpio = nullptr;
-bool previousState = false;
+bool previous_state = false;
 } // namespace
 
-void test_inject::Begin(IGpioProvider *gpioProvider)
+void test_inject::Begin(IGpioProvider *gpio_provider)
 {
-    gpio = gpioProvider;
+    gpio = gpio_provider;
     if (!gpio)
     {
         return;
     }
 
     gpio->PinMode(gpio_pins::DEBUG_ERROR, INPUT);
-    previousState = gpio->DigitalRead(gpio_pins::DEBUG_ERROR);
+    previous_state = gpio->DigitalRead(gpio_pins::DEBUG_ERROR);
     log_t("Test error injection armed");
 }
 
@@ -35,11 +35,11 @@ void test_inject::Poll()
     }
 
     bool state = gpio->DigitalRead(gpio_pins::DEBUG_ERROR);
-    if (state && !previousState)
+    if (state && !previous_state)
     {
         ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "TestInject", "Injected test error");
     }
-    previousState = state;
+    previous_state = state;
 }
 
 #endif // CLARITY_TEST_INJECT_ERROR

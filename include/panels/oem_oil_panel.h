@@ -55,7 +55,7 @@ class OemOilPanel : public IPanel
     // ========== Constructors and Destructor ==========
     OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
                 IPanelManager *panel_manager, IConfigurationManager *configuration_manager);
-    ~OemOilPanel();
+    ~OemOilPanel() override;
 
     // ========== Public Interface Methods ==========
     static constexpr const char *NAME = panel_names::OIL;
@@ -136,7 +136,6 @@ class OemOilPanel : public IPanel
     int32_t last_animated_pressure_value_;
     int32_t last_animated_temperature_value_;
 
-  private:
     // Helper methods for deadband calculation
     void CalculateDeadbands();
 
@@ -162,6 +161,6 @@ class OemOilPanel : public IPanel
     AnimationState animation_state_ = AnimationState::IDLE;
 
     // Instance Data Members - Animation Objects
-    lv_anim_t pressure_animation_; // Instance-level animation objects (prevents memory leaks)
-    lv_anim_t temperature_animation_;
+    lv_anim_t pressure_animation_{}; // Instance-level animation objects (prevents memory leaks)
+    lv_anim_t temperature_animation_{};
 };

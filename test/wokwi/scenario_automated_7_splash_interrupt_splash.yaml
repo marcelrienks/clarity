@@ -9,8 +9,8 @@ steps:
   - wait-serial: '[T] System ready'
   - wait-serial: '[T] SplashPanel loaded successfully'
   - wait-serial: '[T] Test: interrupting splash mid fade-in'
-  - wait-serial: '[T] OemOilPanel loaded successfully'
   - wait-serial: '[T] Pressure reading:'
+  - wait-serial: '[T] OemOilPanel loaded successfully'
   - delay: 4000ms
 
   # Still alive and responsive: a long press on the Oil panel opens Config

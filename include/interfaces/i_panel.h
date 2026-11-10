@@ -64,7 +64,7 @@ class IPanel : public IActionHandler
 {
   public:
     // Destructors
-    virtual ~IPanel() = default;
+    ~IPanel() override = default;
 
     // Core Interface Methods
     virtual void Init() = 0;

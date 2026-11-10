@@ -1,4 +1,5 @@
 #include "panels/oem_oil_panel.h"
+
 #include "components/oem/oem_oil_pressure_component.h"
 #include "components/oem/oem_oil_temperature_component.h"
 #include "definitions/constants.h"
@@ -10,6 +11,7 @@
 #include "sensors/oil_temperature_sensor.h"
 #include "utilities/logging.h"
 #include "utilities/unit_converter.h"
+#include <math.h>
 
 // ========== Constructors and Destructor ==========
 
@@ -322,34 +324,30 @@ void OemOilPanel::UpdateOilPressure(bool force_refresh)
     if (current_oil_pressure_value_ == -1)
     {
         // Initial load - determine start position based on target value
-        if (value < scale_min)
-        {
-            animation_start_value = scale_min; // Start from minimum if value is below scale
-        }
-        else if (value > scale_max)
+        if (value > scale_max)
         {
             animation_start_value = scale_max; // Start from maximum if value is above scale
         }
         else
         {
-            // Value is within scale bounds
+            // Value is below or within the scale bounds
             // For pressure, always start from minimum (0.0 Bar) for initial animation
             // This represents the engine starting up and building pressure from 0
             animation_start_value = scale_min;
         }
-        log_i("Initial pressure animation: starting from %d to %d", animationStartValue, value);
+        log_i("Initial pressure animation: starting from %d to %d", animation_start_value, value);
     }
     else if (current_oil_pressure_value_ < scale_min && value >= scale_min)
     {
         // Coming from below scale minimum into visible range
         animation_start_value = scale_min;
-        log_i("Pressure entering scale from below: animating from %d to %d", animationStartValue, value);
+        log_i("Pressure entering scale from below: animating from %d to %d", animation_start_value, value);
     }
     else if (current_oil_pressure_value_ > scale_max && value <= scale_max)
     {
         // Coming from above scale maximum into visible range
         animation_start_value = scale_max;
-        log_i("Pressure entering scale from above: animating from %d to %d", animationStartValue, value);
+        log_i("Pressure entering scale from above: animating from %d to %d", animation_start_value, value);
     }
 
     // Setup animation
@@ -470,34 +468,30 @@ void OemOilPanel::UpdateOilTemperature(bool force_refresh)
     if (current_oil_temperature_value_ == -1)
     {
         // Initial load - determine start position based on target value
-        if (value < scale_min)
-        {
-            animation_start_value = scale_min; // Start from minimum if value is below scale
-        }
-        else if (value > scale_max)
+        if (value > scale_max)
         {
             animation_start_value = scale_max; // Start from maximum if value is above scale
         }
         else
         {
-            // Value is within scale bounds
+            // Value is below or within the scale bounds
             // For temperature, always start from minimum (cold) for initial animation
             // This represents a cold engine warming up, which is the typical scenario
             animation_start_value = scale_min;
         }
-        log_i("Initial temperature animation: starting from %d to %d", animationStartValue, value);
+        log_i("Initial temperature animation: starting from %d to %d", animation_start_value, value);
     }
     else if (current_oil_temperature_value_ < scale_min && value >= scale_min)
     {
         // Coming from below scale minimum into visible range
         animation_start_value = scale_min;
-        log_i("Temperature entering scale from below: animating from %d to %d", animationStartValue, value);
+        log_i("Temperature entering scale from below: animating from %d to %d", animation_start_value, value);
     }
     else if (current_oil_temperature_value_ > scale_max && value <= scale_max)
     {
         // Coming from above scale maximum into visible range
         animation_start_value = scale_max;
-        log_i("Temperature entering scale from above: animating from %d to %d", animationStartValue, value);
+        log_i("Temperature entering scale from above: animating from %d to %d", animation_start_value, value);
     }
 
     // Setup animation
@@ -787,7 +781,7 @@ int32_t OemOilPanel::MapPressureValue(int32_t sensor_value)
     }
     int32_t mapped_value = MapPressureByUnit(sensor_value, pressure_unit);
 
-    log_v("MapPressureValue() returning: %d", mappedValue);
+    log_v("MapPressureValue() returning: %d", mapped_value);
     return mapped_value;
 }
 
@@ -803,7 +797,7 @@ int32_t OemOilPanel::MapPressureValue(int32_t sensor_value)
 int32_t OemOilPanel::MapPressureByUnit(int32_t sensor_value, const std::string &unit)
 {
     // Convert to base unit (Bar) if needed
-    float bar_value;
+    float bar_value = NAN;
     if (unit == config_constants::units::PSI_UPPER)
     {
         bar_value = unit_converter::PsiToBar(static_cast<float>(sensor_value));
@@ -881,9 +875,13 @@ int32_t OemOilPanel::MapBarPressure(int32_t sensor_value)
 int32_t OemOilPanel::ClampValue(int32_t value, int32_t min_val, int32_t max_val)
 {
     if (value < min_val)
+    {
         return min_val;
+    }
     if (value > max_val)
+    {
         return max_val;
+    }
     return value;
 }
 
@@ -895,7 +893,7 @@ int32_t OemOilPanel::ClampValue(int32_t value, int32_t min_val, int32_t max_val)
 int32_t OemOilPanel::MapTemperatureValue(int32_t sensor_value)
 {
     // Convert to base unit (Celsius) if needed
-    float celsius_value;
+    float celsius_value = NAN;
 
     if (configuration_manager_)
     {
@@ -928,7 +926,7 @@ int32_t OemOilPanel::MapTemperatureValue(int32_t sensor_value)
         ClampValue(mapped_value, sensor_constants::TEMPERATURE_MIN_CELSIUS, sensor_constants::TEMPERATURE_MAX_CELSIUS);
 
     // Direct 1:1 mapping for Celsius to display scale (0-120)
-    log_v("MapTemperatureValue() returning: %d", mappedValue);
+    log_v("MapTemperatureValue() returning: %d", mapped_value);
     return mapped_value;
 }
 
@@ -986,11 +984,11 @@ void OemOilPanel::CalculateDeadbands()
                 configuration_manager_->QueryConfig<int>(config_constants::keys::OIL_PRESSURE_DEADBAND_PERCENT))
         {
             pressure_percent = *config_value;
-            log_i("Using configured pressure deadband: %d%%", pressurePercent);
+            log_i("Using configured pressure deadband: %d%%", pressure_percent);
         }
         else
         {
-            log_i("No pressure deadband config found, using default: %d%%", pressurePercent);
+            log_i("No pressure deadband config found, using default: %d%%", pressure_percent);
         }
     }
 
@@ -1002,11 +1000,11 @@ void OemOilPanel::CalculateDeadbands()
                 configuration_manager_->QueryConfig<int>(config_constants::keys::OIL_TEMPERATURE_DEADBAND_PERCENT))
         {
             temperature_percent = *config_value;
-            log_i("Using configured temperature deadband: %d%%", temperaturePercent);
+            log_i("Using configured temperature deadband: %d%%", temperature_percent);
         }
         else
         {
-            log_i("No temperature deadband config found, using default: %d%%", temperaturePercent);
+            log_i("No temperature deadband config found, using default: %d%%", temperature_percent);
         }
     }
 
@@ -1020,18 +1018,22 @@ void OemOilPanel::CalculateDeadbands()
     // Pressure: (percent * component_scale_range) / 100
     pressure_deadband_ = (pressure_percent * pressure_scale_range) / 100;
     if (pressure_deadband_ < 1)
+    {
         pressure_deadband_ = 1; // Minimum 1 scale unit
+    }
 
     // Temperature: (percent * component_scale_range) / 100
     temperature_deadband_ = (temperature_percent * temperature_scale_range) / 100;
     if (temperature_deadband_ < 1)
+    {
         temperature_deadband_ = 1; // Minimum 1 scale unit
+    }
 
     log_i("Calculated deadbands from component scale constants:");
     log_i("  Pressure: %d-%d range (%d units), %d%% = %d scale units (%.1f Bar threshold)",
           sensor_constants::PRESSURE_DISPLAY_SCALE_MIN, sensor_constants::PRESSURE_DISPLAY_SCALE_MAX,
-          pressureScaleRange, pressurePercent, pressure_deadband_, pressure_deadband_ / 10.0f);
+          pressure_scale_range, pressure_percent, pressure_deadband_, pressure_deadband_ / 10.0f);
     log_i("  Temperature: %d-%d range (%d units), %d%% = %d scale units (%d°C threshold)",
           sensor_constants::TEMPERATURE_DISPLAY_SCALE_MIN, sensor_constants::TEMPERATURE_DISPLAY_SCALE_MAX,
-          temperatureScaleRange, temperaturePercent, temperature_deadband_, temperature_deadband_);
+          temperature_scale_range, temperature_percent, temperature_deadband_, temperature_deadband_);
 }

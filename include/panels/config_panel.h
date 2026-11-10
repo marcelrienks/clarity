@@ -51,7 +51,7 @@ class ConfigPanel : public IPanel
     // ========== Constructors and Destructor ==========
     ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
                 IPanelManager *panel_manager, IConfigurationManager *configuration_manager);
-    ~ConfigPanel();
+    ~ConfigPanel() override;
 
     // ========== Public Interface Methods ==========
     static constexpr const char *NAME = panel_names::CONFIG;

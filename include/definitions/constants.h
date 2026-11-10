@@ -416,8 +416,6 @@ static constexpr int SCREEN_OFFSET_X = 0;
 static constexpr int SCREEN_OFFSET_Y = 0;
 static constexpr bool SCREEN_RGB_ORDER = false;
 static constexpr int SCREEN_DEFAULT_BRIGHTNESS = 100;
-static constexpr unsigned int BUFFER_LINE_COUNT = 40;
-static constexpr unsigned int LV_BUFFER_SIZE = (SCREEN_WIDTH * BUFFER_LINE_COUNT * sizeof(uint16_t));
 } // namespace display
 
 // ========== SPI Configuration Constants ==========

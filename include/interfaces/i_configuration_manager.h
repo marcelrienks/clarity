@@ -50,7 +50,9 @@ class IConfigurationManager
         // Delegate to implementation method for actual config lookup
         auto value_opt = QueryConfigImpl(full_key);
         if (!value_opt)
+        {
             return std::nullopt;
+        }
 
         // Use GetValue method for type-safe value extraction
         return GetValue<T>(*value_opt);

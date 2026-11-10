@@ -112,13 +112,17 @@ void BasePanel::Update()
 void BasePanel::ShowPanelCompletionCallback(lv_event_t *event)
 {
     if (!event)
+    {
         return;
+    }
 
     auto this_instance = static_cast<BasePanel *>(lv_event_get_user_data(event));
     if (!this_instance)
+    {
         return;
+    }
 
-    log_v("%s::ShowPanelCompletionCallback() called", thisInstance->GetPanelName());
+    log_v("%s::ShowPanelCompletionCallback() called", this_instance->GetPanelName());
 
     // Set UI state to IDLE after panel loads so triggers can be evaluated again
     if (this_instance->panel_manager_)

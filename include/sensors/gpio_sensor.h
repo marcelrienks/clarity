@@ -66,7 +66,7 @@ class GpioSensor : public BaseSensor
   public:
     // ========== Constructors and Destructor ==========
     GpioSensor(const GpioSensorConfig &config, IGpioProvider *gpio_provider);
-    ~GpioSensor();
+    ~GpioSensor() override;
 
     // ========== Public Interface Methods ==========
     // ISensor interface implementation

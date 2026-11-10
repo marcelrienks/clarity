@@ -42,7 +42,7 @@ class ErrorPanel : public IPanel
     // ========== Constructors and Destructor ==========
     ErrorPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
                IPanelManager *panel_manager);
-    ~ErrorPanel();
+    ~ErrorPanel() override;
 
     // ========== Public Interface Methods ==========
     static constexpr const char *NAME = panel_names::ERROR;
@@ -53,8 +53,8 @@ class ErrorPanel : public IPanel
     // Old function pointer methods removed - using direct HandleShortPress/HandleLongPress
 
     // Public action handlers
-    void HandleShortPress();
-    void HandleLongPress();
+    void HandleShortPress() override;
+    void HandleLongPress() override;
 
   private:
     // ========== Static Methods ==========

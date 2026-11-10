@@ -167,7 +167,7 @@ bool InterruptManager::RegisterTrigger(const Trigger &trigger)
  * @brief Register action with ActionHandler
  * @details Delegates to ActionHandler for actual registration and validation
  */
-bool InterruptManager::RegisterAction(const Action &action)
+bool InterruptManager::RegisterAction(const Action & /*action*/)
 {
     if (!action_handler_)
     {
@@ -303,8 +303,8 @@ bool InterruptManager::CheckAndExecuteHighestPriorityTrigger()
 
     if (highest_trigger && highest_trigger->isActive && highest_trigger->activateFunc)
     {
-        log_i("Found active trigger '%s' (priority %d) - executing", highestTrigger->id,
-              static_cast<int>(highestTrigger->priority));
+        log_i("Found active trigger '%s' (priority %d) - executing", highest_trigger->id,
+              static_cast<int>(highest_trigger->priority));
         highest_trigger->activateFunc();
         return true;
     }
@@ -328,8 +328,8 @@ void InterruptManager::CheckAndExecuteActiveStyleTriggers()
 
     if (style_trigger && style_trigger->isActive && style_trigger->activateFunc)
     {
-        log_i("Found active STYLE trigger '%s' (priority %d) - executing", styleTrigger->id,
-              static_cast<int>(styleTrigger->priority));
+        log_i("Found active STYLE trigger '%s' (priority %d) - executing", style_trigger->id,
+              static_cast<int>(style_trigger->priority));
         style_trigger->activateFunc();
     }
 }
@@ -394,5 +394,5 @@ void InterruptManager::RegisterSystemInterrupts()
         }
     }
 
-    log_i("Registered %zu system triggers and %zu system actions", systemTriggers.size(), systemActions.size());
+    log_i("Registered %zu system triggers and %zu system actions", system_triggers.size(), system_actions.size());
 }
