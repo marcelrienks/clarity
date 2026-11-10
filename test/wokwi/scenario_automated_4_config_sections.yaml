@@ -25,9 +25,9 @@ steps:
   # after the load stalled the simulator in Wokwi (observed, cause not investigated)
   - delay: 1000ms
 
-  # Step 15: Configuration Navigation to Theme Settings
+  # Step 15: Configuration Navigation to the Display section
   # - Main menu order: Button, Display, Oil Press., Oil Temp., Splash Scr., System, Exit
-  # - Short press moves to Display (holds the Theme item)
+  # - Short press moves to Display (holds the Brightness item; the theme follows the lights signal only)
   - set-control:
       part-id: btn1
       control: pressed
@@ -40,8 +40,8 @@ steps:
   - wait-serial: '[T] ConfigPanel: Display option highlighted'
   - delay: 200ms
 
-  # Step 16: Theme Submenu Access
-  # - Long press enters Display, long press again opens the Theme options (Day, Night)
+  # Step 16: Display section access
+  # - Long press enters Display
   - set-control:
       part-id: btn1
       control: pressed
@@ -57,17 +57,7 @@ steps:
   - delay: 1000ms  # menu rebuilt: wait before the next press
 
   # Step 19: Configuration Exit Navigation
-  # - Display section menu: Theme, Brightness, Back; long press on Back returns to the main menu
-  - set-control:
-      part-id: btn1
-      control: pressed
-      value: 1
-  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
-  - set-control:
-      part-id: btn1
-      control: pressed
-      value: 0
-  - wait-serial: '[T] ConfigPanel: Brightness'
+  # - Display section menu: Brightness, Back (no Theme item); long press on Back returns to the main menu
   - set-control:
       part-id: btn1
       control: pressed

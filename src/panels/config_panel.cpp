@@ -408,12 +408,6 @@ void ConfigPanel::HandleSetConfigValue(const std::string &action_param)
                 // Update the configuration
                 configuration_manager_->UpdateConfig(full_key, new_value);
 
-                // If this was a theme change, update the config component colors
-                if (full_key == ui_strings::config_keys::STYLE_MANAGER_THEME)
-                {
-                    config_component_.UpdateThemeColors();
-                }
-
                 // Go back to section menu
                 BuildSectionMenu(section_name);
                 log_t("ConfigPanel: Returned to section %s menu", section_name.c_str());

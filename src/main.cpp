@@ -161,13 +161,8 @@ bool InitializeServices()
         ErrorManager::Instance().ReportCriticalError("main", "ConfigurationManager creation failed");
         return false;
     }
-    // Initialize StyleManager with user's theme preference
-    std::string user_theme = themes::DAY; // Default
-    if (auto theme_value = configuration_manager->QueryConfig<std::string>(config_constants::keys::SYSTEM_THEME))
-    {
-        user_theme = *theme_value;
-    }
-    style_manager = manager_factory->CreateStyleManager(user_theme.c_str());
+    // Start with the Day theme: the lights signal selects Night once it is sampled
+    style_manager = manager_factory->CreateStyleManager(themes::DAY);
     if (!style_manager)
     {
         log_e("Failed to create StyleManager via factory");

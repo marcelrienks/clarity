@@ -53,16 +53,15 @@ constexpr DisplayRequest ResolveDisplay(const VehicleInputs &in, bool errors_act
     return {OverridePanel::None, KeyState::Inactive};
 }
 
-/// The theme to apply: Error while the error panel is requested, Night while the lights are on,
-/// otherwise the user's preference.
-/// Q-05 is open: when the lights go off this restores the user's preference (the recommended answer),
-/// where today's firmware forces Day.
-constexpr ThemeId EffectiveTheme(const DisplayRequest &request, const VehicleInputs &in, ThemeId user) noexcept
+/// The theme to apply: Error while the error panel is requested, otherwise Night while the dash-light
+/// signal is on and Day while it is off. The signal is wired to the car's dash lighting, so the user's
+/// saved theme plays no part (Q-05).
+constexpr ThemeId EffectiveTheme(const DisplayRequest &request, const VehicleInputs &in) noexcept
 {
     if (request.panel == OverridePanel::Error)
     {
         return ThemeId::Error;
     }
-    return in.lights ? ThemeId::Night : user;
+    return in.lights ? ThemeId::Night : ThemeId::Day;
 }
 } // namespace clarity::core

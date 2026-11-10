@@ -109,12 +109,6 @@ static constexpr const char *BACK = "Back";
 static constexpr const char *CONFIGURATION = "Configuration";
 } // namespace menu_labels
 
-// ========== Configuration Keys ==========
-namespace config_keys
-{
-static constexpr const char *STYLE_MANAGER_THEME = "style_manager.theme";
-}
-
 // ========== Default Hint Text ==========
 namespace hint_text
 {
@@ -127,7 +121,6 @@ namespace config_labels
 static constexpr const char *DEFAULT_PANEL = "Default Panel";
 static constexpr const char *UPDATE_RATE = "Update Rate";
 static constexpr const char *SHOW_SPLASH = "Show Splash";
-static constexpr const char *THEME = "Theme";
 static constexpr const char *BRIGHTNESS = "Brightness";
 static constexpr const char *TEMPERATURE_UNIT = "Temperature Unit";
 static constexpr const char *PRESSURE_UNIT = "Pressure Unit";
@@ -207,7 +200,6 @@ namespace items
 static constexpr const char *DEFAULT_PANEL = "default_panel";
 static constexpr const char *UPDATE_RATE = "update_rate";
 static constexpr const char *SHOW_SPLASH = "show_splash";
-static constexpr const char *THEME = "theme";
 static constexpr const char *DURATION = "duration";
 static constexpr const char *UNIT = "unit";
 static constexpr const char *OFFSET = "offset";
@@ -220,7 +212,6 @@ static constexpr const char *LONG_PRESS_MS = "long_press_ms";
 // Configuration Keys (full dotted paths)
 namespace keys
 {
-static constexpr const char *SYSTEM_THEME = "system.theme";
 static constexpr const char *SYSTEM_UPDATE_RATE = "system.update_rate";
 static constexpr const char *SYSTEM_DEFAULT_PANEL = "system.default_panel";
 static constexpr const char *SYSTEM_SHOW_SPLASH = "system.show_splash";
@@ -248,7 +239,6 @@ static constexpr const char *OIL_PRESSURE_DEADBAND_PERCENT = "oil_pressure_compo
 static constexpr const char *OIL_TEMPERATURE_DEADBAND_PERCENT = "oil_temperature_component.deadband_percent";
 
 // Style manager configuration keys
-static constexpr const char *STYLE_MANAGER_THEME = "style_manager.theme";
 static constexpr const char *STYLE_MANAGER_BRIGHTNESS = "style_manager.brightness";
 
 // Splash panel configuration keys
@@ -336,9 +326,6 @@ static constexpr const char *PRESSURE_UNITS = "Bar,PSI,kPa";
 
 // Temperature unit options
 static constexpr const char *TEMPERATURE_UNITS = "C,F";
-
-// Theme options
-static constexpr const char *THEMES = "Day,Night";
 
 // Panel options
 static constexpr const char *PANEL_OPTIONS = "OemOilPanel,ConfigPanel";

@@ -75,7 +75,6 @@ class ErrorPanel : public IPanel
     ComponentLocation center_location_;     // Component positioning
     bool panel_loaded_;                     // Track panel load state
     std::vector<ErrorInfo> current_errors_; // Cache of current error state
-    std::string previous_theme_;            // Store previous theme to restore on exit
 
     // Error cycling functionality
     size_t current_error_index_;           // Index of currently displayed error

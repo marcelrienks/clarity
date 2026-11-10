@@ -63,7 +63,7 @@ Clarity is an ESP32-based automotive digital gauge system featuring a 1.28" roun
 
 ### Configuration Categories
 - **Oil Sensors**: Units (C/F, PSI/Bar), update rates, calibration offsets/scales
-- **Theme Settings**: Day/Night mode selection and styling
+- **Display**: Brightness. The Day/Night theme is not a setting: it follows the dash-light signal
 - **Splash Screen**: Duration configuration (1500ms-2500ms)
 - **System Settings**: Default panel selection, update rates
 

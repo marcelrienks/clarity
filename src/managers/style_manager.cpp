@@ -22,7 +22,7 @@ static StyleManager *style_instance_ptr = nullptr;
  * @brief Construct StyleManager with specified initial theme
  * @details Sets up singleton pointer but does not initialize LVGL styles yet
  */
-StyleManager::StyleManager(const char *theme) : theme_(theme), initialized_(false)
+StyleManager::StyleManager(const char *theme) : theme_(theme), base_theme_(theme), initialized_(false)
 {
     log_v("StyleManager() constructor called");
 
@@ -94,16 +94,14 @@ void StyleManager::InitializeStyles()
     // Mark as initialized before applying theme (since SetTheme checks this flag)
     initialized_ = true;
 
-    // Apply theme from preferences
     if (configuration_manager_)
     {
-        LoadConfiguration();
-        RegisterConfigCallback();
+        RegisterConfig(configuration_manager_);
     }
-    else
-    {
-        SetTheme(theme_.c_str());
-    }
+
+    // Copy first: SetTheme() reassigns theme_
+    const std::string initial_theme = theme_;
+    SetTheme(initial_theme.c_str());
 }
 
 /**
@@ -118,8 +116,13 @@ void StyleManager::SetTheme(const char *theme)
     {
         return;
     }
-    // Track the applied theme so ApplyCurrentTheme() compares against what is on screen
+    // Track the applied theme so ApplyCurrentTheme() compares against what is on screen.
+    // The error theme is temporary: base_theme_ keeps the theme the lights signal asked for.
     theme_ = theme;
+    if (strcmp(theme, themes::ERROR) != 0)
+    {
+        base_theme_ = theme;
+    }
     log_t("StyleManager: Theme applied: %s", theme);
 
     // Select the current theme colors
@@ -200,39 +203,24 @@ void StyleManager::ApplyThemeToScreen(lv_obj_t *screen)
 }
 
 /**
- * @brief Apply current theme from preferences and refresh styles
+ * @brief Re-apply the theme the dash-light signal asked for
+ * @details The theme is driven only by the lights signal (Day or Night), with the error panel temporarily
+ * overriding it. This puts the signal's theme back once the error panel is gone.
  */
 void StyleManager::ApplyCurrentTheme()
 {
     log_i("StyleManager::ApplyCurrentTheme() called");
 
-    if (!configuration_manager_)
+    if (theme_ != base_theme_)
     {
-        log_e("StyleManager: No PreferenceService available - cannot read theme from preferences!");
-        ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "StyleManager",
-                                             "No PreferenceService available - cannot persist theme");
-        log_v("Current cached theme is: %s", theme_.c_str());
-        return;
-    }
-
-    // Read theme using type-safe config system
-    std::string preference_theme = themes::DAY; // Default
-    if (auto theme_value = configuration_manager_->QueryConfig<std::string>(CONFIG_THEME))
-    {
-        preference_theme = *theme_value;
-    }
-    log_v("Read theme from preferences: %s (cached: %s)", preference_theme.c_str(), theme_.c_str());
-
-    // Apply the theme if it's different from cached value
-    if (theme_ != preference_theme)
-    {
-        log_t("StyleManager: Theme changed from %s to %s - applying new theme", theme_.c_str(),
-              preference_theme.c_str());
-        SetTheme(preference_theme.c_str());
+        log_t("StyleManager: Theme changed from %s to %s - applying new theme", theme_.c_str(), base_theme_.c_str());
+        // Copy first: SetTheme() reassigns base_theme_
+        const std::string target = base_theme_;
+        SetTheme(target.c_str());
     }
     else
     {
-        log_v("Theme unchanged (%s) - no update needed", preference_theme.c_str());
+        log_v("Theme unchanged (%s) - no update needed", theme_.c_str());
     }
 }
 
@@ -267,40 +255,11 @@ const ThemeColors &StyleManager::GetColours(const std::string &theme) const
 }
 
 /**
- * @brief Get current active theme name
- * @details Always reads from preferences when available for consistency
+ * @brief Get the theme that is applied now
  */
 const std::string &StyleManager::GetCurrentTheme() const
 {
-    // Always pull theme using type-safe config system for consistency
-    if (configuration_manager_)
-    {
-        static std::string current_theme;
-        if (auto theme_value = configuration_manager_->QueryConfig<std::string>(CONFIG_THEME))
-        {
-            current_theme = *theme_value;
-        }
-        else
-        {
-            current_theme = themes::DAY;
-        }
-        return current_theme;
-    }
-
-    // Fallback to cached value if preference service not available
-    log_w("StyleManager: PreferenceService not available, using cached theme: %s", theme_.c_str());
     return theme_;
-}
-
-/**
- * @brief Direct theme switching interface for panel actions
- * @param themeName Name of theme to switch to immediately
- */
-void StyleManager::SwitchTheme(const char *theme_name)
-{
-    log_v("SwitchTheme() called");
-    log_v("Direct theme switch requested to: %s", theme_name);
-    SetTheme(theme_name);
 }
 
 /**
@@ -365,7 +324,6 @@ void StyleManager::RegisterConfigSchema(IConfigurationManager *configuration_man
     ConfigSection section(config_constants::sections::STYLE_MANAGER, CONFIG_SECTION,
                           config_constants::section_names::STYLE_MANAGER);
 
-    section.AddItem(theme_config);
     section.AddItem(brightness_config);
 
     configuration_manager->RegisterConfigSection(section);
@@ -384,62 +342,4 @@ void StyleManager::RegisterConfig(IConfigurationManager *configuration_manager)
 {
     // During migration, just delegate to static method
     RegisterConfigSchema(configuration_manager);
-}
-
-/**
- * @brief Load configuration from preference system
- */
-void StyleManager::LoadConfiguration()
-{
-    if (!configuration_manager_)
-    {
-        log_e("StyleManager::LoadConfiguration: ConfigurationManager is null - cannot load style configuration!");
-        ErrorManager::Instance().ReportCriticalError("StyleManager", "ConfigManager null - using default styles");
-        return;
-    }
-
-    // Register configuration first
-    RegisterConfig(configuration_manager_);
-
-    // Load theme using type-safe config system
-    if (auto theme_value = configuration_manager_->QueryConfig<std::string>(CONFIG_THEME))
-    {
-        SetTheme(theme_value->c_str());
-    }
-    else
-    {
-        SetTheme(themes::DAY); // Default theme
-    }
-
-    log_i("Loaded style configuration: theme=%s", theme_.c_str());
-}
-
-/**
- * @brief Refresh configuration in response to live config changes
- */
-void StyleManager::RefreshConfig()
-{
-    log_i("StyleManager: Refreshing config due to live update");
-    LoadConfiguration();
-}
-
-/**
- * @brief Register callback for live configuration updates
- */
-void StyleManager::RegisterConfigCallback()
-{
-    if (!configuration_manager_)
-    {
-        log_e("StyleManager::RegisterConfigCallback: ConfigurationManager is null - cannot register config callbacks!");
-        ErrorManager::Instance().ReportCriticalError("StyleManager",
-                                                     "ConfigurationManager is null - style updates will not work");
-        return;
-    }
-
-    // Register callback that calls RefreshConfig when our section changes
-    auto callback = [this](const std::string & /*full_key*/, const std::optional<config::ConfigValue> & /*old_value*/,
-                           const config::ConfigValue & /*new_value*/) { RefreshConfig(); };
-
-    configuration_manager_->RegisterChangeCallback(CONFIG_THEME, callback);
-    log_i("StyleManager: Registered config callback for key: %s", CONFIG_THEME);
 }

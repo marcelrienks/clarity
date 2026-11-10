@@ -76,12 +76,6 @@ void ErrorPanel::Init()
 
     screen_ = display_provider_->CreateScreen();
 
-    // Store current theme before switching to ERROR theme (but don't apply it yet)
-    if (style_manager_)
-    {
-        previous_theme_ = style_manager_->GetCurrentTheme();
-    }
-
     center_location_ = ComponentLocation(LV_ALIGN_CENTER, 0, 0);
 
     // Set error panel as active in ErrorManager

@@ -143,11 +143,8 @@ class StyleManager : public IStyleManager, public IConfig
         return initialized_;
     }
 
-    void SwitchTheme(const char *theme_name);
-
     void SetConfigurationManager(IConfigurationManager *configuration_manager);
 
-    void LoadConfiguration();
 
     // IConfig implementation (instance method for backward compatibility)
     void RegisterConfig(IConfigurationManager *configuration_manager) override;
@@ -155,13 +152,8 @@ class StyleManager : public IStyleManager, public IConfig
     // Static schema registration for self-registering pattern
     static void RegisterConfigSchema(IConfigurationManager *configuration_manager);
 
-    // Live config update methods
-    void RefreshConfig();
-    void RegisterConfigCallback();
-
     // ========== Configuration Constants ==========
     static constexpr const char *CONFIG_SECTION = config_constants::sections::STYLE_MANAGER;
-    static constexpr const char *CONFIG_THEME = config_constants::keys::STYLE_MANAGER_THEME;
     static constexpr const char *CONFIG_BRIGHTNESS = config_constants::keys::STYLE_MANAGER_BRIGHTNESS;
 
   private:
@@ -169,16 +161,14 @@ class StyleManager : public IStyleManager, public IConfig
     void ResetStyles();
 
     // ========== Configuration Items (inline definitions) ==========
-    inline static config::ConfigItem theme_config{
-        config_constants::items::THEME, ui_strings::config_labels::THEME, std::string(themes::DAY),
-        config::ConfigMetadata(config_constants::options::THEMES, config::ConfigItemType::Selection)};
     inline static config::ConfigItem brightness_config{
         config_constants::items::BRIGHTNESS, ui_strings::config_labels::BRIGHTNESS,
         config_constants::defaults::DEFAULT_BRIGHTNESS,
         config::ConfigMetadata(config_constants::options::BRIGHTNESS_LEVELS, "%", config::ConfigItemType::Selection)};
 
     // ========== Private Data Members ==========
-    std::string theme_ = themes::NIGHT;
+    std::string theme_ = themes::DAY;      // Theme on screen now
+    std::string base_theme_ = themes::DAY; // Theme the lights signal asked for (never Error)
     bool initialized_ = false;
 
     // Core Style Objects

@@ -158,55 +158,74 @@ void test_resolve_display_is_constexpr()
     TEST_PASS();
 }
 
-// ---- EffectiveTheme ----
+// ---- EffectiveTheme (Q-05: the theme follows the dash-light signal only) ----
 
-void test_lights_on_gives_night_whatever_the_user_theme()
+void test_lights_on_gives_night()
 {
     const VehicleInputs lights = inputs(0, 0, 0, 1);
-    const DisplayRequest none = ResolveDisplay(lights, false);
-    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(none, lights, ThemeId::Day));
-    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(none, lights, ThemeId::Night));
+    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(ResolveDisplay(lights, false), lights));
 }
 
-void test_lights_off_gives_the_user_theme() // step 13, Q-05 provisional answer
+void test_lights_off_gives_day() // step 13
 {
     const VehicleInputs dark = inputs(0, 0, 0, 0);
-    const DisplayRequest none = ResolveDisplay(dark, false);
-    TEST_ASSERT_EQUAL(ThemeId::Day, EffectiveTheme(none, dark, ThemeId::Day));
-    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(none, dark, ThemeId::Night));
+    TEST_ASSERT_EQUAL(ThemeId::Day, EffectiveTheme(ResolveDisplay(dark, false), dark));
 }
 
-void test_error_panel_forces_error_theme()
+void test_error_panel_forces_error_theme_with_lights_on_or_off()
 {
     for (int lights = 0; lights < 2; ++lights)
     {
-        for (ThemeId user : {ThemeId::Day, ThemeId::Night})
-        {
-            const VehicleInputs in = inputs(0, 1, 1, lights != 0); // step 9
-            TEST_ASSERT_EQUAL(ThemeId::Error, EffectiveTheme(ResolveDisplay(in, true), in, user));
-        }
+        const VehicleInputs in = inputs(0, 1, 1, lights != 0); // step 9
+        TEST_ASSERT_EQUAL(ThemeId::Error, EffectiveTheme(ResolveDisplay(in, true), in));
     }
 }
 
 void test_theme_follows_lights_during_key_and_lock_overrides()
 {
     const VehicleInputs lock_lights = inputs(0, 0, 1, 1);
-    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(ResolveDisplay(lock_lights, false), lock_lights, ThemeId::Day));
+    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(ResolveDisplay(lock_lights, false), lock_lights));
     const VehicleInputs key_dark = inputs(1, 0, 0, 0);
-    TEST_ASSERT_EQUAL(ThemeId::Day, EffectiveTheme(ResolveDisplay(key_dark, false), key_dark, ThemeId::Day));
+    TEST_ASSERT_EQUAL(ThemeId::Day, EffectiveTheme(ResolveDisplay(key_dark, false), key_dark));
 }
 
 void test_boot_with_override_and_lights_uses_night()
 {
     const VehicleInputs in = inputs(0, 0, 1, 1);
-    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(ResolveDisplay(in, false), in, ThemeId::Day));
+    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(ResolveDisplay(in, false), in));
 }
 
-void test_errors_cleared_theme_returns_to_lights_or_user() // step 11
+void test_boot_with_lights_off_uses_day()
+{
+    const VehicleInputs in = inputs(0, 0, 0, 0);
+    TEST_ASSERT_EQUAL(ThemeId::Day, EffectiveTheme(ResolveDisplay(in, false), in));
+}
+
+void test_errors_cleared_theme_returns_to_lights() // step 11
 {
     const VehicleInputs in = inputs(0, 1, 1, 1);
-    TEST_ASSERT_EQUAL(ThemeId::Error, EffectiveTheme(ResolveDisplay(in, true), in, ThemeId::Day));
-    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(ResolveDisplay(in, false), in, ThemeId::Day));
+    TEST_ASSERT_EQUAL(ThemeId::Error, EffectiveTheme(ResolveDisplay(in, true), in));
+    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(ResolveDisplay(in, false), in));
+}
+
+void test_theme_is_a_pure_function_of_errors_and_lights()
+{
+    for (int bits = 0; bits < 32; ++bits)
+    {
+        const VehicleInputs in = inputs(bits & 1, bits & 2, bits & 4, bits & 8);
+        const bool errors = (bits & 16) != 0;
+        const ThemeId want = errors ? ThemeId::Error : (in.lights ? ThemeId::Night : ThemeId::Day);
+        TEST_ASSERT_EQUAL(want, EffectiveTheme(ResolveDisplay(in, errors), in));
+    }
+}
+
+void test_no_latch_lights_off_after_on_is_day_again()
+{
+    const VehicleInputs on = inputs(0, 0, 0, 1);
+    const VehicleInputs off = inputs(0, 0, 0, 0);
+    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(ResolveDisplay(on, false), on));
+    TEST_ASSERT_EQUAL(ThemeId::Day, EffectiveTheme(ResolveDisplay(off, false), off));
+    TEST_ASSERT_EQUAL(ThemeId::Night, EffectiveTheme(ResolveDisplay(on, false), on));
 }
 
 void test_scenario_sequence_themes()
@@ -233,7 +252,7 @@ void test_scenario_sequence_themes()
     {
         const DisplayRequest r = ResolveDisplay(s.in, s.errors);
         TEST_ASSERT_EQUAL(s.panel, r.panel);
-        TEST_ASSERT_EQUAL(s.theme, EffectiveTheme(r, s.in, ThemeId::Day));
+        TEST_ASSERT_EQUAL(s.theme, EffectiveTheme(r, s.in));
     }
 }
 
@@ -256,12 +275,15 @@ int main()
     RUN_TEST(test_exhaustive_priority_error_key_lock_none);
     RUN_TEST(test_lights_never_change_the_requested_panel);
     RUN_TEST(test_resolve_display_is_constexpr);
-    RUN_TEST(test_lights_on_gives_night_whatever_the_user_theme);
-    RUN_TEST(test_lights_off_gives_the_user_theme);
-    RUN_TEST(test_error_panel_forces_error_theme);
+    RUN_TEST(test_lights_on_gives_night);
+    RUN_TEST(test_lights_off_gives_day);
+    RUN_TEST(test_error_panel_forces_error_theme_with_lights_on_or_off);
     RUN_TEST(test_theme_follows_lights_during_key_and_lock_overrides);
     RUN_TEST(test_boot_with_override_and_lights_uses_night);
-    RUN_TEST(test_errors_cleared_theme_returns_to_lights_or_user);
+    RUN_TEST(test_boot_with_lights_off_uses_day);
+    RUN_TEST(test_errors_cleared_theme_returns_to_lights);
+    RUN_TEST(test_theme_is_a_pure_function_of_errors_and_lights);
+    RUN_TEST(test_no_latch_lights_off_after_on_is_day_again);
     RUN_TEST(test_scenario_sequence_themes);
     return UNITY_END();
 }

@@ -73,7 +73,7 @@ test/wokwi/
 
 To save Wokwi CI minutes, pass part numbers to run only the parts that cover a change, for example `./wokwi_test_automation.sh 6` or `./wokwi_test_automation.sh 3 4`. With no argument every part runs; do that before a push or at the end of a phase.
 
-Wokwi caps a session at 5 minutes of wall-clock time and the simulator runs slowly, so the scenario is split into eight parts that each boot the firmware fresh: triggers (steps 1-8), errors and restoration (9-13, starts with a preamble that rebuilds the step 8 trigger state), three config parts (theme, sections, exit), and an error panel lock-up check on the release-like firmware (part 6), a splash destroyed mid-animation (part 7) and a forced init failure (part 8). The file name suffix picks the firmware: `*_release.yaml` runs on `test-wokwi-release`, `*_splash.yaml` on `test-wokwi-splash`, `*_failinit.yaml` on `test-wokwi-failinit`, no suffix on `test-wokwi`. Build all four before running the suite. `wokwi_test_automation.sh` runs them in order and exits non-zero if any part fails or times out. Each part takes 60-100 s.
+Wokwi caps a session at 5 minutes of wall-clock time and the simulator runs slowly, so the scenario is split into eight parts that each boot the firmware fresh: triggers (steps 1-8), errors and restoration (9-13, starts with a preamble that rebuilds the step 8 trigger state), three config parts (theme follows the lights, sections, exit), and an error panel lock-up check on the release-like firmware (part 6), a splash destroyed mid-animation (part 7) and a forced init failure (part 8). The file name suffix picks the firmware: `*_release.yaml` runs on `test-wokwi-release`, `*_splash.yaml` on `test-wokwi-splash`, `*_failinit.yaml` on `test-wokwi-failinit`, no suffix on `test-wokwi`. Build all four before running the suite. `wokwi_test_automation.sh` runs them in order and exits non-zero if any part fails or times out. Each part takes 60-100 s.
 
 Timing notes from the repair (0.3):
 - Leave at least 1000 ms after anything that rebuilds a panel or menu before the next button press. 200-300 ms there stalled the simulator until the 5 minute cap.
@@ -268,7 +268,7 @@ The integration test follows the complete scenario from scenarios.md covering al
 ### ✅ Integration Points  
 - [ ] Panel priorities: Key (CRITICAL) > Lock (IMPORTANT) > Oil (default)
 - [ ] Trigger restoration logic works correctly
-- [ ] Theme persists across panel switches
+- [ ] Theme follows the lights signal across panel switches
 - [ ] Error system overrides all other panels
 - [ ] Icon color changes without panel reloads
 - [ ] All automated scenario steps execute in order
