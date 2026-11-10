@@ -155,7 +155,8 @@ Goal: static feedback, and a host test target that Phase 3 can fill.
 
 Goal: the pure logic exists, with host tests, alongside the old code. Write the tests first (T-02).
 
-- [ ] **3.1 `types.h`:** `PanelId`, `ThemeId`, `KeyState`, `ErrorLevel`, `ButtonEvent`, `Fault` (enums only, with `ToString()`).
+- [x] **3.1 `types.h`:** `PanelId`, `ThemeId`, `KeyState`, `ErrorLevel`, `ButtonEvent`, `Fault` (enums only, with `ToString()`).
+  - [x] `lib/core/include/clarity/core/types.h`: `PanelId` (Splash, Oil, Config, Error, Key, Lock), `ThemeId` (Day, Night, Error), `KeyState`, `ErrorLevel` (ordered by severity), `ButtonEvent` (None, Short, Long) and `Fault` (initial set from A-10, extended as later items need), each with a `constexpr ToString()` that returns `"Unknown"` for out-of-range values. PascalCase values per `docs/standards.md`; the old `definitions/enums.h` is untouched until phase 4 and 6. `test/native/test_types` written first: 8 tests; `pio test -e native` passes (9 cases), `check_layering.sh` OK. `clang-format` is not installed locally, so `check_format.sh` was not run; CI covers it.
 - [ ] **3.2 `DebouncedInput` (A-03).** Stable-for-N-ms filter with `State()`/`Changed()` and seeding from the first raw read. Tests: bounce trains, stable change, `millis()` wrap (H-12).
 - [ ] **3.3 `ButtonFsm` (A-03).** `Idle → Pressed → LongFired`; short on release in `[minShortMs, longPressMs)`; long fires once while held. Tests: below minimum, short, exactly at threshold, held past threshold (one event), bounce, release after long, threshold change mid-press.
 - [ ] **3.4 `ErrorLog` (A-10).** Ring of 10; trim by severity then newest; 10 s warning expiry via `Expire(now)`; `DismissAt`; `Clear`; `Revision`. Tests per T-02.
