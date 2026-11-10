@@ -20,10 +20,10 @@
  */
 class ErrorManager
 {
-public:
+  public:
     // ========== Constructors and Destructor ==========
-    ErrorManager(const ErrorManager&) = delete;
-    ErrorManager& operator=(const ErrorManager&) = delete;
+    ErrorManager(const ErrorManager &) = delete;
+    ErrorManager &operator=(const ErrorManager &) = delete;
     ~ErrorManager() = default;
 
     // ========== Static Methods ==========
@@ -36,12 +36,13 @@ public:
     bool HasPendingErrors() const;
     bool HasCriticalErrors() const;
     std::vector<ErrorInfo> GetErrorQueue() const;
-    void AcknowledgeError(size_t errorIndex);
+    void AcknowledgeError(size_t error_index);
     void ClearAllErrors();
     bool ShouldTriggerErrorPanel() const;
     void SetErrorPanelActive(bool active);
     bool IsErrorPanelActive() const;
-private:
+
+  private:
     // ========== Constructors and Destructor ==========
     ErrorManager() = default;
 
@@ -52,6 +53,6 @@ private:
     static constexpr size_t MAX_ERROR_QUEUE_SIZE = 10;                ///< Memory-constrained device limit
     static constexpr unsigned long WARNING_AUTO_DISMISS_TIME = 10000; ///< 10 seconds for warnings
 
-    std::vector<ErrorInfo> errorQueue_;
-    bool errorPanelActive_ = false;
+    std::vector<ErrorInfo> error_queue_;
+    bool error_panel_active_ = false;
 };

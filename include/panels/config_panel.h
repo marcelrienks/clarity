@@ -1,15 +1,15 @@
 #pragma once
 
 #include "components/config_component.h"
+#include "definitions/configs.h"
+#include "definitions/types.h"
 #include "interfaces/i_action_handler.h"
+#include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_style_manager.h"
-#include "definitions/configs.h"
-#include "definitions/types.h"
 
 #include <memory>
 #include <string>
@@ -49,12 +49,12 @@ class ConfigPanel : public IPanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *styleManager,
-                IPanelManager *panelManager, IConfigurationManager *configurationManager);
+    ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
+                IPanelManager *panel_manager, IConfigurationManager *configuration_manager);
     ~ConfigPanel();
 
     // ========== Public Interface Methods ==========
-    static constexpr const char *NAME = PanelNames::CONFIG;
+    static constexpr const char *NAME = panel_names::CONFIG;
     void Init() override;
     void Load() override;
     void Update() override;
@@ -65,7 +65,8 @@ class ConfigPanel : public IPanel
   private:
     // ========== Private Types ==========
 
-    enum class MenuActionType {
+    enum class MenuActionType
+    {
         ENTER_SECTION,
         TOGGLE_BOOLEAN,
         SHOW_OPTIONS,
@@ -80,39 +81,42 @@ class ConfigPanel : public IPanel
 
     // Dynamic configuration methods
     void BuildDynamicMenus();
-    void BuildSectionMenu(const std::string& sectionName);
-    std::string FormatItemLabel(const Config::ConfigItem& item) const;
-    void ShowOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item);
-    void ShowBooleanToggle(const std::string& fullKey, const Config::ConfigItem& item);
+    void BuildSectionMenu(const std::string &section_name);
+    std::string FormatItemLabel(const config::ConfigItem &item) const;
+    void ShowOptionsMenu(const std::string &full_key, const config::ConfigItem &item);
+    void ShowBooleanToggle(const std::string &full_key, const config::ConfigItem &item);
 
     // Extracted ShowOptionsMenu helpers
-    void ShowEnumOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item, const std::vector<std::string>& options);
-    void ShowNumericOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item);
-    void ShowStringOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item);
-    ConfigComponent::MenuItem CreateMenuItemWithSelection(const std::string& label, const std::string& fullKey, const std::string& value, bool isSelected) const;
+    void ShowEnumOptionsMenu(const std::string &full_key, const config::ConfigItem &item,
+                             const std::vector<std::string> &options);
+    void ShowNumericOptionsMenu(const std::string &full_key, const config::ConfigItem &item);
+    void ShowStringOptionsMenu(const std::string &full_key, const config::ConfigItem &item);
+    ConfigComponent::MenuItem CreateMenuItemWithSelection(const std::string &label, const std::string &full_key,
+                                                          const std::string &value, bool is_selected) const;
 
     // Extracted ShowNumericOptionsMenu helpers
-    struct NumericRange {
+    struct NumericRange
+    {
         float minValue;
         float maxValue;
         float currentValue;
     };
-    NumericRange ParseNumericRange(const Config::ConfigItem& item) const;
-    std::vector<float> GenerateNumericValues(const NumericRange& range, const Config::ConfigItem& item) const;
-    std::string FormatNumericValue(float value, const Config::ConfigItem& item) const;
+    NumericRange ParseNumericRange(const config::ConfigItem &item) const;
+    std::vector<float> GenerateNumericValues(const NumericRange &range, const config::ConfigItem &item) const;
+    std::string FormatNumericValue(float value, const config::ConfigItem &item) const;
 
-    std::vector<std::string> ParseOptions(const std::string& constraints) const;
-    std::pair<std::string, std::string> ParseConfigKey(const std::string& fullKey) const;
+    std::vector<std::string> ParseOptions(const std::string &constraints) const;
+    std::pair<std::string, std::string> ParseConfigKey(const std::string &full_key) const;
 
     // Helper methods for HandleLongPress
     bool ValidateMenuState() const;
-    void ExecuteMenuAction(const ConfigComponent::MenuItem& item);
-    MenuActionType ParseActionType(const std::string& actionTypeStr) const;
-    void HandleEnterSection(const std::string& sectionName);
-    void HandleToggleBoolean(const std::string& fullKey);
-    void HandleShowOptions(const std::string& fullKey);
-    void HandleSetConfigValue(const std::string& actionParam);
-    void HandleBackAction(const std::string& actionParam);
+    void ExecuteMenuAction(const ConfigComponent::MenuItem &item);
+    MenuActionType ParseActionType(const std::string &action_type_str) const;
+    void HandleEnterSection(const std::string &section_name);
+    void HandleToggleBoolean(const std::string &full_key);
+    void HandleShowOptions(const std::string &full_key);
+    void HandleSetConfigValue(const std::string &action_param);
+    void HandleBackAction(const std::string &action_param);
     void HandlePanelExit();
 
     // ========== Static Methods ==========
@@ -121,21 +125,21 @@ class ConfigPanel : public IPanel
     // ========== Private Data Members ==========
 
     // Instance Data Members
-    IGpioProvider *gpioProvider_;
-    IDisplayProvider *displayProvider_;
-    IStyleManager *styleManager_;
-    IPanelManager *panelManager_;
-    IConfigurationManager *configurationManager_ = nullptr;
-    lv_obj_t* screen_ = nullptr;
+    IGpioProvider *gpio_provider_;
+    IDisplayProvider *display_provider_;
+    IStyleManager *style_manager_;
+    IPanelManager *panel_manager_;
+    IConfigurationManager *configuration_manager_ = nullptr;
+    lv_obj_t *screen_ = nullptr;
 
     // Component (View) - static allocation
-    ConfigComponent configComponent_;
-    bool componentInitialized_ = false;
+    ConfigComponent config_component_;
+    bool component_initialized_ = false;
 
     // Dynamic menu state
-    std::vector<ConfigComponent::MenuItem> menuItems_;
-    size_t currentMenuIndex_ = 0;
-    std::string currentSectionName_;
+    std::vector<ConfigComponent::MenuItem> menu_items_;
+    size_t current_menu_index_ = 0;
+    std::string current_section_name_;
 
     // Callback function removed - using interface-based notifications
 };

@@ -1,6 +1,6 @@
 #include "panels/base_panel.h"
-#include "managers/error_manager.h"
 #include "definitions/constants.h"
+#include "managers/error_manager.h"
 #include "utilities/logging.h"
 #include <Arduino.h>
 
@@ -9,10 +9,9 @@
 /**
  * @brief Initialize BasePanel with dependency injection of required services
  */
-BasePanel::BasePanel(IGpioProvider* gpio, IDisplayProvider* display, IStyleManager* styleManager,
-                     IPanelManager* panelManager)
-    : gpioProvider_(gpio), displayProvider_(display), styleManager_(styleManager),
-      panelManager_(panelManager)
+BasePanel::BasePanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
+                     IPanelManager *panel_manager)
+    : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager), panel_manager_(panel_manager)
 {
     log_v("BasePanel constructor called");
 }
@@ -50,7 +49,7 @@ void BasePanel::Init()
     SetupScreen();
 
     // Set up center location for component positioning
-    centerLocation_ = ComponentLocation(LV_ALIGN_CENTER, 0, 0);
+    center_location_ = ComponentLocation(LV_ALIGN_CENTER, 0, 0);
 
     log_i("%s initialization completed", GetPanelName());
 }
@@ -89,9 +88,9 @@ void BasePanel::Update()
     UpdateContent();
 
     // Reset UI state to IDLE after update (common pattern across all panels)
-    if (panelManager_)
+    if (panel_manager_)
     {
-        panelManager_->SetUiState(UIState::IDLE);
+        panel_manager_->SetUiState(UIState::IDLE);
     }
 }
 
@@ -110,30 +109,30 @@ void BasePanel::Update()
  * @brief LVGL callback for screen load completion
  * @details Resets UI state to IDLE to allow trigger evaluation after panel display
  */
-void BasePanel::ShowPanelCompletionCallback(lv_event_t* event)
+void BasePanel::ShowPanelCompletionCallback(lv_event_t *event)
 {
     if (!event)
         return;
 
-    auto thisInstance = static_cast<BasePanel*>(lv_event_get_user_data(event));
-    if (!thisInstance)
+    auto this_instance = static_cast<BasePanel *>(lv_event_get_user_data(event));
+    if (!this_instance)
         return;
 
     log_v("%s::ShowPanelCompletionCallback() called", thisInstance->GetPanelName());
 
     // Set UI state to IDLE after panel loads so triggers can be evaluated again
-    if (thisInstance->panelManager_)
+    if (this_instance->panel_manager_)
     {
-        thisInstance->panelManager_->SetUiState(UIState::IDLE);
+        this_instance->panel_manager_->SetUiState(UIState::IDLE);
     }
 }
 
 /**
  * @brief Static wrapper for short button press - delegates to virtual method
  */
-void BasePanel::BasePanelShortPress(void* panelContext)
+void BasePanel::BasePanelShortPress(void *panel_context)
 {
-    auto* panel = static_cast<BasePanel*>(panelContext);
+    auto *panel = static_cast<BasePanel *>(panel_context);
     if (panel)
     {
         log_v("%s::BasePanelShortPress() called", panel->GetPanelName());
@@ -144,9 +143,9 @@ void BasePanel::BasePanelShortPress(void* panelContext)
 /**
  * @brief Static wrapper for long button press - delegates to virtual method
  */
-void BasePanel::BasePanelLongPress(void* panelContext)
+void BasePanel::BasePanelLongPress(void *panel_context)
 {
-    auto* panel = static_cast<BasePanel*>(panelContext);
+    auto *panel = static_cast<BasePanel *>(panel_context);
     if (panel)
     {
         log_v("%s::BasePanelLongPress() called", panel->GetPanelName());
@@ -162,7 +161,7 @@ void BasePanel::BasePanelLongPress(void* panelContext)
  */
 void BasePanel::ValidateProviders()
 {
-    if (!displayProvider_ || !gpioProvider_)
+    if (!display_provider_ || !gpio_provider_)
     {
         log_e("%s requires display and gpio providers", GetPanelName());
         ErrorManager::Instance().ReportCriticalError(GetPanelName(),
@@ -176,12 +175,12 @@ void BasePanel::ValidateProviders()
  */
 void BasePanel::SetupScreen()
 {
-    screen_ = displayProvider_->CreateScreen();
+    screen_ = display_provider_->CreateScreen();
 
     // Apply current theme immediately after screen creation
-    if (styleManager_)
+    if (style_manager_)
     {
-        styleManager_->ApplyThemeToScreen(screen_);
+        style_manager_->ApplyThemeToScreen(screen_);
     }
 }
 
@@ -194,8 +193,8 @@ void BasePanel::ApplyThemeAndLoadScreen()
     lv_screen_load(screen_);
 
     // Always apply current theme to the screen when loading (ensures theme is current)
-    if (styleManager_)
+    if (style_manager_)
     {
-        styleManager_->ApplyThemeToScreen(screen_);
+        style_manager_->ApplyThemeToScreen(screen_);
     }
 }

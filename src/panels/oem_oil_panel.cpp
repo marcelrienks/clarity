@@ -1,16 +1,15 @@
 #include "panels/oem_oil_panel.h"
 #include "components/oem/oem_oil_pressure_component.h"
 #include "components/oem/oem_oil_temperature_component.h"
-#include "sensors/oil_pressure_sensor.h"
-#include "sensors/oil_temperature_sensor.h"
 #include "definitions/constants.h"
+#include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
 #include "managers/panel_manager.h"
 #include "managers/style_manager.h"
-#include "utilities/unit_converter.h"
+#include "sensors/oil_pressure_sensor.h"
+#include "sensors/oil_temperature_sensor.h"
 #include "utilities/logging.h"
-#include "managers/configuration_manager.h"
-
+#include "utilities/unit_converter.h"
 
 // ========== Constructors and Destructor ==========
 
@@ -24,21 +23,20 @@
  * Initializes stack-allocated components, creates sensor instances, and sets up
  * LVGL animation structures for smooth needle movements.
  */
-OemOilPanel::OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *styleManager,
-                         IPanelManager *panelManager, IConfigurationManager *configurationManager)
-    : gpioProvider_(gpio), displayProvider_(display), styleManager_(styleManager), panelManager_(panelManager),
-      configurationManager_(configurationManager),
-      oemOilPressureComponent_(styleManager), oemOilTemperatureComponent_(styleManager),
-      oemOilPressureSensor_(std::make_shared<OilPressureSensor>(gpio)),
-      oemOilTemperatureSensor_(std::make_shared<OilTemperatureSensor>(gpio)),
-      componentsInitialized_(false), currentOilPressureValue_(-1),
-      currentOilTemperatureValue_(-1), pressureDeadband_(0), temperatureDeadband_(0),
-      lastAnimatedPressureValue_(-1), lastAnimatedTemperatureValue_(-1), lastTheme_("")
+OemOilPanel::OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
+                         IPanelManager *panel_manager, IConfigurationManager *configuration_manager)
+    : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager), panel_manager_(panel_manager),
+      configuration_manager_(configuration_manager), oem_oil_pressure_component_(style_manager),
+      oem_oil_temperature_component_(style_manager),
+      oem_oil_pressure_sensor_(std::make_shared<OilPressureSensor>(gpio)),
+      oem_oil_temperature_sensor_(std::make_shared<OilTemperatureSensor>(gpio)), components_initialized_(false),
+      current_oil_pressure_value_(-1), current_oil_temperature_value_(-1), pressure_deadband_(0),
+      temperature_deadband_(0), last_animated_pressure_value_(-1), last_animated_temperature_value_(-1), last_theme_("")
 {
     log_v("OemOilPanel constructor called");
     // Initialize LVGL animation structures to prevent undefined behavior
-    lv_anim_init(&pressureAnimation_);
-    lv_anim_init(&temperatureAnimation_);
+    lv_anim_init(&pressure_animation_);
+    lv_anim_init(&temperature_animation_);
 
     // Apply sensor configuration from preferences now that we have configurationManager
     ApplyCurrentSensorSettings();
@@ -56,11 +54,11 @@ OemOilPanel::~OemOilPanel()
     log_v("~OemOilPanel() destructor called");
 
     // Stop any running animations before destroying the panel
-    if (animationState_ != AnimationState::IDLE)
+    if (animation_state_ != AnimationState::IDLE)
     {
-        lv_anim_delete(&pressureAnimation_, nullptr);
-        lv_anim_delete(&temperatureAnimation_, nullptr);
-        animationState_ = AnimationState::IDLE;
+        lv_anim_delete(&pressure_animation_, nullptr);
+        lv_anim_delete(&temperature_animation_, nullptr);
+        animation_state_ = AnimationState::IDLE;
     }
 
     // Delete all animations that might reference this instance
@@ -74,14 +72,14 @@ OemOilPanel::~OemOilPanel()
 
     // Components delete no LVGL objects, so destroying them after the screen is safe
 
-    if (oemOilPressureSensor_)
+    if (oem_oil_pressure_sensor_)
     {
-        oemOilPressureSensor_.reset();
+        oem_oil_pressure_sensor_.reset();
     }
 
-    if (oemOilTemperatureSensor_)
+    if (oem_oil_temperature_sensor_)
     {
-        oemOilTemperatureSensor_.reset();
+        oem_oil_temperature_sensor_.reset();
     }
 }
 
@@ -98,43 +96,43 @@ void OemOilPanel::Init()
 {
     log_v("Init() called");
 
-    if (!displayProvider_)
+    if (!display_provider_)
     {
         log_e("OemOilPanel requires display provider");
         ErrorManager::Instance().ReportCriticalError("OemOilPanel", "Missing required display provider");
         return;
     }
 
-    if (!oemOilPressureSensor_ || !oemOilTemperatureSensor_)
+    if (!oem_oil_pressure_sensor_ || !oem_oil_temperature_sensor_)
     {
         log_e("OemOilPanel requires pressure and temperature sensors");
         ErrorManager::Instance().ReportCriticalError("OemOilPanel", "Missing required sensors");
         return;
     }
 
-    screen_ = displayProvider_->CreateScreen();
+    screen_ = display_provider_->CreateScreen();
 
     // Apply current theme immediately after screen creation
-    if (styleManager_)
+    if (style_manager_)
     {
-        styleManager_->ApplyThemeToScreen(screen_);
+        style_manager_->ApplyThemeToScreen(screen_);
     }
 
-    oemOilPressureSensor_->Init();
-    currentOilPressureValue_ = -1; // Sentinel value to ensure first update
-    lastAnimatedPressureValue_ = -1; // Reset hysteresis tracking
+    oem_oil_pressure_sensor_->Init();
+    current_oil_pressure_value_ = -1;   // Sentinel value to ensure first update
+    last_animated_pressure_value_ = -1; // Reset hysteresis tracking
 
-    oemOilTemperatureSensor_->Init();
-    currentOilTemperatureValue_ = -1; // Sentinel value to ensure first update
-    lastAnimatedTemperatureValue_ = -1; // Reset hysteresis tracking
+    oem_oil_temperature_sensor_->Init();
+    current_oil_temperature_value_ = -1;   // Sentinel value to ensure first update
+    last_animated_temperature_value_ = -1; // Reset hysteresis tracking
 
     // Calculate deadbands from configuration percentiles
-    calculateDeadbands();
+    CalculateDeadbands();
 
     // Cache sensor references to avoid repeated static_pointer_cast operations
-    cachedPressureSensor_ = std::static_pointer_cast<OilPressureSensor>(oemOilPressureSensor_);
-    cachedTemperatureSensor_ = std::static_pointer_cast<OilTemperatureSensor>(oemOilTemperatureSensor_);
-    
+    cached_pressure_sensor_ = std::static_pointer_cast<OilPressureSensor>(oem_oil_pressure_sensor_);
+    cached_temperature_sensor_ = std::static_pointer_cast<OilTemperatureSensor>(oem_oil_temperature_sensor_);
+
     log_i("OemOilPanel initialization completed");
 }
 
@@ -149,9 +147,8 @@ void OemOilPanel::Load()
 {
     log_v("Load() called");
 
-
     // Create components for both pressure and temperature
-    if (!styleManager_ || !styleManager_->IsInitialized())
+    if (!style_manager_ || !style_manager_->IsInitialized())
     {
         log_w("StyleService not properly initialized, skipping component creation");
         return;
@@ -159,54 +156,52 @@ void OemOilPanel::Load()
 
     // Components are now stack-allocated and initialized in constructor
     // Mark components as initialized for initialization checks
-    componentsInitialized_ = true;
+    components_initialized_ = true;
 
     // Create location parameters with rotational start points for scales
-    ComponentLocation pressureLocation(210);   // rotation starting at 210 degrees
-    ComponentLocation temperatureLocation(30); // rotation starting at 30 degrees
+    ComponentLocation pressure_location(210);   // rotation starting at 210 degrees
+    ComponentLocation temperature_location(30); // rotation starting at 30 degrees
 
     // Render both components
-    oemOilPressureComponent_.Render(screen_, pressureLocation, displayProvider_);
-    oemOilTemperatureComponent_.Render(screen_, temperatureLocation, displayProvider_);
-    
+    oem_oil_pressure_component_.Render(screen_, pressure_location, display_provider_);
+    oem_oil_temperature_component_.Render(screen_, temperature_location, display_provider_);
+
     // Initialize needle positions to match current values (prevents animation jumps)
-    oemOilPressureComponent_.SetValue(currentOilPressureValue_);
-    oemOilTemperatureComponent_.SetValue(currentOilTemperatureValue_);
-    
+    oem_oil_pressure_component_.SetValue(current_oil_pressure_value_);
+    oem_oil_temperature_component_.SetValue(current_oil_temperature_value_);
+
     // Initialize needle colors based on initial values
-    oemOilPressureComponent_.Refresh(Reading{currentOilPressureValue_});
-    oemOilTemperatureComponent_.Refresh(Reading{currentOilTemperatureValue_});
-    
-    
+    oem_oil_pressure_component_.Refresh(Reading{current_oil_pressure_value_});
+    oem_oil_temperature_component_.Refresh(Reading{current_oil_temperature_value_});
+
     // Log heap status before critical operation
-    
+
     // Validate screen object pointer and basic properties
-    if (!screen_) {
+    if (!screen_)
+    {
         log_e("  screen_ is NULL!");
-        ErrorManager::Instance().ReportCriticalError("OemOilPanel",
-                                                     "screen_ is NULL during periodic check");
+        ErrorManager::Instance().ReportCriticalError("OemOilPanel", "screen_ is NULL during periodic check");
     }
-    
+
     // Validate component pointers
-    
+
     // Check if 'this' pointer is still valid
-    
+
     lv_obj_add_event_cb(screen_, OemOilPanel::ShowPanelCompletionCallback, LV_EVENT_SCREEN_LOADED, this);
-    
+
     // Final validation before the critical call
-    
 
     lv_screen_load(screen_);
-    
+
     // Post-load validation
 
-    if (styleManager_)
+    if (style_manager_)
     {
-        styleManager_->ApplyThemeToScreen(screen_);
-        // Update lastTheme_ to current theme to sync with theme detection in update()
-        lastTheme_ = String(styleManager_->GetCurrentTheme().c_str());
+        style_manager_->ApplyThemeToScreen(screen_);
+        // Update last_theme_ to current theme to sync with theme detection in update()
+        last_theme_ = String(style_manager_->GetCurrentTheme().c_str());
     }
-    
+
     log_t("OemOilPanel loaded successfully");
 }
 
@@ -220,35 +215,35 @@ void OemOilPanel::Load()
 void OemOilPanel::Update()
 {
     // Check for theme changes and apply immediately
-    const char *currentTheme = styleManager_ ? styleManager_->GetCurrentTheme().c_str() : "";
-    bool themeChanged = lastTheme_.isEmpty() || !lastTheme_.equals(currentTheme);
-    if (themeChanged)
+    const char *current_theme = style_manager_ ? style_manager_->GetCurrentTheme().c_str() : "";
+    bool theme_changed = last_theme_.isEmpty() || !last_theme_.equals(current_theme);
+    if (theme_changed)
     {
-        lastTheme_ = String(currentTheme);
-        if (styleManager_ && screen_)
+        last_theme_ = String(current_theme);
+        if (style_manager_ && screen_)
         {
-            styleManager_->ApplyThemeToScreen(screen_);
+            style_manager_->ApplyThemeToScreen(screen_);
         }
     }
 
     // Apply sensor settings periodically (every ~100 updates) instead of every cycle
     // This reduces overhead while still catching preference changes reasonably quickly
-    static uint16_t settingsUpdateCounter = 0;
-    if (++settingsUpdateCounter % 100 == 0)
+    static uint16_t settings_update_counter = 0;
+    if (++settings_update_counter % 100 == 0)
     {
         ApplyCurrentSensorSettings();
     }
 
     // Update sensor readings and components (pass theme change flag)
-    UpdateOilPressure(themeChanged);
-    UpdateOilTemperature(themeChanged);
+    UpdateOilPressure(theme_changed);
+    UpdateOilTemperature(theme_changed);
 
     // If no animations were started, updates complete immediately
-    if (animationState_ == AnimationState::IDLE)
+    if (animation_state_ == AnimationState::IDLE)
     {
-        if (panelManager_)
+        if (panel_manager_)
         {
-            panelManager_->SetUiState(UIState::IDLE);
+            panel_manager_->SetUiState(UIState::IDLE);
         }
     }
 }
@@ -258,147 +253,155 @@ void OemOilPanel::Update()
 /**
  * @brief Update the oil pressure reading on the screen
  */
-void OemOilPanel::UpdateOilPressure(bool forceRefresh)
+void OemOilPanel::UpdateOilPressure(bool force_refresh)
 {
     // Skip if pressure animation is running unless this is a forced refresh
-    if (!forceRefresh && (animationState_ == AnimationState::PRESSURE_RUNNING || animationState_ == AnimationState::BOTH_RUNNING))
+    if (!force_refresh &&
+        (animation_state_ == AnimationState::PRESSURE_RUNNING || animation_state_ == AnimationState::BOTH_RUNNING))
     {
         return;
     }
 
     // Safety check for sensor availability
-    if (!oemOilPressureSensor_)
+    if (!oem_oil_pressure_sensor_)
     {
         log_e("Pressure sensor is null - cannot update pressure display!");
-        ErrorManager::Instance().ReportCriticalError("OemOilPanel",
-                                                     "Pressure sensor is null - gauge cannot function");
+        ErrorManager::Instance().ReportCriticalError("OemOilPanel", "Pressure sensor is null - gauge cannot function");
         return;
     }
 
     // Use delta-based updates for better performance
-    auto sensorValue = std::get<int32_t>(oemOilPressureSensor_->GetReading());
-    auto value = MapPressureValue(sensorValue);
+    auto sensor_value = std::get<int32_t>(oem_oil_pressure_sensor_->GetReading());
+    auto value = MapPressureValue(sensor_value);
 
     // Apply hysteresis/deadband to prevent jittery updates from sensor noise
     // Only animate if change exceeds deadband threshold or this is the first reading
-    bool shouldAnimate = false;
-    if (lastAnimatedPressureValue_ == -1) {
+    bool should_animate = false;
+    if (last_animated_pressure_value_ == -1)
+    {
         // First reading - always animate
-        shouldAnimate = true;
-    } else {
+        should_animate = true;
+    }
+    else
+    {
         // Check if change exceeds deadband threshold
-        int32_t changeMagnitude = abs(value - lastAnimatedPressureValue_);
-        shouldAnimate = changeMagnitude >= pressureDeadband_;
+        int32_t change_magnitude = abs(value - last_animated_pressure_value_);
+        should_animate = change_magnitude >= pressure_deadband_;
     }
 
     // Handle forced refresh (theme changes) or skip if no significant change
-    if (!shouldAnimate && !forceRefresh)
+    if (!should_animate && !force_refresh)
     {
         // Update current value for tracking but don't animate
-        currentOilPressureValue_ = value;
+        current_oil_pressure_value_ = value;
         return; // No animation needed - change within deadband
     }
 
-    if (forceRefresh && value == currentOilPressureValue_)
+    if (force_refresh && value == current_oil_pressure_value_)
     {
-        oemOilPressureComponent_.Refresh(Reading{value});
+        oem_oil_pressure_component_.Refresh(Reading{value});
         return; // Theme refresh but no value change
     }
 
-    log_i("Updating pressure from %d to %d (exceeds deadband of %d) [%.1f to %.1f Bar]",
-          currentOilPressureValue_, value, pressureDeadband_,
-          currentOilPressureValue_ / 10.0f, value / 10.0f);
-    oemOilPressureComponent_.Refresh(Reading{value});
+    log_i("Updating pressure from %d to %d (exceeds deadband of %d) [%.1f to %.1f Bar]", current_oil_pressure_value_,
+          value, pressure_deadband_, current_oil_pressure_value_ / 10.0f, value / 10.0f);
+    oem_oil_pressure_component_.Refresh(Reading{value});
 
     // Track this value as the last animated value for hysteresis
-    lastAnimatedPressureValue_ = value;
+    last_animated_pressure_value_ = value;
 
     // Determine animation start value
     // If current value is -1 (initial state) or outside scale bounds, start from appropriate boundary
-    int32_t animationStartValue = currentOilPressureValue_;
+    int32_t animation_start_value = current_oil_pressure_value_;
     // PRESSURE SCALE: Component manages scale representing 0.0-6.0 Bar with one decimal place precision
     // Scale unit 1 = 0.1 Bar, so value 55 = 5.5 Bar, value 23 = 2.3 Bar
     // Using same constants that components use to ensure consistency
-    const int32_t scaleMin = SensorConstants::PRESSURE_DISPLAY_SCALE_MIN;  // Pressure scale minimum: 0.0 Bar
-    const int32_t scaleMax = SensorConstants::PRESSURE_DISPLAY_SCALE_MAX;  // Pressure scale maximum: 6.0 Bar
-    
-    if (currentOilPressureValue_ == -1)
+    const int32_t scale_min = sensor_constants::PRESSURE_DISPLAY_SCALE_MIN; // Pressure scale minimum: 0.0 Bar
+    const int32_t scale_max = sensor_constants::PRESSURE_DISPLAY_SCALE_MAX; // Pressure scale maximum: 6.0 Bar
+
+    if (current_oil_pressure_value_ == -1)
     {
         // Initial load - determine start position based on target value
-        if (value < scaleMin)
+        if (value < scale_min)
         {
-            animationStartValue = scaleMin; // Start from minimum if value is below scale
+            animation_start_value = scale_min; // Start from minimum if value is below scale
         }
-        else if (value > scaleMax)
+        else if (value > scale_max)
         {
-            animationStartValue = scaleMax; // Start from maximum if value is above scale
+            animation_start_value = scale_max; // Start from maximum if value is above scale
         }
         else
         {
             // Value is within scale bounds
             // For pressure, always start from minimum (0.0 Bar) for initial animation
             // This represents the engine starting up and building pressure from 0
-            animationStartValue = scaleMin;
+            animation_start_value = scale_min;
         }
         log_i("Initial pressure animation: starting from %d to %d", animationStartValue, value);
     }
-    else if (currentOilPressureValue_ < scaleMin && value >= scaleMin)
+    else if (current_oil_pressure_value_ < scale_min && value >= scale_min)
     {
         // Coming from below scale minimum into visible range
-        animationStartValue = scaleMin;
+        animation_start_value = scale_min;
         log_i("Pressure entering scale from below: animating from %d to %d", animationStartValue, value);
     }
-    else if (currentOilPressureValue_ > scaleMax && value <= scaleMax)
+    else if (current_oil_pressure_value_ > scale_max && value <= scale_max)
     {
         // Coming from above scale maximum into visible range
-        animationStartValue = scaleMax;
+        animation_start_value = scale_max;
         log_i("Pressure entering scale from above: animating from %d to %d", animationStartValue, value);
     }
 
     // Setup animation
-    lv_anim_init(&pressureAnimation_);
-    lv_anim_set_duration(&pressureAnimation_, _animation_duration);
-    lv_anim_set_repeat_count(&pressureAnimation_, 0);
-    lv_anim_set_playback_duration(&pressureAnimation_, 0);
-    lv_anim_set_values(&pressureAnimation_, animationStartValue, value);
-    lv_anim_set_var(&pressureAnimation_, this);
-    lv_anim_set_user_data(&pressureAnimation_, (void *)static_cast<uintptr_t>(OilSensorTypes::Pressure));
-    lv_anim_set_exec_cb(&pressureAnimation_, OemOilPanel::ExecutePressureAnimationCallback);
-    lv_anim_set_completed_cb(&pressureAnimation_, OemOilPanel::UpdatePanelCompletionCallback);
+    lv_anim_init(&pressure_animation_);
+    lv_anim_set_duration(&pressure_animation_, ANIMATION_DURATION);
+    lv_anim_set_repeat_count(&pressure_animation_, 0);
+    lv_anim_set_playback_duration(&pressure_animation_, 0);
+    lv_anim_set_values(&pressure_animation_, animation_start_value, value);
+    lv_anim_set_var(&pressure_animation_, this);
+    lv_anim_set_user_data(&pressure_animation_, (void *)static_cast<uintptr_t>(OilSensorTypes::Pressure));
+    lv_anim_set_exec_cb(&pressure_animation_, OemOilPanel::ExecutePressureAnimationCallback);
+    lv_anim_set_completed_cb(&pressure_animation_, OemOilPanel::UpdatePanelCompletionCallback);
 
     // Update animation state based on current state
-    if (animationState_ == AnimationState::TEMPERATURE_RUNNING) {
-        animationState_ = AnimationState::BOTH_RUNNING;
-    } else {
-        animationState_ = AnimationState::PRESSURE_RUNNING;
+    if (animation_state_ == AnimationState::TEMPERATURE_RUNNING)
+    {
+        animation_state_ = AnimationState::BOTH_RUNNING;
+    }
+    else
+    {
+        animation_state_ = AnimationState::PRESSURE_RUNNING;
     }
     // Set ANIMATING state before starting animation
-    if (panelManager_)
+    if (panel_manager_)
     {
-        panelManager_->SetUiState(UIState::BUSY);
+        panel_manager_->SetUiState(UIState::BUSY);
     }
     // Start pressure gauge animation
-    lv_anim_start(&pressureAnimation_);
+    lv_anim_start(&pressure_animation_);
 }
 
 /**
  * @brief Update the oil temperature reading on the screen
  */
-void OemOilPanel::UpdateOilTemperature(bool forceRefresh)
+void OemOilPanel::UpdateOilTemperature(bool force_refresh)
 {
 
     // Skip update if temperature animation is already running
-    if (animationState_ == AnimationState::TEMPERATURE_RUNNING || animationState_ == AnimationState::BOTH_RUNNING)
+    if (animation_state_ == AnimationState::TEMPERATURE_RUNNING || animation_state_ == AnimationState::BOTH_RUNNING)
     {
         // Validate that the LVGL animation is actually still running
         // If not, this is a stale flag that needs to be cleared
-        if (!lv_anim_get(&temperatureAnimation_, nullptr))
+        if (!lv_anim_get(&temperature_animation_, nullptr))
         {
             log_w("UpdateOilTemperature: Found stale animation flag, clearing it");
-            if (animationState_ == AnimationState::TEMPERATURE_RUNNING) {
-                animationState_ = AnimationState::IDLE;
-            } else if (animationState_ == AnimationState::BOTH_RUNNING) {
-                animationState_ = AnimationState::PRESSURE_RUNNING;
+            if (animation_state_ == AnimationState::TEMPERATURE_RUNNING)
+            {
+                animation_state_ = AnimationState::IDLE;
+            }
+            else if (animation_state_ == AnimationState::BOTH_RUNNING)
+            {
+                animation_state_ = AnimationState::PRESSURE_RUNNING;
             }
         }
         else
@@ -408,7 +411,7 @@ void OemOilPanel::UpdateOilTemperature(bool forceRefresh)
     }
 
     // Safety check for sensor availability
-    if (!oemOilTemperatureSensor_)
+    if (!oem_oil_temperature_sensor_)
     {
         log_e("Temperature sensor is null - cannot update temperature display!");
         ErrorManager::Instance().ReportCriticalError("OemOilPanel",
@@ -417,106 +420,113 @@ void OemOilPanel::UpdateOilTemperature(bool forceRefresh)
     }
 
     // Use delta-based updates for better performance
-    auto sensorValue = std::get<int32_t>(oemOilTemperatureSensor_->GetReading());
-    auto value = MapTemperatureValue(sensorValue);
+    auto sensor_value = std::get<int32_t>(oem_oil_temperature_sensor_->GetReading());
+    auto value = MapTemperatureValue(sensor_value);
 
     // Apply hysteresis/deadband to prevent jittery updates from sensor noise
     // Only animate if change exceeds deadband threshold or this is the first reading
-    bool shouldAnimate = false;
-    if (lastAnimatedTemperatureValue_ == -1) {
+    bool should_animate = false;
+    if (last_animated_temperature_value_ == -1)
+    {
         // First reading - always animate
-        shouldAnimate = true;
-    } else {
+        should_animate = true;
+    }
+    else
+    {
         // Check if change exceeds deadband threshold
-        int32_t changeMagnitude = abs(value - lastAnimatedTemperatureValue_);
-        shouldAnimate = changeMagnitude >= temperatureDeadband_;
+        int32_t change_magnitude = abs(value - last_animated_temperature_value_);
+        should_animate = change_magnitude >= temperature_deadband_;
     }
 
     // Handle forced refresh (theme changes) or skip if no significant change
-    if (!shouldAnimate && !forceRefresh)
+    if (!should_animate && !force_refresh)
     {
         // Update current value for tracking but don't animate
-        currentOilTemperatureValue_ = value;
+        current_oil_temperature_value_ = value;
         return; // No animation needed - change within deadband
     }
 
-    if (forceRefresh && value == currentOilTemperatureValue_)
+    if (force_refresh && value == current_oil_temperature_value_)
     {
-        oemOilTemperatureComponent_.Refresh(Reading{value});
+        oem_oil_temperature_component_.Refresh(Reading{value});
         return; // Theme refresh but no value change
     }
 
-    log_i("Updating temperature from %d to %d (exceeds deadband of %d°C)", currentOilTemperatureValue_, value, temperatureDeadband_);
-    oemOilTemperatureComponent_.Refresh(Reading{value});
+    log_i("Updating temperature from %d to %d (exceeds deadband of %d°C)", current_oil_temperature_value_, value,
+          temperature_deadband_);
+    oem_oil_temperature_component_.Refresh(Reading{value});
 
     // Track this value as the last animated value for hysteresis
-    lastAnimatedTemperatureValue_ = value;
+    last_animated_temperature_value_ = value;
 
     // Determine animation start value
     // If current value is -1 (initial state) or outside scale bounds, start from appropriate boundary
-    int32_t animationStartValue = currentOilTemperatureValue_;
+    int32_t animation_start_value = current_oil_temperature_value_;
     // TEMPERATURE SCALE: Component manages scale representing 0-120°C
     // Using same constants that components use to ensure consistency
-    const int32_t scaleMin = SensorConstants::TEMPERATURE_DISPLAY_SCALE_MIN;   // Temperature scale minimum
-    const int32_t scaleMax = SensorConstants::TEMPERATURE_DISPLAY_SCALE_MAX;   // Temperature scale maximum
-    
-    if (currentOilTemperatureValue_ == -1)
+    const int32_t scale_min = sensor_constants::TEMPERATURE_DISPLAY_SCALE_MIN; // Temperature scale minimum
+    const int32_t scale_max = sensor_constants::TEMPERATURE_DISPLAY_SCALE_MAX; // Temperature scale maximum
+
+    if (current_oil_temperature_value_ == -1)
     {
         // Initial load - determine start position based on target value
-        if (value < scaleMin)
+        if (value < scale_min)
         {
-            animationStartValue = scaleMin; // Start from minimum if value is below scale
+            animation_start_value = scale_min; // Start from minimum if value is below scale
         }
-        else if (value > scaleMax)
+        else if (value > scale_max)
         {
-            animationStartValue = scaleMax; // Start from maximum if value is above scale
+            animation_start_value = scale_max; // Start from maximum if value is above scale
         }
         else
         {
             // Value is within scale bounds
             // For temperature, always start from minimum (cold) for initial animation
             // This represents a cold engine warming up, which is the typical scenario
-            animationStartValue = scaleMin;
+            animation_start_value = scale_min;
         }
         log_i("Initial temperature animation: starting from %d to %d", animationStartValue, value);
     }
-    else if (currentOilTemperatureValue_ < scaleMin && value >= scaleMin)
+    else if (current_oil_temperature_value_ < scale_min && value >= scale_min)
     {
         // Coming from below scale minimum into visible range
-        animationStartValue = scaleMin;
+        animation_start_value = scale_min;
         log_i("Temperature entering scale from below: animating from %d to %d", animationStartValue, value);
     }
-    else if (currentOilTemperatureValue_ > scaleMax && value <= scaleMax)
+    else if (current_oil_temperature_value_ > scale_max && value <= scale_max)
     {
         // Coming from above scale maximum into visible range
-        animationStartValue = scaleMax;
+        animation_start_value = scale_max;
         log_i("Temperature entering scale from above: animating from %d to %d", animationStartValue, value);
     }
 
     // Setup animation
-    lv_anim_init(&temperatureAnimation_);
-    lv_anim_set_duration(&temperatureAnimation_, _animation_duration);
-    lv_anim_set_repeat_count(&temperatureAnimation_, 0);
-    lv_anim_set_playback_duration(&temperatureAnimation_, 0);
-    lv_anim_set_values(&temperatureAnimation_, animationStartValue, value);
-    lv_anim_set_var(&temperatureAnimation_, this);
-    lv_anim_set_user_data(&temperatureAnimation_, (void *)static_cast<uintptr_t>(OilSensorTypes::Temperature));
-    lv_anim_set_exec_cb(&temperatureAnimation_, OemOilPanel::ExecuteTemperatureAnimationCallback);
-    lv_anim_set_completed_cb(&temperatureAnimation_, OemOilPanel::UpdatePanelCompletionCallback);
+    lv_anim_init(&temperature_animation_);
+    lv_anim_set_duration(&temperature_animation_, ANIMATION_DURATION);
+    lv_anim_set_repeat_count(&temperature_animation_, 0);
+    lv_anim_set_playback_duration(&temperature_animation_, 0);
+    lv_anim_set_values(&temperature_animation_, animation_start_value, value);
+    lv_anim_set_var(&temperature_animation_, this);
+    lv_anim_set_user_data(&temperature_animation_, (void *)static_cast<uintptr_t>(OilSensorTypes::Temperature));
+    lv_anim_set_exec_cb(&temperature_animation_, OemOilPanel::ExecuteTemperatureAnimationCallback);
+    lv_anim_set_completed_cb(&temperature_animation_, OemOilPanel::UpdatePanelCompletionCallback);
 
     // Update animation state based on current state
-    if (animationState_ == AnimationState::PRESSURE_RUNNING) {
-        animationState_ = AnimationState::BOTH_RUNNING;
-    } else {
-        animationState_ = AnimationState::TEMPERATURE_RUNNING;
+    if (animation_state_ == AnimationState::PRESSURE_RUNNING)
+    {
+        animation_state_ = AnimationState::BOTH_RUNNING;
+    }
+    else
+    {
+        animation_state_ = AnimationState::TEMPERATURE_RUNNING;
     }
     // Set ANIMATING state before starting animation
-    if (panelManager_)
+    if (panel_manager_)
     {
-        panelManager_->SetUiState(UIState::BUSY);
+        panel_manager_->SetUiState(UIState::BUSY);
     }
     // Start temperature gauge animation
-    lv_anim_start(&temperatureAnimation_);
+    lv_anim_start(&temperature_animation_);
 }
 
 // Legacy Action interface methods (retained for reference)
@@ -538,7 +548,7 @@ Action OemOilPanel::GetLongPressAction()
     log_v("GetLongPressAction() called");
 
     // Return an action that directly calls PanelService interface
-    if (!panelManager_)
+    if (!panel_manager_)
     {
         log_w("OemOilPanel: PanelService not available, returning no action");
         return Action(nullptr);
@@ -547,7 +557,7 @@ Action OemOilPanel::GetLongPressAction()
     return Action(
         [this]()
         {
-            panelManager_->CreateAndLoadPanel(PanelNames::CONFIG, true);
+            panel_manager_->CreateAndLoadPanel(panel_names::CONFIG, true);
         });
 }
 */
@@ -559,57 +569,60 @@ Action OemOilPanel::GetLongPressAction()
  */
 void OemOilPanel::ApplyCurrentSensorSettings()
 {
-    // Apply updateRate and units from preferences to sensors if preference service is available
-    if (configurationManager_ && cachedPressureSensor_ && cachedTemperatureSensor_)
+    // Apply update_rate and units from preferences to sensors if preference service is available
+    if (configuration_manager_ && cached_pressure_sensor_ && cached_temperature_sensor_)
     {
         // Get individual preferences using type-safe config system
-        int updateRate = 500; // Default
-        if (auto rateValue = configurationManager_->QueryConfig<int>(ConfigConstants::Keys::SYSTEM_UPDATE_RATE)) {
-            updateRate = *rateValue;
+        int update_rate = 500; // Default
+        if (auto rate_value = configuration_manager_->QueryConfig<int>(config_constants::keys::SYSTEM_UPDATE_RATE))
+        {
+            update_rate = *rate_value;
         }
 
-        std::string pressureUnit = ConfigConstants::Defaults::DEFAULT_PRESSURE_UNIT; // Default
-        if (auto unitValue = configurationManager_->QueryConfig<std::string>(OilPressureSensor::CONFIG_UNIT)) {
-            pressureUnit = *unitValue;
+        std::string pressure_unit = config_constants::defaults::DEFAULT_PRESSURE_UNIT; // Default
+        if (auto unit_value = configuration_manager_->QueryConfig<std::string>(OilPressureSensor::CONFIG_UNIT))
+        {
+            pressure_unit = *unit_value;
         }
 
-        std::string tempUnit = ConfigConstants::Defaults::DEFAULT_TEMPERATURE_UNIT; // Default
-        if (auto unitValue = configurationManager_->QueryConfig<std::string>(OilTemperatureSensor::CONFIG_UNIT)) {
-            tempUnit = *unitValue;
+        std::string temp_unit = config_constants::defaults::DEFAULT_TEMPERATURE_UNIT; // Default
+        if (auto unit_value = configuration_manager_->QueryConfig<std::string>(OilTemperatureSensor::CONFIG_UNIT))
+        {
+            temp_unit = *unit_value;
         }
 
         // Only update settings if they have changed
-        bool updateRateChanged = (lastUpdateRate_ != updateRate);
-        bool pressureUnitChanged = !lastPressureUnit_.equals(pressureUnit.c_str());
-        bool tempUnitChanged = !lastTempUnit_.equals(tempUnit.c_str());
+        bool update_rate_changed = (last_update_rate_ != update_rate);
+        bool pressure_unit_changed = !last_pressure_unit_.equals(pressure_unit.c_str());
+        bool temp_unit_changed = !last_temp_unit_.equals(temp_unit.c_str());
 
-        if (updateRateChanged)
+        if (update_rate_changed)
         {
-            cachedPressureSensor_->SetUpdateRate(updateRate);
-            cachedTemperatureSensor_->SetUpdateRate(updateRate);
-            lastUpdateRate_ = updateRate;
+            cached_pressure_sensor_->SetUpdateRate(update_rate);
+            cached_temperature_sensor_->SetUpdateRate(update_rate);
+            last_update_rate_ = update_rate;
         }
 
-        if (pressureUnitChanged)
+        if (pressure_unit_changed)
         {
-            cachedPressureSensor_->SetTargetUnit(pressureUnit);
-            lastPressureUnit_ = String(pressureUnit.c_str());
+            cached_pressure_sensor_->SetTargetUnit(pressure_unit);
+            last_pressure_unit_ = String(pressure_unit.c_str());
         }
 
-        if (tempUnitChanged)
+        if (temp_unit_changed)
         {
-            cachedTemperatureSensor_->SetTargetUnit(tempUnit);
-            lastTempUnit_ = String(tempUnit.c_str());
+            cached_temperature_sensor_->SetTargetUnit(temp_unit);
+            last_temp_unit_ = String(temp_unit.c_str());
         }
 
         // Only log if something actually changed
-        if (updateRateChanged || pressureUnitChanged || tempUnitChanged)
+        if (update_rate_changed || pressure_unit_changed || temp_unit_changed)
         {
-            log_t("Sensor settings updated - Rate: %dms, Pressure: %s, Temp: %s",
-                  updateRate, pressureUnit.c_str(), tempUnit.c_str());
+            log_t("Sensor settings updated - Rate: %dms, Pressure: %s, Temp: %s", update_rate, pressure_unit.c_str(),
+                  temp_unit.c_str());
         }
     }
-    else if (!configurationManager_)
+    else if (!configuration_manager_)
     {
         // Only log this warning once during initialization
         static bool logged = false;
@@ -636,18 +649,18 @@ void OemOilPanel::ShowPanelCompletionCallback(lv_event_t *event)
         return;
     }
 
-    auto thisInstance = static_cast<OemOilPanel *>(lv_event_get_user_data(event));
-    if (!thisInstance)
+    auto this_instance = static_cast<OemOilPanel *>(lv_event_get_user_data(event));
+    if (!this_instance)
     {
         return;
     }
 
     // Set UI state to IDLE so main loop can start calling Update()
-    if (thisInstance->panelManager_)
+    if (this_instance->panel_manager_)
     {
-        thisInstance->panelManager_->SetUiState(UIState::IDLE);
+        this_instance->panel_manager_->SetUiState(UIState::IDLE);
     }
-    
+
     // Animation completed - no callback needed for interface-based approach
 }
 
@@ -664,38 +677,44 @@ void OemOilPanel::UpdatePanelCompletionCallback(lv_anim_t *animation)
         return;
     }
 
-    auto thisInstance = static_cast<OemOilPanel *>(animation->var);
-    auto sensorType = static_cast<OilSensorTypes>(reinterpret_cast<uintptr_t>(animation->user_data));
+    auto this_instance = static_cast<OemOilPanel *>(animation->var);
+    auto sensor_type = static_cast<OilSensorTypes>(reinterpret_cast<uintptr_t>(animation->user_data));
 
     // Determine which animation has completed and update the corresponding value
-    if (sensorType == OilSensorTypes::Pressure)
+    if (sensor_type == OilSensorTypes::Pressure)
     {
-        thisInstance->currentOilPressureValue_ = animation->current_value;
+        this_instance->current_oil_pressure_value_ = animation->current_value;
         // Update animation state when pressure animation completes
-        if (thisInstance->animationState_ == AnimationState::PRESSURE_RUNNING) {
-            thisInstance->animationState_ = AnimationState::IDLE;
-        } else if (thisInstance->animationState_ == AnimationState::BOTH_RUNNING) {
-            thisInstance->animationState_ = AnimationState::TEMPERATURE_RUNNING;
+        if (this_instance->animation_state_ == AnimationState::PRESSURE_RUNNING)
+        {
+            this_instance->animation_state_ = AnimationState::IDLE;
+        }
+        else if (this_instance->animation_state_ == AnimationState::BOTH_RUNNING)
+        {
+            this_instance->animation_state_ = AnimationState::TEMPERATURE_RUNNING;
         }
     }
-    else if (sensorType == OilSensorTypes::Temperature)
+    else if (sensor_type == OilSensorTypes::Temperature)
     {
-        thisInstance->currentOilTemperatureValue_ = animation->current_value;
+        this_instance->current_oil_temperature_value_ = animation->current_value;
         // Update animation state when temperature animation completes
-        if (thisInstance->animationState_ == AnimationState::TEMPERATURE_RUNNING) {
-            thisInstance->animationState_ = AnimationState::IDLE;
-        } else if (thisInstance->animationState_ == AnimationState::BOTH_RUNNING) {
-            thisInstance->animationState_ = AnimationState::PRESSURE_RUNNING;
+        if (this_instance->animation_state_ == AnimationState::TEMPERATURE_RUNNING)
+        {
+            this_instance->animation_state_ = AnimationState::IDLE;
+        }
+        else if (this_instance->animation_state_ == AnimationState::BOTH_RUNNING)
+        {
+            this_instance->animation_state_ = AnimationState::PRESSURE_RUNNING;
         }
     }
 
     // Only set UI state to idle when all animations are complete
-    if (thisInstance->animationState_ == AnimationState::IDLE)
+    if (this_instance->animation_state_ == AnimationState::IDLE)
     {
         // Set IDLE state when all animations are complete
-        if (thisInstance->panelManager_)
+        if (this_instance->panel_manager_)
         {
-            thisInstance->panelManager_->SetUiState(UIState::IDLE);
+            this_instance->panel_manager_->SetUiState(UIState::IDLE);
         }
     }
 }
@@ -716,10 +735,10 @@ void OemOilPanel::ExecutePressureAnimationCallback(void *target, int32_t value)
         return;
     }
 
-    auto thisInstance =
+    auto this_instance =
         static_cast<OemOilPanel *>(animation->var); // use the animation to get the var which is this instance
     // Component is now stack-allocated, always available
-    thisInstance->oemOilPressureComponent_.SetValue(value);
+    this_instance->oem_oil_pressure_component_.SetValue(value);
 }
 
 /**
@@ -738,10 +757,10 @@ void OemOilPanel::ExecuteTemperatureAnimationCallback(void *target, int32_t valu
         return;
     }
 
-    auto thisInstance =
+    auto this_instance =
         static_cast<OemOilPanel *>(animation->var); // use the animation to get the var which is this instance
     // Component is now stack-allocated, always available
-    thisInstance->oemOilTemperatureComponent_.SetValue(value);
+    this_instance->oem_oil_temperature_component_.SetValue(value);
 }
 
 // ========== Value Mapping Methods ==========
@@ -751,24 +770,25 @@ void OemOilPanel::ExecuteTemperatureAnimationCallback(void *target, int32_t valu
  * @param sensorValue Raw sensor value (1-10 Bar)
  * @return Mapped value for display (0-60, representing pressure range)
  */
-int32_t OemOilPanel::MapPressureValue(int32_t sensorValue)
+int32_t OemOilPanel::MapPressureValue(int32_t sensor_value)
 {
 
-    if (!configurationManager_)
+    if (!configuration_manager_)
     {
-        int32_t result = MapBarPressure(sensorValue);
+        int32_t result = MapBarPressure(sensor_value);
         log_v("MapPressureValue() returning (fallback): %d", result);
         return result;
     }
 
-    std::string pressureUnit = "Bar"; // Default
-    if (auto unitValue = configurationManager_->QueryConfig<std::string>(OilPressureSensor::CONFIG_UNIT)) {
-        pressureUnit = *unitValue;
+    std::string pressure_unit = "Bar"; // Default
+    if (auto unit_value = configuration_manager_->QueryConfig<std::string>(OilPressureSensor::CONFIG_UNIT))
+    {
+        pressure_unit = *unit_value;
     }
-    int32_t mappedValue = MapPressureByUnit(sensorValue, pressureUnit);
-    
+    int32_t mapped_value = MapPressureByUnit(sensor_value, pressure_unit);
+
     log_v("MapPressureValue() returning: %d", mappedValue);
-    return mappedValue;
+    return mapped_value;
 }
 
 /**
@@ -780,20 +800,25 @@ int32_t OemOilPanel::MapPressureValue(int32_t sensorValue)
  * Converts sensor value to base Bar unit if needed, then maps to display scale.
  * This simplifies the logic by always working with Bar internally.
  */
-int32_t OemOilPanel::MapPressureByUnit(int32_t sensorValue, const std::string& unit)
+int32_t OemOilPanel::MapPressureByUnit(int32_t sensor_value, const std::string &unit)
 {
     // Convert to base unit (Bar) if needed
-    float barValue;
-    if (unit == ConfigConstants::Units::PSI_UPPER) {
-        barValue = UnitConverter::PsiToBar(static_cast<float>(sensorValue));
-    } else if (unit == ConfigConstants::Units::KPA_UPPER) {
-        barValue = UnitConverter::KpaToBar(static_cast<float>(sensorValue));
-    } else {
-        barValue = static_cast<float>(sensorValue);
+    float bar_value;
+    if (unit == config_constants::units::PSI_UPPER)
+    {
+        bar_value = unit_converter::PsiToBar(static_cast<float>(sensor_value));
+    }
+    else if (unit == config_constants::units::KPA_UPPER)
+    {
+        bar_value = unit_converter::KpaToBar(static_cast<float>(sensor_value));
+    }
+    else
+    {
+        bar_value = static_cast<float>(sensor_value);
     }
 
     // Map Bar value to display scale
-    return MapBarPressure(static_cast<int32_t>(barValue));
+    return MapBarPressure(static_cast<int32_t>(bar_value));
 }
 
 /**
@@ -803,11 +828,11 @@ int32_t OemOilPanel::MapPressureByUnit(int32_t sensorValue, const std::string& u
  *
  * Converts PSI to Bar and uses unified Bar mapping.
  */
-int32_t OemOilPanel::MapPSIPressure(int32_t sensorValue)
+int32_t OemOilPanel::MapPSIPressure(int32_t sensor_value)
 {
     // Convert PSI to Bar and use unified mapping
-    float barValue = UnitConverter::PsiToBar(static_cast<float>(sensorValue));
-    return MapBarPressure(static_cast<int32_t>(barValue));
+    float bar_value = unit_converter::PsiToBar(static_cast<float>(sensor_value));
+    return MapBarPressure(static_cast<int32_t>(bar_value));
 }
 
 /**
@@ -817,11 +842,11 @@ int32_t OemOilPanel::MapPSIPressure(int32_t sensorValue)
  *
  * Converts kPa to Bar and uses unified Bar mapping.
  */
-int32_t OemOilPanel::MapkPaPressure(int32_t sensorValue)
+int32_t OemOilPanel::MapkPaPressure(int32_t sensor_value)
 {
     // Convert kPa to Bar and use unified mapping
-    float barValue = UnitConverter::KpaToBar(static_cast<float>(sensorValue));
-    return MapBarPressure(static_cast<int32_t>(barValue));
+    float bar_value = unit_converter::KpaToBar(static_cast<float>(sensor_value));
+    return MapBarPressure(static_cast<int32_t>(bar_value));
 }
 
 /**
@@ -832,14 +857,14 @@ int32_t OemOilPanel::MapkPaPressure(int32_t sensorValue)
  * Maps automotive Bar pressure range (1-10 Bar) to gauge display scale.
  * This is the base mapping function used by all unit conversions.
  */
-int32_t OemOilPanel::MapBarPressure(int32_t sensorValue)
+int32_t OemOilPanel::MapBarPressure(int32_t sensor_value)
 {
     // Bar: sensor returns 0-10 Bar, map to 0-60 display
     // Clamp to valid range (1-10 Bar)
-    int32_t clampedValue = ClampValue(sensorValue, 1, SensorConstants::PRESSURE_MAX_BAR);
+    int32_t clamped_value = ClampValue(sensor_value, 1, sensor_constants::PRESSURE_MAX_BAR);
 
     // Map Bar range (1-10) to display scale (0-60)
-    return ((clampedValue - 1) * 60) / (SensorConstants::PRESSURE_MAX_BAR - 1);
+    return ((clamped_value - 1) * 60) / (sensor_constants::PRESSURE_MAX_BAR - 1);
 }
 
 /**
@@ -853,10 +878,12 @@ int32_t OemOilPanel::MapBarPressure(int32_t sensorValue)
  * ranges for automotive applications. Prevents gauge display errors from
  * out-of-range sensor readings.
  */
-int32_t OemOilPanel::ClampValue(int32_t value, int32_t minVal, int32_t maxVal)
+int32_t OemOilPanel::ClampValue(int32_t value, int32_t min_val, int32_t max_val)
 {
-    if (value < minVal) return minVal;
-    if (value > maxVal) return maxVal;
+    if (value < min_val)
+        return min_val;
+    if (value > max_val)
+        return max_val;
     return value;
 }
 
@@ -865,42 +892,44 @@ int32_t OemOilPanel::ClampValue(int32_t value, int32_t minVal, int32_t maxVal)
  * @param sensorValue Temperature value in configured units
  * @return Mapped value for display (0-120 scale)
  */
-int32_t OemOilPanel::MapTemperatureValue(int32_t sensorValue)
+int32_t OemOilPanel::MapTemperatureValue(int32_t sensor_value)
 {
     // Convert to base unit (Celsius) if needed
-    float celsiusValue;
+    float celsius_value;
 
-    if (configurationManager_)
+    if (configuration_manager_)
     {
-        std::string tempUnit = ConfigConstants::Defaults::DEFAULT_TEMPERATURE_UNIT; // Default
-        if (auto unitValue = configurationManager_->QueryConfig<std::string>(OilTemperatureSensor::CONFIG_UNIT)) {
-            tempUnit = *unitValue;
+        std::string temp_unit = config_constants::defaults::DEFAULT_TEMPERATURE_UNIT; // Default
+        if (auto unit_value = configuration_manager_->QueryConfig<std::string>(OilTemperatureSensor::CONFIG_UNIT))
+        {
+            temp_unit = *unit_value;
         }
 
-        if (tempUnit == ConfigConstants::Units::FAHRENHEIT)
+        if (temp_unit == config_constants::units::FAHRENHEIT)
         {
             // Convert Fahrenheit to Celsius
-            celsiusValue = UnitConverter::FahrenheitToCelsius(static_cast<float>(sensorValue));
+            celsius_value = unit_converter::FahrenheitToCelsius(static_cast<float>(sensor_value));
         }
         else
         {
             // Already in Celsius
-            celsiusValue = static_cast<float>(sensorValue);
+            celsius_value = static_cast<float>(sensor_value);
         }
     }
     else
     {
         // No preference service - assume Celsius
-        celsiusValue = static_cast<float>(sensorValue);
+        celsius_value = static_cast<float>(sensor_value);
     }
 
     // Clamp to valid range (0-120°C) and map directly to display scale
-    int32_t mappedValue = static_cast<int32_t>(celsiusValue);
-    mappedValue = ClampValue(mappedValue, SensorConstants::TEMPERATURE_MIN_CELSIUS, SensorConstants::TEMPERATURE_MAX_CELSIUS);
+    int32_t mapped_value = static_cast<int32_t>(celsius_value);
+    mapped_value =
+        ClampValue(mapped_value, sensor_constants::TEMPERATURE_MIN_CELSIUS, sensor_constants::TEMPERATURE_MAX_CELSIUS);
 
     // Direct 1:1 mapping for Celsius to display scale (0-120)
     log_v("MapTemperatureValue() returning: %d", mappedValue);
-    return mappedValue;
+    return mapped_value;
 }
 
 // ========== IActionService Interface Implementation ==========
@@ -920,10 +949,10 @@ void OemOilPanel::HandleShortPress()
 }
 void OemOilPanel::HandleLongPress()
 {
-    if (panelManager_)
+    if (panel_manager_)
     {
         log_i("OemOilPanel long press - loading config panel");
-        panelManager_->CreateAndLoadPanel(PanelNames::CONFIG, true);
+        panel_manager_->CreateAndLoadPanel(panel_names::CONFIG, true);
     }
     else
     {
@@ -947,49 +976,62 @@ void OemOilPanel::HandleLongPress()
  * - 3% = 1.8 scale units = 0.18 Bar threshold
  * - 5% = 3.0 scale units = 0.30 Bar threshold
  */
-void OemOilPanel::calculateDeadbands()
+void OemOilPanel::CalculateDeadbands()
 {
     // Get pressure deadband percentage from pressure component configuration (default: 3%)
-    int32_t pressurePercent = DEFAULT_PRESSURE_DEADBAND_PERCENT;
-    if (configurationManager_) {
-        if (auto configValue = configurationManager_->QueryConfig<int>(ConfigConstants::Keys::OIL_PRESSURE_DEADBAND_PERCENT)) {
-            pressurePercent = *configValue;
+    int32_t pressure_percent = DEFAULT_PRESSURE_DEADBAND_PERCENT;
+    if (configuration_manager_)
+    {
+        if (auto config_value =
+                configuration_manager_->QueryConfig<int>(config_constants::keys::OIL_PRESSURE_DEADBAND_PERCENT))
+        {
+            pressure_percent = *config_value;
             log_i("Using configured pressure deadband: %d%%", pressurePercent);
-        } else {
+        }
+        else
+        {
             log_i("No pressure deadband config found, using default: %d%%", pressurePercent);
         }
     }
 
     // Get temperature deadband percentage from temperature component configuration (default: 3%)
-    int32_t temperaturePercent = DEFAULT_TEMPERATURE_DEADBAND_PERCENT;
-    if (configurationManager_) {
-        if (auto configValue = configurationManager_->QueryConfig<int>(ConfigConstants::Keys::OIL_TEMPERATURE_DEADBAND_PERCENT)) {
-            temperaturePercent = *configValue;
+    int32_t temperature_percent = DEFAULT_TEMPERATURE_DEADBAND_PERCENT;
+    if (configuration_manager_)
+    {
+        if (auto config_value =
+                configuration_manager_->QueryConfig<int>(config_constants::keys::OIL_TEMPERATURE_DEADBAND_PERCENT))
+        {
+            temperature_percent = *config_value;
             log_i("Using configured temperature deadband: %d%%", temperaturePercent);
-        } else {
+        }
+        else
+        {
             log_i("No temperature deadband config found, using default: %d%%", temperaturePercent);
         }
     }
 
     // Calculate actual deadband values from percentiles using component scale constants
     // Reference the same constants that components use to ensure consistency
-    const int32_t pressureScaleRange = SensorConstants::PRESSURE_DISPLAY_SCALE_MAX - SensorConstants::PRESSURE_DISPLAY_SCALE_MIN;
-    const int32_t temperatureScaleRange = SensorConstants::TEMPERATURE_DISPLAY_SCALE_MAX - SensorConstants::TEMPERATURE_DISPLAY_SCALE_MIN;
+    const int32_t pressure_scale_range =
+        sensor_constants::PRESSURE_DISPLAY_SCALE_MAX - sensor_constants::PRESSURE_DISPLAY_SCALE_MIN;
+    const int32_t temperature_scale_range =
+        sensor_constants::TEMPERATURE_DISPLAY_SCALE_MAX - sensor_constants::TEMPERATURE_DISPLAY_SCALE_MIN;
 
     // Pressure: (percent * component_scale_range) / 100
-    pressureDeadband_ = (pressurePercent * pressureScaleRange) / 100;
-    if (pressureDeadband_ < 1) pressureDeadband_ = 1; // Minimum 1 scale unit
+    pressure_deadband_ = (pressure_percent * pressure_scale_range) / 100;
+    if (pressure_deadband_ < 1)
+        pressure_deadband_ = 1; // Minimum 1 scale unit
 
     // Temperature: (percent * component_scale_range) / 100
-    temperatureDeadband_ = (temperaturePercent * temperatureScaleRange) / 100;
-    if (temperatureDeadband_ < 1) temperatureDeadband_ = 1; // Minimum 1 scale unit
+    temperature_deadband_ = (temperature_percent * temperature_scale_range) / 100;
+    if (temperature_deadband_ < 1)
+        temperature_deadband_ = 1; // Minimum 1 scale unit
 
     log_i("Calculated deadbands from component scale constants:");
     log_i("  Pressure: %d-%d range (%d units), %d%% = %d scale units (%.1f Bar threshold)",
-          SensorConstants::PRESSURE_DISPLAY_SCALE_MIN, SensorConstants::PRESSURE_DISPLAY_SCALE_MAX,
-          pressureScaleRange, pressurePercent, pressureDeadband_, pressureDeadband_ / 10.0f);
+          sensor_constants::PRESSURE_DISPLAY_SCALE_MIN, sensor_constants::PRESSURE_DISPLAY_SCALE_MAX,
+          pressureScaleRange, pressurePercent, pressure_deadband_, pressure_deadband_ / 10.0f);
     log_i("  Temperature: %d-%d range (%d units), %d%% = %d scale units (%d°C threshold)",
-          SensorConstants::TEMPERATURE_DISPLAY_SCALE_MIN, SensorConstants::TEMPERATURE_DISPLAY_SCALE_MAX,
-          temperatureScaleRange, temperaturePercent, temperatureDeadband_, temperatureDeadband_);
+          sensor_constants::TEMPERATURE_DISPLAY_SCALE_MIN, sensor_constants::TEMPERATURE_DISPLAY_SCALE_MAX,
+          temperatureScaleRange, temperaturePercent, temperature_deadband_, temperature_deadband_);
 }
-

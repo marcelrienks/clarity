@@ -13,3 +13,4 @@ test_results/
 wokwi-cli
 wokwi-cli.exe
 *.log
+compile_commands.json

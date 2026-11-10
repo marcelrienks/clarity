@@ -1,11 +1,11 @@
 #include "panels/key_panel.h"
 #include "components/key_component.h"
+#include "definitions/constants.h"
 #include "handlers/trigger_handler.h"
-#include "managers/interrupt_manager.h"
 #include "managers/error_manager.h"
+#include "managers/interrupt_manager.h"
 #include "sensors/gpio_sensor.h"
 #include "utilities/logging.h"
-#include "definitions/constants.h"
 #include <Arduino.h>
 #include <variant>
 
@@ -21,13 +21,13 @@
  * current key state during construction and initializes stack-allocated
  * key component for efficient memory usage.
  */
-KeyPanel::KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *styleManager,
-                   IPanelManager *panelManager)
-    : BasePanel(gpio, display, styleManager, panelManager),
-      keyComponent_(styleManager), componentInitialized_(false)
+KeyPanel::KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
+                   IPanelManager *panel_manager)
+    : BasePanel(gpio, display, style_manager, panel_manager), key_component_(style_manager),
+      component_initialized_(false)
 {
     // Determine current key state by checking which sensor is currently active
-    currentKeyState_ = DetermineCurrentKeyState();
+    current_key_state_ = DetermineCurrentKeyState();
 }
 
 // ========== Protected Methods ==========
@@ -42,13 +42,13 @@ KeyPanel::KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager
 void KeyPanel::CreateContent()
 {
     // Component is now stack-allocated and initialized in constructor
-    componentInitialized_ = true;
+    component_initialized_ = true;
 
     // Render the component
-    keyComponent_.Render(screen_, centerLocation_, displayProvider_);
+    key_component_.Render(screen_, center_location_, display_provider_);
 
     // Set color directly on the concrete component
-    keyComponent_.SetColor(currentKeyState_);
+    key_component_.SetColor(current_key_state_);
 }
 
 /**
@@ -74,10 +74,10 @@ void KeyPanel::UpdateContent()
  */
 void KeyPanel::HandleLongPress()
 {
-    if (panelManager_)
+    if (panel_manager_)
     {
         log_i("KeyPanel long press - loading config panel");
-        panelManager_->CreateAndLoadPanel(PanelNames::CONFIG, true);
+        panel_manager_->CreateAndLoadPanel(panel_names::CONFIG, true);
     }
     else
     {
@@ -97,31 +97,31 @@ void KeyPanel::HandleLongPress()
 KeyState KeyPanel::DetermineCurrentKeyState()
 {
     log_v("DetermineCurrentKeyState() called");
-    
+
     // Access the sensors through InterruptManager to check their current states
-    InterruptManager& interruptManager = InterruptManager::Instance();
-    auto triggerHandler = interruptManager.GetTriggerHandler();
-    
-    if (!triggerHandler)
+    InterruptManager &interrupt_manager = InterruptManager::Instance();
+    auto trigger_handler = interrupt_manager.GetTriggerHandler();
+
+    if (!trigger_handler)
     {
         log_w("DetermineCurrentKeyState: TriggerHandler not available, defaulting to Inactive");
         return KeyState::Inactive;
     }
-    
+
     // Check key present sensor (now using generic GetState method)
-    auto keyPresentSensor = triggerHandler->GetKeyPresentSensor();
-    if (keyPresentSensor && keyPresentSensor->GetState())
+    auto key_present_sensor = trigger_handler->GetKeyPresentSensor();
+    if (key_present_sensor && key_present_sensor->GetState())
     {
         return KeyState::Present;
     }
 
     // Check key not present sensor (now using generic GetState method)
-    auto keyNotPresentSensor = triggerHandler->GetKeyNotPresentSensor();
-    if (keyNotPresentSensor && keyNotPresentSensor->GetState())
+    auto key_not_present_sensor = trigger_handler->GetKeyNotPresentSensor();
+    if (key_not_present_sensor && key_not_present_sensor->GetState())
     {
         return KeyState::NotPresent;
     }
-    
+
     // If neither sensor is active, default to inactive
     return KeyState::Inactive;
 }

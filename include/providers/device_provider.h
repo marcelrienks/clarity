@@ -8,8 +8,8 @@
 #pragma GCC diagnostic ignored "-Woverloaded-virtual"
 #include <LovyanGFX.hpp>
 #pragma GCC diagnostic pop
-#include <lvgl.h>
 #include "definitions/constants.h"
+#include <lvgl.h>
 
 // Screen - use constants from centralized location
 #define SCREEN_WIDTH 240
@@ -54,7 +54,7 @@
  */
 class DeviceProvider : public lgfx::LGFX_Device
 {
-public:
+  public:
     // ========== Constructors and Destructor ==========
     DeviceProvider();
     DeviceProvider(const DeviceProvider &) = delete;
@@ -62,26 +62,25 @@ public:
     ~DeviceProvider() = default;
 
     // ========== Public Interface Methods ==========
-    void prepare();
-    lv_obj_t* GetScreen() const;
+    void Prepare();
+    lv_obj_t *GetScreen() const;
     bool IsReady() const;
 
-private:
+  private:
     // ========== Static Methods ==========
-    static void display_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *data);
+    static void DisplayFlushCallback(lv_display_t *display, const lv_area_t *area, unsigned char *data);
 
     // ========== Private Data Members ==========
     lv_obj_t *screen_;
 
-    lgfx::Panel_GC9A01 panelInstance_; // Waveshare Round 1.28inch LCD Display Module
-    lgfx::Light_PWM lightInstance_;
-    lgfx::Bus_SPI busInstance_;
+    lgfx::Panel_GC9A01 panel_instance_; // Waveshare Round 1.28inch LCD Display Module
+    lgfx::Light_PWM light_instance_;
+    lgfx::Bus_SPI bus_instance_;
 
     // Two partial-render buffers of 60 lines each (a quarter of the 240 line screen).
     // RGB565 is 2 bytes per pixel: 240 * 60 * 2 = 28.8KB per buffer, ~57.6KB in total.
     static constexpr unsigned int BUFFER_LINE_COUNT = 60;
     static constexpr unsigned int BYTES_PER_PIXEL = 2; // LV_COLOR_FORMAT_RGB565
-    static constexpr unsigned int LV_BUFFER_SIZE =
-        (SCREEN_WIDTH * BUFFER_LINE_COUNT * BYTES_PER_PIXEL);
-    uint8_t lvBuffer_[2][LV_BUFFER_SIZE];
+    static constexpr unsigned int LV_BUFFER_SIZE = (SCREEN_WIDTH * BUFFER_LINE_COUNT * BYTES_PER_PIXEL);
+    uint8_t lv_buffer_[2][LV_BUFFER_SIZE];
 };

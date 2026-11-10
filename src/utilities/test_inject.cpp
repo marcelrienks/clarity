@@ -2,19 +2,19 @@
 
 #ifdef CLARITY_TEST_INJECT_ERROR
 
-#include <Arduino.h>
+    #include <Arduino.h>
 
-#include "hardware/gpio_pins.h"
-#include "managers/error_manager.h"
-#include "utilities/logging.h"
+    #include "hardware/gpio_pins.h"
+    #include "managers/error_manager.h"
+    #include "utilities/logging.h"
 
 namespace
 {
-    IGpioProvider *gpio = nullptr;
-    bool previousState = false;
-}
+IGpioProvider *gpio = nullptr;
+bool previousState = false;
+} // namespace
 
-void TestInject::Begin(IGpioProvider *gpioProvider)
+void test_inject::Begin(IGpioProvider *gpioProvider)
 {
     gpio = gpioProvider;
     if (!gpio)
@@ -27,7 +27,7 @@ void TestInject::Begin(IGpioProvider *gpioProvider)
     log_t("Test error injection armed");
 }
 
-void TestInject::Poll()
+void test_inject::Poll()
 {
     if (!gpio)
     {

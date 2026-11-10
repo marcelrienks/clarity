@@ -1,9 +1,9 @@
 #include "factories/provider_factory.h"
+#include "managers/error_manager.h"
+#include "providers/device_provider.h"
 #include "providers/gpio_provider.h"
 #include "providers/lvgl_display_provider.h"
 #include "providers/storage_provider.h"
-#include "providers/device_provider.h"
-#include "managers/error_manager.h"
 #include <Arduino.h>
 
 #include "esp32-hal-log.h"
@@ -39,23 +39,23 @@ std::unique_ptr<IGpioProvider> ProviderFactory::CreateGpioProvider()
  * Creates LvglDisplayProvider using screen from DeviceProvider. Validates
  * device provider and screen availability. Reports critical errors on failure.
  */
-std::unique_ptr<IDisplayProvider> ProviderFactory::CreateDisplayProvider(DeviceProvider* deviceProvider)
+std::unique_ptr<IDisplayProvider> ProviderFactory::CreateDisplayProvider(DeviceProvider *device_provider)
 {
-    if (!deviceProvider)
+    if (!device_provider)
     {
         log_e("ProviderFactory: Cannot create DisplayProvider - DeviceProvider parameter is null");
-        ErrorManager::Instance().ReportCriticalError("ProviderFactory",
-                                                     "Cannot create DisplayProvider - DeviceProvider dependency is null");
+        ErrorManager::Instance().ReportCriticalError(
+            "ProviderFactory", "Cannot create DisplayProvider - DeviceProvider dependency is null");
         return nullptr;
     }
 
     // Access the screen from the injected deviceProvider using interface method
-    lv_obj_t* screen = deviceProvider->GetScreen();
+    lv_obj_t *screen = device_provider->GetScreen();
     if (!screen)
     {
         log_e("ProviderFactory: Cannot create DisplayProvider - DeviceProvider screen is null");
-        ErrorManager::Instance().ReportCriticalError("ProviderFactory",
-                                                     "Cannot create DisplayProvider - DeviceProvider screen not initialized");
+        ErrorManager::Instance().ReportCriticalError(
+            "ProviderFactory", "Cannot create DisplayProvider - DeviceProvider screen not initialized");
         return nullptr;
     }
 
@@ -90,12 +90,11 @@ std::unique_ptr<DeviceProvider> ProviderFactory::CreateDeviceProvider()
     }
 
     // Prepare the device (initializes screen)
-    provider->prepare();
+    provider->Prepare();
     if (!provider->GetScreen())
     {
         log_e("ProviderFactory: DeviceProvider screen initialization failed");
-        ErrorManager::Instance().ReportCriticalError("ProviderFactory",
-                                                     "DeviceProvider screen initialization failed");
+        ErrorManager::Instance().ReportCriticalError("ProviderFactory", "DeviceProvider screen initialization failed");
         return nullptr;
     }
 

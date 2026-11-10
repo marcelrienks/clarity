@@ -47,19 +47,19 @@ class OemOilPressureComponent : public OemOilComponent
 {
   public:
     // ========== Constructors and Destructor ==========
-    OemOilPressureComponent(IStyleManager *styleManager);
+    OemOilPressureComponent(IStyleManager *style_manager);
     ~OemOilPressureComponent() = default;
 
   protected:
     // ========== Protected Methods ==========
-    const lv_image_dsc_t *get_icon() const override;
-    int32_t get_scale_min() const override;
-    int32_t get_scale_max() const override;
-    int32_t get_danger_zone() const override;
-    lv_scale_mode_t get_scale_mode() const override;
-    int32_t get_angle_range() const override;
-    bool is_danger_condition(int32_t value) const override;
-    void setup_danger_zone(lv_scale_section_t *section) const override;
-    int32_t get_icon_y_offset() const override;
-    void get_label_angles(int32_t &lAngle, int32_t &hAngle) const override;
+    const lv_image_dsc_t *GetIcon() const override;
+    int32_t GetScaleMin() const override;
+    int32_t GetScaleMax() const override;
+    int32_t GetDangerZone() const override;
+    lv_scale_mode_t GetScaleMode() const override;
+    int32_t GetAngleRange() const override;
+    bool IsDangerCondition(int32_t value) const override;
+    void SetupDangerZone(lv_scale_section_t *section) const override;
+    int32_t GetIconYOffset() const override;
+    void GetLabelAngles(int32_t &l_angle, int32_t &h_angle) const override;
 };

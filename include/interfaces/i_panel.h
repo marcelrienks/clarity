@@ -5,10 +5,10 @@
 #include <memory>
 
 // Project Includes
+#include "interfaces/i_action_handler.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_sensor.h"
-#include "interfaces/i_action_handler.h"
 
 // Forward declarations
 class IPanelManager;

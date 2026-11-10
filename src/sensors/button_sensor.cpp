@@ -11,8 +11,7 @@
  * Initializes the button sensor with GPIO provider following the
  * standard sensor pattern used throughout the system.
  */
-ButtonSensor::ButtonSensor(IGpioProvider *gpioProvider)
-    : gpio_provider_(gpioProvider)
+ButtonSensor::ButtonSensor(IGpioProvider *gpio_provider) : gpio_provider_(gpio_provider)
 {
     log_v("ButtonSensor() constructor called");
 }
@@ -28,10 +27,13 @@ void ButtonSensor::Init()
 {
     log_v("ButtonSensor::Init() called");
 
-    if (gpio_provider_) {
+    if (gpio_provider_)
+    {
         gpio_provider_->PinMode(GPIO_PIN, INPUT_PULLDOWN);
         log_i("ButtonSensor initialized on GPIO %d", GPIO_PIN);
-    } else {
+    }
+    else
+    {
         log_e("ButtonSensor::Init() - GPIO provider is null");
     }
 }
@@ -61,7 +63,8 @@ bool ButtonSensor::HasStateChanged()
     bool current_state = ReadDebouncedState();
     bool changed = DetectChange(current_state, last_reported_state_);
 
-    if (changed) {
+    if (changed)
+    {
         log_i("ButtonSensor state changed to %s", current_state ? "PRESSED" : "RELEASED");
     }
 
@@ -78,7 +81,8 @@ bool ButtonSensor::HasStateChanged()
  */
 bool ButtonSensor::ReadDebouncedState()
 {
-    if (!gpio_provider_) {
+    if (!gpio_provider_)
+    {
         return false;
     }
 
@@ -86,14 +90,17 @@ bool ButtonSensor::ReadDebouncedState()
     unsigned long current_time = millis();
 
     // If the raw state has changed, reset the debounce timer
-    if (raw_state != last_raw_state_) {
+    if (raw_state != last_raw_state_)
+    {
         last_debounce_time_ = current_time;
         last_raw_state_ = raw_state;
     }
 
     // Only update the current state if it's been stable for the debounce period
-    if ((current_time - last_debounce_time_) > DEBOUNCE_MS) {
-        if (raw_state != current_state_) {
+    if ((current_time - last_debounce_time_) > DEBOUNCE_MS)
+    {
+        if (raw_state != current_state_)
+        {
             current_state_ = raw_state;
         }
     }

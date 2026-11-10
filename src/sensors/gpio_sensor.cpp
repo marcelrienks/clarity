@@ -1,7 +1,7 @@
 #include "sensors/gpio_sensor.h"
+#include "definitions/constants.h"
 #include "managers/error_manager.h"
 #include "utilities/logging.h"
-#include "definitions/constants.h"
 #include <Arduino.h>
 #include <esp32-hal-log.h>
 
@@ -16,10 +16,8 @@
  * Constructor is kept lightweight - actual hardware initialization occurs in Init().
  * This follows the dependency injection pattern for hardware abstraction.
  */
-GpioSensor::GpioSensor(const GpioSensorConfig& config, IGpioProvider* gpioProvider)
-    : config_(config)
-    , gpioProvider_(gpioProvider)
-    , previousState_(false)
+GpioSensor::GpioSensor(const GpioSensorConfig &config, IGpioProvider *gpio_provider)
+    : config_(config), gpio_provider_(gpio_provider), previous_state_(false)
 {
     // Constructor should be lightweight - initialization happens in Init()
 }
@@ -33,11 +31,13 @@ GpioSensor::GpioSensor(const GpioSensorConfig& config, IGpioProvider* gpioProvid
  */
 GpioSensor::~GpioSensor()
 {
-    if (gpioProvider_ && initialized_) {
+    if (gpio_provider_ && initialized_)
+    {
         // Clean up GPIO interrupt if attached
         // Note: Only key sensors used interrupts in original implementation
-        if (config_.pin == gpio_pins::KEY_PRESENT || config_.pin == gpio_pins::KEY_NOT_PRESENT) {
-            gpioProvider_->DetachInterrupt(config_.pin);
+        if (config_.pin == gpio_pins::KEY_PRESENT || config_.pin == gpio_pins::KEY_NOT_PRESENT)
+        {
+            gpio_provider_->DetachInterrupt(config_.pin);
         }
     }
 }
@@ -54,30 +54,31 @@ GpioSensor::~GpioSensor()
  */
 void GpioSensor::Init()
 {
-    if (!gpioProvider_) {
+    if (!gpio_provider_)
+    {
         log_e("%s: GPIO provider is null", config_.name);
         return;
     }
 
-    // Check debug-only sensor availability
-    #ifndef CLARITY_DEBUG
-    if (config_.debugOnly) {
+// Check debug-only sensor availability
+#ifndef CLARITY_DEBUG
+    if (config_.debugOnly)
+    {
         log_w("%s: Debug-only sensor not available in release build", config_.name);
         initialized_ = false;
         return;
     }
-    #endif
+#endif
 
     // Configure GPIO pin based on configuration
-    gpioProvider_->PinMode(config_.pin, config_.pinMode);
+    gpio_provider_->PinMode(config_.pin, config_.pinMode);
 
     // Initialize the sensor state to avoid false change detection
-    previousState_ = readLogicalState();
+    previous_state_ = ReadLogicalState();
     initialized_ = true;
 
-    log_i("%s initialization completed on GPIO %d, mode: %d, initial state: %s",
-          config_.name, config_.pin, config_.pinMode,
-          previousState_ ? "ACTIVE" : "INACTIVE");
+    log_i("%s initialization completed on GPIO %d, mode: %d, initial state: %s", config_.name, config_.pin,
+          config_.pinMode, previous_state_ ? "ACTIVE" : "INACTIVE");
 }
 
 /**
@@ -90,8 +91,8 @@ void GpioSensor::Init()
  */
 Reading GpioSensor::GetReading()
 {
-    bool currentState = readLogicalState();
-    return Reading(currentState);
+    bool current_state = ReadLogicalState();
+    return Reading(current_state);
 }
 
 /**
@@ -104,7 +105,7 @@ Reading GpioSensor::GetReading()
  */
 bool GpioSensor::GetState()
 {
-    return readLogicalState();
+    return ReadLogicalState();
 }
 
 /**
@@ -119,52 +120,50 @@ bool GpioSensor::GetState()
  */
 bool GpioSensor::HasStateChanged()
 {
-    if (!initialized_) {
+    if (!initialized_)
+    {
         log_w("%s: HasStateChanged called before initialization", config_.name);
         return false;
     }
 
-    // Check debug-only sensor availability at runtime
-    #ifndef CLARITY_DEBUG
-    if (config_.debugOnly) {
+// Check debug-only sensor availability at runtime
+#ifndef CLARITY_DEBUG
+    if (config_.debugOnly)
+    {
         return false; // Debug sensors don't change in release builds
     }
-    #endif
+#endif
 
-    bool currentState = readLogicalState();
-    [[maybe_unused]] bool oldState = previousState_; // Save BEFORE DetectChange modifies it
+    bool current_state = ReadLogicalState();
+    [[maybe_unused]] bool old_state = previous_state_; // Save BEFORE DetectChange modifies it
 
-    // Per-poll logging floods the serial port (~96% of test output), so it is opt-in
-    #ifdef GPIO_POLL_LOGS
-    log_t("%s GPIO %d poll: current=%s, previous=%s",
-          config_.name, config_.pin,
-          readRawPinState() ? "HIGH" : "LOW",
-          oldState ? "ACTIVE" : "INACTIVE");
-    #endif
+// Per-poll logging floods the serial port (~96% of test output), so it is opt-in
+#ifdef GPIO_POLL_LOGS
+    log_t("%s GPIO %d poll: current=%s, previous=%s", config_.name, config_.pin, ReadRawPinState() ? "HIGH" : "LOW",
+          old_state ? "ACTIVE" : "INACTIVE");
+#endif
 
-    bool changed = DetectChange(currentState, previousState_);
+    bool changed = DetectChange(current_state, previous_state_);
 
-    if (changed) {
-        log_t("%s state changed: %s -> %s",
-              config_.name,
-              oldState ? "ACTIVE" : "INACTIVE",
-              currentState ? "ACTIVE" : "INACTIVE");
+    if (changed)
+    {
+        log_t("%s state changed: %s -> %s", config_.name, old_state ? "ACTIVE" : "INACTIVE",
+              current_state ? "ACTIVE" : "INACTIVE");
 
         // Special case logging for key sensors to maintain compatibility
-        if (config_.pin == gpio_pins::KEY_PRESENT) {
-            log_t("KeyPresentSensor state changed: %s -> %s",
-                  oldState ? "PRESENT" : "NOT_PRESENT",
-                  currentState ? "PRESENT" : "NOT_PRESENT");
+        if (config_.pin == gpio_pins::KEY_PRESENT)
+        {
+            log_t("KeyPresentSensor state changed: %s -> %s", old_state ? "PRESENT" : "NOT_PRESENT",
+                  current_state ? "PRESENT" : "NOT_PRESENT");
         }
-        else if (config_.pin == gpio_pins::KEY_NOT_PRESENT) {
-            log_t("KeyNotPresentSensor state changed: %s -> %s",
-                  oldState ? "NOT_PRESENT" : "PRESENT",
-                  currentState ? "NOT_PRESENT" : "PRESENT");
+        else if (config_.pin == gpio_pins::KEY_NOT_PRESENT)
+        {
+            log_t("KeyNotPresentSensor state changed: %s -> %s", old_state ? "NOT_PRESENT" : "PRESENT",
+                  current_state ? "NOT_PRESENT" : "PRESENT");
         }
-        else if (config_.pin == gpio_pins::LIGHTS) {
-            log_t("Lights sensor state changed: %s -> %s",
-                  oldState ? "ON" : "OFF",
-                  currentState ? "ON" : "OFF");
+        else if (config_.pin == gpio_pins::LIGHTS)
+        {
+            log_t("Lights sensor state changed: %s -> %s", old_state ? "ON" : "OFF", current_state ? "ON" : "OFF");
         }
     }
 
@@ -184,23 +183,29 @@ void GpioSensor::OnInterruptTriggered()
     log_t("%s interrupt triggered - state changed", config_.name);
 
     // Sensor-specific interrupt handling based on pin
-    if (config_.pin == gpio_pins::LIGHTS) {
-        bool currentState = readLogicalState();
-        if (currentState) {
+    if (config_.pin == gpio_pins::LIGHTS)
+    {
+        bool current_state = ReadLogicalState();
+        if (current_state)
+        {
             log_t("Lights turned on - system could switch to night theme");
-        } else {
+        }
+        else
+        {
             log_t("Lights turned off - system could switch to day theme");
         }
     }
-    else if (config_.pin == gpio_pins::DEBUG_ERROR) {
-        #ifdef CLARITY_DEBUG
+    else if (config_.pin == gpio_pins::DEBUG_ERROR)
+    {
+#ifdef CLARITY_DEBUG
         log_i("Debug error button interrupt detected - error generation handled by trigger system");
-        #endif
+#endif
     }
-    else {
+    else
+    {
         // Generic interrupt handling for other sensors
-        [[maybe_unused]] bool currentState = readLogicalState();
-        log_t("%s current state: %s", config_.name, currentState ? "ACTIVE" : "INACTIVE");
+        [[maybe_unused]] bool current_state = ReadLogicalState();
+        log_t("%s current state: %s", config_.name, current_state ? "ACTIVE" : "INACTIVE");
     }
 }
 
@@ -212,17 +217,17 @@ void GpioSensor::OnInterruptTriggered()
  * pointer safety check. Returns the raw electrical state without considering
  * the activeHigh configuration setting.
  */
-bool GpioSensor::readRawPinState()
+bool GpioSensor::ReadRawPinState()
 {
-    if (!gpioProvider_) {
+    if (!gpio_provider_)
+    {
         log_e("%s: GPIO provider is null - sensor cannot function!", config_.name);
-        ErrorManager::Instance().ReportCriticalError("GpioSensor",
-                                                     "GPIO provider is null - sensor cannot read pins");
+        ErrorManager::Instance().ReportCriticalError("GpioSensor", "GPIO provider is null - sensor cannot read pins");
         return false;
     }
 
     // Read raw GPIO pin state
-    return gpioProvider_->DigitalRead(config_.pin);
+    return gpio_provider_->DigitalRead(config_.pin);
 }
 
 /**
@@ -233,10 +238,10 @@ bool GpioSensor::readRawPinState()
  * configuration. If activeHigh is true, HIGH means active. If activeHigh
  * is false, LOW means active (inverted logic for sensors with pullup resistors).
  */
-bool GpioSensor::readLogicalState()
+bool GpioSensor::ReadLogicalState()
 {
-    bool rawState = readRawPinState();
+    bool raw_state = ReadRawPinState();
 
     // Convert raw state to logical state based on activeHigh configuration
-    return config_.activeHigh ? rawState : !rawState;
+    return config_.activeHigh ? raw_state : !raw_state;
 }

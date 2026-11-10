@@ -1,14 +1,14 @@
 #pragma once
 
-#include "interfaces/i_storage_provider.h"
 #include "definitions/configs.h"
 #include "definitions/constants.h"
+#include "interfaces/i_storage_provider.h"
 
-#include <Preferences.h>
-#include <nvs_flash.h>
-#include <map>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include <Preferences.h>
+#include <map>
+#include <nvs_flash.h>
 
 /**
  * @class StorageProvider
@@ -29,12 +29,13 @@
  * @context This provider abstracts ESP32 NVS hardware from ConfigurationManager,
  * enabling hardware-agnostic configuration management and testability.
  */
-class StorageProvider : public IStorageProvider {
-public:
+class StorageProvider : public IStorageProvider
+{
+  public:
     // ========== Constructors and Destructor ==========
     StorageProvider();
-    StorageProvider(const StorageProvider&) = delete;
-    StorageProvider& operator=(const StorageProvider&) = delete;
+    StorageProvider(const StorageProvider &) = delete;
+    StorageProvider &operator=(const StorageProvider &) = delete;
     ~StorageProvider() = default;
 
     // ========== IStorageProvider Implementation ==========
@@ -48,7 +49,7 @@ public:
      * @details Implements component self-registration pattern from dynamic-config-implementation.md
      * Automatically loads any existing persisted values after registration
      */
-    bool RegisterConfigSection(const Config::ConfigSection& section) override;
+    bool RegisterConfigSection(const config::ConfigSection &section) override;
 
     /**
      * @brief Get list of all registered configuration section names
@@ -59,27 +60,27 @@ public:
 
     /**
      * @brief Retrieve a specific configuration section by name
-     * @param sectionName Name of the section to retrieve
+     * @param section_name Name of the section to retrieve
      * @return Optional containing section if found, nullopt if not registered
      * @details Returns section with current values and metadata for UI display
      */
-    std::optional<Config::ConfigSection> GetConfigSection(const std::string& sectionName) const override;
+    std::optional<config::ConfigSection> GetConfigSection(const std::string &section_name) const override;
 
     /**
      * @brief Save a specific configuration section to NVS storage
-     * @param sectionName Name of the section to persist
+     * @param section_name Name of the section to persist
      * @return true if save operation successful
      * @details Uses sectioned NVS storage with separate namespace per component
      */
-    bool SaveConfigSection(const std::string& sectionName) override;
+    bool SaveConfigSection(const std::string &section_name) override;
 
     /**
      * @brief Load a specific configuration section from NVS storage
-     * @param sectionName Name of the section to load
+     * @param section_name Name of the section to load
      * @return true if load operation successful
      * @details Loads persisted values into in-memory section definition
      */
-    bool LoadConfigSection(const std::string& sectionName) override;
+    bool LoadConfigSection(const std::string &section_name) override;
 
     /**
      * @brief Save all registered configuration sections to storage
@@ -97,70 +98,73 @@ public:
 
     /**
      * @brief Validate a configuration value against its metadata constraints
-     * @param fullKey Full dot-separated key (e.g., "oil_temp_sensor.unit")
+     * @param full_key Full dot-separated key (e.g., "oil_temp_sensor.unit")
      * @param value Value to validate
      * @return true if value passes validation (type, range, enum options)
      * @details Performs type checking and constraint validation from metadata
      */
-    bool ValidateConfigValue(const std::string& fullKey, const Config::ConfigValue& value) const override;
+    bool ValidateConfigValue(const std::string &full_key, const config::ConfigValue &value) const override;
 
     /**
      * @brief Register callback for live configuration change notifications
-     * @param fullKey Configuration key to watch (empty string for all changes)
+     * @param full_key Configuration key to watch (empty string for all changes)
      * @param callback Function to call when configuration changes
      * @return Callback ID for later unregistration
      * @details Enables real-time response to configuration updates
      */
-    uint32_t RegisterChangeCallback(const std::string& fullKey, ConfigChangeCallback callback) override;
+    uint32_t RegisterChangeCallback(const std::string &full_key, ConfigChangeCallback callback) override;
 
     /**
      * @brief Check if a configuration schema is registered
-     * @param sectionName Name of the section to check
+     * @param section_name Name of the section to check
      * @return true if schema is registered, false otherwise
      */
-    bool IsSchemaRegistered(const std::string& sectionName) const override;
+    bool IsSchemaRegistered(const std::string &section_name) const override;
 
     // ========== Configuration Value Helper Methods ==========
-    std::string GetTypeName(const Config::ConfigValue& value) const override;
-    bool TypesMatch(const Config::ConfigValue& a, const Config::ConfigValue& b) const override;
-    std::string ToString(const Config::ConfigValue& value) const override;
-    Config::ConfigValue FromString(const std::string& str, const Config::ConfigValue& templateValue) const override;
-    bool IsNumeric(const Config::ConfigValue& value) const override;
+    std::string GetTypeName(const config::ConfigValue &value) const override;
+    bool TypesMatch(const config::ConfigValue &a, const config::ConfigValue &b) const override;
+    std::string ToString(const config::ConfigValue &value) const override;
+    config::ConfigValue FromString(const std::string &str, const config::ConfigValue &template_value) const override;
+    bool IsNumeric(const config::ConfigValue &value) const override;
     // Configuration Value Access Implementation
-    std::optional<Config::ConfigValue> QueryConfigValue(const std::string& fullKey) const override;
-    bool UpdateConfigValue(const std::string& fullKey, const Config::ConfigValue& value) override;
+    std::optional<config::ConfigValue> QueryConfigValue(const std::string &full_key) const override;
+    bool UpdateConfigValue(const std::string &full_key, const config::ConfigValue &value) override;
 
-private:
+  private:
     // ========== Private Data Members ==========
-    static inline const char* CONFIG_KEY_ = StorageConstants::NVS::CONFIG_KEY;                 ///< Legacy config key
-    static inline const char* META_NAMESPACE_ = StorageConstants::NVS::META_NAMESPACE;        ///< Metadata namespace
-    static inline const char* SECTION_PREFIX_ = StorageConstants::NVS::SECTION_PREFIX;              ///< Prefix for section namespaces
-    static inline const char* MIGRATION_FLAG_ = StorageConstants::NVS::MIGRATION_FLAG;      ///< Migration completion flag
-    static inline const int MAX_NAMESPACE_LEN_ = StorageConstants::NVS::MAX_NAMESPACE_LEN;                 ///< NVS namespace length limit
+    static inline const char *config_key = storage_constants::nvs::CONFIG_KEY;         ///< Legacy config key
+    static inline const char *meta_namespace = storage_constants::nvs::META_NAMESPACE; ///< Metadata namespace
+    static inline const char *section_prefix =
+        storage_constants::nvs::SECTION_PREFIX; ///< Prefix for section namespaces
+    static inline const char *migration_flag = storage_constants::nvs::MIGRATION_FLAG; ///< Migration completion flag
+    static inline const int MAX_NAMESPACE_LEN =
+        storage_constants::nvs::MAX_NAMESPACE_LEN; ///< NVS namespace length limit
 
-    mutable SemaphoreHandle_t configMutex_;                         ///< Thread safety semaphore
-    std::map<std::string, Config::ConfigSection> registeredSections_; ///< Registered configuration sections
-    Preferences preferences_;                                        ///< NVS preferences instance
+    mutable SemaphoreHandle_t config_mutex_;                           ///< Thread safety semaphore
+    std::map<std::string, config::ConfigSection> registered_sections_; ///< Registered configuration sections
+    Preferences preferences_;                                          ///< NVS preferences instance
 
     // Live update system
-    uint32_t nextCallbackId_ = 1;                                  ///< Counter for generating callback IDs
-    std::map<uint32_t, std::pair<std::string, ConfigChangeCallback>> changeCallbacks_; ///< Configuration change callbacks
+    uint32_t next_callback_id_ = 1; ///< Counter for generating callback IDs
+    std::map<uint32_t, std::pair<std::string, ConfigChangeCallback>>
+        change_callbacks_; ///< Configuration change callbacks
 
     // ========== Private Helper Methods ==========
 
     /**
      * @brief Parse a full configuration key into section and item
-     * @param fullKey Full key (e.g., "oil_temp_sensor.unit")
+     * @param full_key Full key (e.g., "oil_temp_sensor.unit")
      * @return Pair of section name and item key
      */
-    std::pair<std::string, std::string> ParseConfigKey(const std::string& fullKey) const;
+    std::pair<std::string, std::string> ParseConfigKey(const std::string &full_key) const;
 
     /**
      * @brief Get NVS namespace for a section
-     * @param sectionName The section name
+     * @param section_name The section name
      * @return NVS namespace string (truncated if necessary)
      */
-    std::string GetSectionNamespace(const std::string& sectionName) const;
+    std::string GetSectionNamespace(const std::string &section_name) const;
 
     /**
      * @brief Validate integer value against range constraints
@@ -168,7 +172,7 @@ private:
      * @param constraints Range string (e.g., "0-100")
      * @return true if value is within range
      */
-    bool ValidateIntRange(int value, const std::string& constraints) const;
+    bool ValidateIntRange(int value, const std::string &constraints) const;
 
     /**
      * @brief Validate float value against range constraints
@@ -176,7 +180,7 @@ private:
      * @param constraints Range string (e.g., "0.0-1.0")
      * @return true if value is within range
      */
-    bool ValidateFloatRange(float value, const std::string& constraints) const;
+    bool ValidateFloatRange(float value, const std::string &constraints) const;
 
     /**
      * @brief Validate enum value against allowed options
@@ -184,14 +188,14 @@ private:
      * @param constraints Comma-separated options (e.g., "PSI,Bar,kPa")
      * @return true if value is in the allowed list
      */
-    bool ValidateEnumValue(const std::string& value, const std::string& constraints) const;
+    bool ValidateEnumValue(const std::string &value, const std::string &constraints) const;
 
     /**
      * @brief Parse comma-separated string into vector
      * @param str The string to parse
      * @return Vector of parsed options
      */
-    std::vector<std::string> ParseOptions(const std::string& str) const;
+    std::vector<std::string> ParseOptions(const std::string &str) const;
 
     /**
      * @brief Convert ConfigValue to NVS-compatible type and store
@@ -201,8 +205,7 @@ private:
      * @param type The value type
      * @return true if storage successful
      */
-    bool StoreValueToNVS(Preferences& prefs, const std::string& key,
-                        const Config::ConfigValue& value);
+    bool StoreValueToNVS(Preferences &prefs, const std::string &key, const config::ConfigValue &value);
 
     /**
      * @brief Load value from NVS and convert to ConfigValue
@@ -211,7 +214,6 @@ private:
      * @param type The expected value type
      * @return ConfigValue containing the loaded value
      */
-    Config::ConfigValue LoadValueFromNVS(Preferences& prefs, const std::string& key,
-                                         const Config::ConfigValue& templateValue);
-
+    config::ConfigValue LoadValueFromNVS(Preferences &prefs, const std::string &key,
+                                         const config::ConfigValue &template_value);
 };

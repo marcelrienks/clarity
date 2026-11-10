@@ -5,7 +5,7 @@
 
 // ========== Constructors and Destructor ==========
 
-LockComponent::LockComponent(IStyleManager *styleManager) : lockIcon_(nullptr), styleManager_(styleManager)
+LockComponent::LockComponent(IStyleManager *style_manager) : lock_icon_(nullptr), style_manager_(style_manager)
 {
     log_v("LockComponent constructor called");
 }
@@ -23,7 +23,7 @@ LockComponent::~LockComponent() = default;
 void LockComponent::Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display)
 {
     log_v("Render() called");
-    
+
     if (!display)
     {
         log_e("LockComponent requires display provider");
@@ -31,17 +31,19 @@ void LockComponent::Render(lv_obj_t *screen, const ComponentLocation &location, 
                                              "Cannot render - display provider is null");
         return;
     }
-    lockIcon_ = display->CreateImage(screen);
-    lv_image_set_src(lockIcon_, &lock_alt_solid);
+    lock_icon_ = display->CreateImage(screen);
+    lv_image_set_src(lock_icon_, &lock_alt_solid);
 
     // Apply location settings
-    lv_obj_align(lockIcon_, location.align, location.x_offset, location.y_offset);
-    
+    lv_obj_align(lock_icon_, location.align, location.x_offset, location.y_offset);
+
     // Always show red (engaged) color for lock panel
-    if (styleManager_)
+    if (style_manager_)
     {
-        lv_color_t lock_colour = styleManager_->GetThemeColors().lockEngaged;
-        lv_obj_set_style_image_recolor(lockIcon_, lock_colour, static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
-        lv_obj_set_style_image_recolor_opa(lockIcon_, LV_OPA_COVER, static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
+        lv_color_t lock_colour = style_manager_->GetThemeColors().lockEngaged;
+        lv_obj_set_style_image_recolor(lock_icon_, lock_colour,
+                                       static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
+        lv_obj_set_style_image_recolor_opa(lock_icon_, LV_OPA_COVER,
+                                           static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
     }
 }

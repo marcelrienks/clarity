@@ -59,7 +59,7 @@ class IStyleManager
 
     // Theme Information Methods
 
-    virtual const std::string& GetCurrentTheme() const = 0;
+    virtual const std::string &GetCurrentTheme() const = 0;
 
     // Color Access Methods
 

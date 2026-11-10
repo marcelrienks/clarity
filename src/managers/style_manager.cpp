@@ -1,19 +1,20 @@
 #include "managers/style_manager.h"
-#include "managers/error_manager.h"
-#include "utilities/logging.h"
 #include "definitions/constants.h"
 #include "managers/configuration_manager.h"
+#include "managers/error_manager.h"
+#include "utilities/logging.h"
 #include <cstring>
 #include <esp32-hal-log.h>
 
 // Self-registration at program startup
-static bool style_manager_registered = []() {
+static bool style_manager_registered = []()
+{
     ConfigurationManager::AddSchema(StyleManager::RegisterConfigSchema);
     return true;
 }();
 
 // Static instance for singleton pattern
-static StyleManager* styleInstancePtr_ = nullptr;
+static StyleManager *style_instance_ptr = nullptr;
 
 // ========== Constructors and Destructor ==========
 
@@ -26,7 +27,7 @@ StyleManager::StyleManager(const char *theme) : theme_(theme), initialized_(fals
     log_v("StyleManager() constructor called");
 
     // Set singleton instance for interrupt architecture
-    styleInstancePtr_ = this;
+    style_instance_ptr = this;
 }
 
 /**
@@ -38,8 +39,9 @@ StyleManager::~StyleManager()
     ResetStyles();
 
     // Clear singleton instance if we are the current instance
-    if (styleInstancePtr_ == this) {
-        styleInstancePtr_ = nullptr;
+    if (style_instance_ptr == this)
+    {
+        style_instance_ptr = nullptr;
     }
 }
 
@@ -49,15 +51,17 @@ StyleManager::~StyleManager()
  * @brief Singleton access for interrupt architecture
  * @details Must be initialized by ManagerFactory before use
  */
-StyleManager& StyleManager::Instance() {
-    if (!styleInstancePtr_) {
+StyleManager &StyleManager::Instance()
+{
+    if (!style_instance_ptr)
+    {
         log_e("StyleManager::Instance() called before initialization");
         ErrorManager::Instance().ReportCriticalError("StyleManager",
                                                      "Instance() called before initialization - UI will not function");
         // In embedded systems, we need a valid instance
         // This should be set during ManagerFactory initialization
     }
-    return *styleInstancePtr_;
+    return *style_instance_ptr;
 }
 
 // ========== Public Interface Methods ==========
@@ -75,26 +79,29 @@ void StyleManager::InitializeStyles()
     }
 
     // Initialize LVGL style objects (must be done after LVGL init)
-    lv_style_init(&backgroundStyle_);
-    lv_style_init(&textStyle_);
-    lv_style_init(&gaugeNormalStyle_);
-    lv_style_init(&gaugeWarningStyle_);
-    lv_style_init(&gaugeDangerStyle_);
+    lv_style_init(&background_style_);
+    lv_style_init(&text_style_);
+    lv_style_init(&gauge_normal_style_);
+    lv_style_init(&gauge_warning_style_);
+    lv_style_init(&gauge_danger_style_);
 
     // Initialize shared gauge component styles for memory efficiency
-    lv_style_init(&gaugeIndicatorStyle_);
-    lv_style_init(&gaugeItemsStyle_);
-    lv_style_init(&gaugeMainStyle_);
-    lv_style_init(&gaugeDangerSectionStyle_);
+    lv_style_init(&gauge_indicator_style_);
+    lv_style_init(&gauge_items_style_);
+    lv_style_init(&gauge_main_style_);
+    lv_style_init(&gauge_danger_section_style_);
 
     // Mark as initialized before applying theme (since SetTheme checks this flag)
     initialized_ = true;
 
     // Apply theme from preferences
-    if (configurationManager_) {
+    if (configuration_manager_)
+    {
         LoadConfiguration();
         RegisterConfigCallback();
-    } else {
+    }
+    else
+    {
         SetTheme(theme_.c_str());
     }
 }
@@ -119,38 +126,39 @@ void StyleManager::SetTheme(const char *theme)
     ThemeColors colours = GetColours(theme);
 
     // Background style
-    lv_style_set_bg_color(&backgroundStyle_, colours.background);
-    lv_style_set_bg_opa(&backgroundStyle_, LV_OPA_COVER);
+    lv_style_set_bg_color(&background_style_, colours.background);
+    lv_style_set_bg_opa(&background_style_, LV_OPA_COVER);
 
     // Text style
-    lv_style_set_text_color(&textStyle_, colours.text);
-    lv_style_set_text_opa(&textStyle_, LV_OPA_COVER);
+    lv_style_set_text_color(&text_style_, colours.text);
+    lv_style_set_text_opa(&text_style_, LV_OPA_COVER);
 
     // Gauge styles
-    lv_style_set_line_color(&gaugeNormalStyle_, colours.gaugeNormal);
-    lv_style_set_line_color(&gaugeWarningStyle_, colours.gaugeWarning);
-    lv_style_set_line_color(&gaugeDangerStyle_, colours.gaugeDanger);
+    lv_style_set_line_color(&gauge_normal_style_, colours.gaugeNormal);
+    lv_style_set_line_color(&gauge_warning_style_, colours.gaugeWarning);
+    lv_style_set_line_color(&gauge_danger_style_, colours.gaugeDanger);
 
     // Configure shared gauge component styles
     // Indicator style (Major ticks)
-    lv_style_set_length(&gaugeIndicatorStyle_, 25);
-    lv_style_set_line_width(&gaugeIndicatorStyle_, 7);
-    lv_style_set_line_color(&gaugeIndicatorStyle_, colours.gaugeTicks);
+    lv_style_set_length(&gauge_indicator_style_, 25);
+    lv_style_set_line_width(&gauge_indicator_style_, 7);
+    lv_style_set_line_color(&gauge_indicator_style_, colours.gaugeTicks);
 
     // Items style (Minor ticks)
-    lv_style_set_length(&gaugeItemsStyle_, 18);
-    lv_style_set_line_width(&gaugeItemsStyle_, 2);
-    lv_style_set_line_color(&gaugeItemsStyle_, colours.gaugeTicks);
+    lv_style_set_length(&gauge_items_style_, 18);
+    lv_style_set_line_width(&gauge_items_style_, 2);
+    lv_style_set_line_color(&gauge_items_style_, colours.gaugeTicks);
 
     // Main style (Arc)
-    lv_style_set_arc_width(&gaugeMainStyle_, 0);
+    lv_style_set_arc_width(&gauge_main_style_, 0);
 
     // Danger section style
-    lv_style_set_line_width(&gaugeDangerSectionStyle_, 5);
-    lv_style_set_line_color(&gaugeDangerSectionStyle_, colours.gaugeDanger);
+    lv_style_set_line_width(&gauge_danger_section_style_, 5);
+    lv_style_set_line_color(&gauge_danger_section_style_, colours.gaugeDanger);
 
     lv_obj_t *current_screen = lv_scr_act();
-    if (current_screen != nullptr) {
+    if (current_screen != nullptr)
+    {
         ApplyThemeToScreen(current_screen);
         // Force complete refresh of all child objects recursively
         lv_obj_refresh_style(current_screen, LV_PART_ANY, LV_STYLE_PROP_ANY);
@@ -179,14 +187,13 @@ void StyleManager::ApplyThemeToScreen(lv_obj_t *screen)
     if (!initialized_)
     {
         log_e("StyleManager not initialized, cannot apply theme to screen. Application will not display correctly!");
-        ErrorManager::Instance().ReportCriticalError("StyleManager",
-                                                     "Not initialized - cannot apply theme to screen");
+        ErrorManager::Instance().ReportCriticalError("StyleManager", "Not initialized - cannot apply theme to screen");
         return;
     }
 
     // Only apply the background style to screens
     // Other styles should be applied to specific components that need them
-    lv_obj_add_style(screen, &backgroundStyle_, MAIN_DEFAULT);
+    lv_obj_add_style(screen, &background_style_, MAIN_DEFAULT);
 
     // Don't apply all styles to the same screen - this can cause conflicts
     // Components should apply their own specific styles as needed
@@ -199,27 +206,33 @@ void StyleManager::ApplyCurrentTheme()
 {
     log_i("StyleManager::ApplyCurrentTheme() called");
 
-    if (!configurationManager_) {
+    if (!configuration_manager_)
+    {
         log_e("StyleManager: No PreferenceService available - cannot read theme from preferences!");
         ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "StyleManager",
-                                            "No PreferenceService available - cannot persist theme");
+                                             "No PreferenceService available - cannot persist theme");
         log_v("Current cached theme is: %s", theme_.c_str());
         return;
     }
 
     // Read theme using type-safe config system
-    std::string preferenceTheme = Themes::DAY; // Default
-    if (auto themeValue = configurationManager_->QueryConfig<std::string>(CONFIG_THEME)) {
-        preferenceTheme = *themeValue;
+    std::string preference_theme = themes::DAY; // Default
+    if (auto theme_value = configuration_manager_->QueryConfig<std::string>(CONFIG_THEME))
+    {
+        preference_theme = *theme_value;
     }
-    log_v("Read theme from preferences: %s (cached: %s)", preferenceTheme.c_str(), theme_.c_str());
+    log_v("Read theme from preferences: %s (cached: %s)", preference_theme.c_str(), theme_.c_str());
 
     // Apply the theme if it's different from cached value
-    if (theme_ != preferenceTheme) {
-        log_t("StyleManager: Theme changed from %s to %s - applying new theme", theme_.c_str(), preferenceTheme.c_str());
-        SetTheme(preferenceTheme.c_str());
-    } else {
-        log_v("Theme unchanged (%s) - no update needed", preferenceTheme.c_str());
+    if (theme_ != preference_theme)
+    {
+        log_t("StyleManager: Theme changed from %s to %s - applying new theme", theme_.c_str(),
+              preference_theme.c_str());
+        SetTheme(preference_theme.c_str());
+    }
+    else
+    {
+        log_v("Theme unchanged (%s) - no update needed", preference_theme.c_str());
     }
 }
 
@@ -232,34 +245,40 @@ void StyleManager::ApplyCurrentTheme()
  * @brief Resolve theme name to corresponding color scheme
  * @details Returns day theme as fallback for unknown themes
  */
-const ThemeColors &StyleManager::GetColours(const std::string& theme) const
+const ThemeColors &StyleManager::GetColours(const std::string &theme) const
 {
     log_v("GetColours() called");
     if (theme.empty())
-        return dayThemeColours_; // Default fallback
+        return day_theme_colours_; // Default fallback
 
     // Map theme names to color schemes
-    if (theme == Themes::NIGHT) return nightThemeColours_;
-    if (theme == Themes::ERROR) return errorThemeColours_;
+    if (theme == themes::NIGHT)
+        return night_theme_colours_;
+    if (theme == themes::ERROR)
+        return error_theme_colours_;
 
-    return dayThemeColours_; // Fallback for unknown themes
+    return day_theme_colours_; // Fallback for unknown themes
 }
 
 /**
  * @brief Get current active theme name
  * @details Always reads from preferences when available for consistency
  */
-const std::string& StyleManager::GetCurrentTheme() const
+const std::string &StyleManager::GetCurrentTheme() const
 {
     // Always pull theme using type-safe config system for consistency
-    if (configurationManager_) {
-        static std::string currentTheme;
-        if (auto themeValue = configurationManager_->QueryConfig<std::string>(CONFIG_THEME)) {
-            currentTheme = *themeValue;
-        } else {
-            currentTheme = Themes::DAY;
+    if (configuration_manager_)
+    {
+        static std::string current_theme;
+        if (auto theme_value = configuration_manager_->QueryConfig<std::string>(CONFIG_THEME))
+        {
+            current_theme = *theme_value;
         }
-        return currentTheme;
+        else
+        {
+            current_theme = themes::DAY;
+        }
+        return current_theme;
     }
 
     // Fallback to cached value if preference service not available
@@ -271,21 +290,21 @@ const std::string& StyleManager::GetCurrentTheme() const
  * @brief Direct theme switching interface for panel actions
  * @param themeName Name of theme to switch to immediately
  */
-void StyleManager::SwitchTheme(const char* themeName)
+void StyleManager::SwitchTheme(const char *theme_name)
 {
     log_v("SwitchTheme() called");
     log_v("Direct theme switch requested to: %s", themeName);
-    SetTheme(themeName);
+    SetTheme(theme_name);
 }
 
 /**
  * @brief Inject preference service dependency for theme persistence
  * @param configurationManager Pointer to preference service instance
  */
-void StyleManager::SetConfigurationManager(IConfigurationManager* configurationManager)
+void StyleManager::SetConfigurationManager(IConfigurationManager *configuration_manager)
 {
     log_v("SetConfigurationManager() called");
-    configurationManager_ = configurationManager;
+    configuration_manager_ = configuration_manager;
 }
 
 // ========== Private Methods ==========
@@ -299,17 +318,17 @@ void StyleManager::ResetStyles()
     log_v("ResetStyles() called");
 
     // Reset all core style objects to free LVGL resources
-    lv_style_reset(&backgroundStyle_);
-    lv_style_reset(&textStyle_);
-    lv_style_reset(&gaugeNormalStyle_);
-    lv_style_reset(&gaugeWarningStyle_);
-    lv_style_reset(&gaugeDangerStyle_);
+    lv_style_reset(&background_style_);
+    lv_style_reset(&text_style_);
+    lv_style_reset(&gauge_normal_style_);
+    lv_style_reset(&gauge_warning_style_);
+    lv_style_reset(&gauge_danger_style_);
 
     // Reset shared gauge component styles
-    lv_style_reset(&gaugeIndicatorStyle_);
-    lv_style_reset(&gaugeItemsStyle_);
-    lv_style_reset(&gaugeMainStyle_);
-    lv_style_reset(&gaugeDangerSectionStyle_);
+    lv_style_reset(&gauge_indicator_style_);
+    lv_style_reset(&gauge_items_style_);
+    lv_style_reset(&gauge_main_style_);
+    lv_style_reset(&gauge_danger_section_style_);
 }
 
 /**
@@ -320,28 +339,30 @@ void StyleManager::ResetStyles()
  * Registers the StyleManager configuration schema without
  * requiring a manager instance to exist.
  */
-void StyleManager::RegisterConfigSchema(IConfigurationManager* configurationManager)
+void StyleManager::RegisterConfigSchema(IConfigurationManager *configuration_manager)
 {
-    if (!configurationManager) {
+    if (!configuration_manager)
+    {
         log_e("StyleManager::RegisterConfigSchema: ConfigurationManager is null - style config registration failed!");
-        ErrorManager::Instance().ReportCriticalError("StyleManager",
-                                                     "ConfigManager null - style config failed");
+        ErrorManager::Instance().ReportCriticalError("StyleManager", "ConfigManager null - style config failed");
         return;
     }
 
     // Check if already registered to prevent duplicates
-    if (configurationManager->IsSchemaRegistered(CONFIG_SECTION)) {
+    if (configuration_manager->IsSchemaRegistered(CONFIG_SECTION))
+    {
         return;
     }
 
-    using namespace Config;
+    using namespace config;
 
-    ConfigSection section(ConfigConstants::Sections::STYLE_MANAGER, CONFIG_SECTION, ConfigConstants::SectionNames::STYLE_MANAGER);
+    ConfigSection section(config_constants::sections::STYLE_MANAGER, CONFIG_SECTION,
+                          config_constants::section_names::STYLE_MANAGER);
 
-    section.AddItem(themeConfig_);
-    section.AddItem(brightnessConfig_);
+    section.AddItem(theme_config);
+    section.AddItem(brightness_config);
 
-    configurationManager->RegisterConfigSection(section);
+    configuration_manager->RegisterConfigSection(section);
     log_i("StyleManager configuration schema registered (static)");
 }
 
@@ -353,10 +374,10 @@ void StyleManager::RegisterConfigSchema(IConfigurationManager* configurationMana
  * New code path uses static RegisterConfigSchema instead.
  * Can be removed once all components are migrated.
  */
-void StyleManager::RegisterConfig(IConfigurationManager* configurationManager)
+void StyleManager::RegisterConfig(IConfigurationManager *configuration_manager)
 {
     // During migration, just delegate to static method
-    RegisterConfigSchema(configurationManager);
+    RegisterConfigSchema(configuration_manager);
 }
 
 /**
@@ -364,21 +385,24 @@ void StyleManager::RegisterConfig(IConfigurationManager* configurationManager)
  */
 void StyleManager::LoadConfiguration()
 {
-    if (!configurationManager_) {
+    if (!configuration_manager_)
+    {
         log_e("StyleManager::LoadConfiguration: ConfigurationManager is null - cannot load style configuration!");
-        ErrorManager::Instance().ReportCriticalError("StyleManager",
-                                                     "ConfigManager null - using default styles");
+        ErrorManager::Instance().ReportCriticalError("StyleManager", "ConfigManager null - using default styles");
         return;
     }
 
     // Register configuration first
-    RegisterConfig(configurationManager_);
+    RegisterConfig(configuration_manager_);
 
     // Load theme using type-safe config system
-    if (auto themeValue = configurationManager_->QueryConfig<std::string>(CONFIG_THEME)) {
-        SetTheme(themeValue->c_str());
-    } else {
-        SetTheme(Themes::DAY); // Default theme
+    if (auto theme_value = configuration_manager_->QueryConfig<std::string>(CONFIG_THEME))
+    {
+        SetTheme(theme_value->c_str());
+    }
+    else
+    {
+        SetTheme(themes::DAY); // Default theme
     }
 
     log_i("Loaded style configuration: theme=%s", theme_.c_str());
@@ -398,7 +422,8 @@ void StyleManager::RefreshConfig()
  */
 void StyleManager::RegisterConfigCallback()
 {
-    if (!configurationManager_) {
+    if (!configuration_manager_)
+    {
         log_e("StyleManager::RegisterConfigCallback: ConfigurationManager is null - cannot register config callbacks!");
         ErrorManager::Instance().ReportCriticalError("StyleManager",
                                                      "ConfigurationManager is null - style updates will not work");
@@ -406,12 +431,9 @@ void StyleManager::RegisterConfigCallback()
     }
 
     // Register callback that calls RefreshConfig when our section changes
-    auto callback = [this](const std::string& fullKey,
-                          const std::optional<Config::ConfigValue>& oldValue,
-                          const Config::ConfigValue& newValue) {
-        RefreshConfig();
-    };
+    auto callback = [this](const std::string &full_key, const std::optional<config::ConfigValue> &old_value,
+                           const config::ConfigValue &new_value) { RefreshConfig(); };
 
-    configurationManager_->RegisterChangeCallback(CONFIG_THEME, callback);
+    configuration_manager_->RegisterChangeCallback(CONFIG_THEME, callback);
     log_i("StyleManager: Registered config callback for key: %s", CONFIG_THEME);
 }

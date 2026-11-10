@@ -4,9 +4,9 @@
 #include <lvgl.h>
 
 // Project Includes
+#include "definitions/types.h"
 #include "interfaces/i_component.h"
 #include "interfaces/i_style_manager.h"
-#include "definitions/types.h"
 
 /**
  * @class OemOilComponent
@@ -33,11 +33,11 @@
  * - OemOilTemperatureComponent: Oil temperature monitoring (mapped range)
  *
  * @virtual_methods Subclasses must implement:
- * - get_icon(): Component-specific icon
- * - get_scale_min/max(): Value range
- * - get_danger_zone(): Critical threshold
- * - setup_danger_zone(): Configure danger highlighting
- * - is_danger_condition(): Determine if value is critical
+ * - GetIcon(): Component-specific icon
+ * - GetScaleMin/max(): Value range
+ * - GetDangerZone(): Critical threshold
+ * - SetupDangerZone(): Configure danger highlighting
+ * - IsDangerCondition(): Determine if value is critical
  *
  * @context This is the base class for oem styled oil gauges. Currently used by
  * pressure and temperature components. The components are positioned on opposite sides
@@ -47,7 +47,7 @@ class OemOilComponent : public IComponent
 {
   public:
     // ========== Constructors and Destructor ==========
-    OemOilComponent(IStyleManager *styleManager);
+    OemOilComponent(IStyleManager *style_manager);
     virtual ~OemOilComponent();
 
     // ========== Public Interface Methods ==========
@@ -57,46 +57,46 @@ class OemOilComponent : public IComponent
 
   protected:
     // ========== Protected Methods ==========
-    virtual const lv_image_dsc_t *get_icon() const = 0;
-    virtual int32_t get_scale_min() const = 0;
-    virtual int32_t get_scale_max() const = 0;
-    virtual int32_t get_danger_zone() const = 0;
-    virtual lv_scale_mode_t get_scale_mode() const = 0;
-    virtual int32_t get_angle_range() const = 0;
-    virtual bool is_danger_condition(int32_t value) const = 0;
-    virtual int32_t map_value_for_display(int32_t value) const;
-    virtual void setup_danger_zone(lv_scale_section_t *section) const = 0;
-    virtual int32_t get_icon_y_offset() const = 0;
-    virtual void get_label_angles(int32_t &lAngle, int32_t &hAngle) const = 0;
+    virtual const lv_image_dsc_t *GetIcon() const = 0;
+    virtual int32_t GetScaleMin() const = 0;
+    virtual int32_t GetScaleMax() const = 0;
+    virtual int32_t GetDangerZone() const = 0;
+    virtual lv_scale_mode_t GetScaleMode() const = 0;
+    virtual int32_t GetAngleRange() const = 0;
+    virtual bool IsDangerCondition(int32_t value) const = 0;
+    virtual int32_t MapValueForDisplay(int32_t value) const;
+    virtual void SetupDangerZone(lv_scale_section_t *section) const = 0;
+    virtual int32_t GetIconYOffset() const = 0;
+    virtual void GetLabelAngles(int32_t &l_angle, int32_t &h_angle) const = 0;
 
     // ========== Protected Data Members ==========
-    IStyleManager *styleManager_;
+    IStyleManager *style_manager_;
 
     // LVGL objects
     lv_obj_t *scale_;
-    lv_obj_t *needleLine_;            // Tip section - thinnest
-    lv_obj_t *needleMiddle_;          // Middle section - medium thickness
-    lv_obj_t *needleBase_;            // Base section - thickest for smooth tapered appearance
-    lv_obj_t *needleHighlightLine_;   // Highlight line for 3D effect - tip
-    lv_obj_t *needleHighlightMiddle_; // Highlight line for 3D effect - middle
-    lv_obj_t *needleHighlightBase_;   // Highlight line for 3D effect - base
-    lv_obj_t *oilIcon_;
-    lv_obj_t *lowLabel_;       // "L" label for low end
-    lv_obj_t *highLabel_;      // "H" label for high end
-    lv_obj_t *pivotCircle_;    // Main pivot circle
-    lv_obj_t *pivotHighlight_; // Highlight on pivot for 3D effect
+    lv_obj_t *needle_line_;             // Tip section - thinnest
+    lv_obj_t *needle_middle_;           // Middle section - medium thickness
+    lv_obj_t *needle_base_;             // Base section - thickest for smooth tapered appearance
+    lv_obj_t *needle_highlight_line_;   // Highlight line for 3D effect - tip
+    lv_obj_t *needle_highlight_middle_; // Highlight line for 3D effect - middle
+    lv_obj_t *needle_highlight_base_;   // Highlight line for 3D effect - base
+    lv_obj_t *oil_icon_;
+    lv_obj_t *low_label_;       // "L" label for low end
+    lv_obj_t *high_label_;      // "H" label for high end
+    lv_obj_t *pivot_circle_;    // Main pivot circle
+    lv_obj_t *pivot_highlight_; // Highlight on pivot for 3D effect
 
     // Common constants
     static constexpr int32_t NEEDLE_LENGTH = 90;
 
     // Scale rotation tracking for label positioning
-    int32_t scaleRotation_;
+    int32_t scale_rotation_;
 
   private:
     // ========== Private Methods ==========
-    void create_icon();
-    void create_labels();
-    void create_needle();
-    void create_scale(int32_t rotation);
-    void update_pivot_styling();
+    void CreateIcon();
+    void CreateLabels();
+    void CreateNeedle();
+    void CreateScale(int32_t rotation);
+    void UpdatePivotStyling();
 };

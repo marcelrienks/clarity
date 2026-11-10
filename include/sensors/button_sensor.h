@@ -29,7 +29,7 @@ class ButtonSensor : public BaseSensor
 {
   public:
     // ========== Constructors and Destructor ==========
-    explicit ButtonSensor(IGpioProvider *gpioProvider);
+    explicit ButtonSensor(IGpioProvider *gpio_provider);
     ~ButtonSensor() override = default;
 
     // ========== Public Interface Methods ==========

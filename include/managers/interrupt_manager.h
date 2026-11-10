@@ -1,11 +1,11 @@
 #pragma once
 
-#include "interfaces/i_gpio_provider.h"
-#include "definitions/types.h"
 #include "definitions/constants.h"
-#include <vector>
-#include <memory>
+#include "definitions/types.h"
+#include "interfaces/i_gpio_provider.h"
 #include <functional>
+#include <memory>
+#include <vector>
 
 #include "esp32-hal-log.h"
 
@@ -16,11 +16,11 @@ class IPanelManager;
 /**
  * @class InterruptManager
  * @brief Pure coordinated interrupt system for ESP32 automotive applications
- * 
+ *
  * @details Complete event-driven interrupt coordination replacing all polling-based
- * architecture. Manages interrupt registration, evaluation, and execution with 
+ * architecture. Manages interrupt registration, evaluation, and execution with
  * priority-based processing and optimized evaluation intervals.
- * 
+ *
  * @architecture Singleton pattern with static memory allocation for ESP32 safety
  * @memory_optimization Static interrupt array (32 max), 29 bytes per interrupt
  * @performance Smart evaluation intervals: Critical 10ms, Important 25ms, Normal 50ms
@@ -28,24 +28,24 @@ class IPanelManager;
  */
 class InterruptManager
 {
-public:
+  public:
     // ========== Constructors and Destructor ==========
-    InterruptManager(const InterruptManager&) = delete;
-    InterruptManager& operator=(const InterruptManager&) = delete;
+    InterruptManager(const InterruptManager &) = delete;
+    InterruptManager &operator=(const InterruptManager &) = delete;
     ~InterruptManager() = default;
 
     // ========== Static Methods ==========
-    static InterruptManager& Instance();
+    static InterruptManager &Instance();
 
     // ========== Public Interface Methods ==========
-    void Init(IGpioProvider* gpio = nullptr);
+    void Init(IGpioProvider *gpio = nullptr);
     void Process();
     void ProcessInitialTriggerStates();
-    bool RegisterTrigger(const Trigger& trigger);
-    bool RegisterAction(const Action& action);
-    void SetCurrentPanel(class IActionHandler* panel);
-    void SetConfigurationManager(IConfigurationManager* configurationManager);
-    void SetPanelManager(IPanelManager* panelManager);
+    bool RegisterTrigger(const Trigger &trigger);
+    bool RegisterAction(const Action &action);
+    void SetCurrentPanel(class IActionHandler *panel);
+    void SetConfigurationManager(IConfigurationManager *configuration_manager);
+    void SetPanelManager(IPanelManager *panel_manager);
 
     /**
      * @brief Get total count of registered interrupts (triggers + actions)
@@ -63,13 +63,19 @@ public:
      * @brief Get direct access to trigger handler
      * @return Pointer to TriggerHandler instance
      */
-    class TriggerHandler* GetTriggerHandler() const { return triggerHandler_.get(); }
+    class TriggerHandler *GetTriggerHandler() const
+    {
+        return trigger_handler_.get();
+    }
 
     /**
      * @brief Get direct access to action handler
      * @return Pointer to ActionHandler instance
      */
-    class ActionHandler* GetActionHandler() const { return actionHandler_.get(); }
+    class ActionHandler *GetActionHandler() const
+    {
+        return action_handler_.get();
+    }
 
     /**
      * @brief Check if panel restoration is needed after interrupt deactivation
@@ -95,7 +101,7 @@ public:
      */
     bool HasActivePanelTriggers() const;
 
-private:
+  private:
     // ========== Constructors and Destructor ==========
     InterruptManager() = default;
 
@@ -106,17 +112,16 @@ private:
      */
     void RegisterSystemInterrupts();
 
-
     // ========== Private Data Members ==========
     // Trigger/Action architecture handlers
-    std::shared_ptr<class TriggerHandler> triggerHandler_;
-    std::shared_ptr<class ActionHandler> actionHandler_;
+    std::shared_ptr<class TriggerHandler> trigger_handler_;
+    std::shared_ptr<class ActionHandler> action_handler_;
 
     // System state
     bool initialized_ = false;
-    unsigned long lastEvaluationTime_ = 0;
+    unsigned long last_evaluation_time_ = 0;
 
     // Provider references
-    IGpioProvider* gpioProvider_ = nullptr;
-    IPanelManager* panelManager_ = nullptr;
+    IGpioProvider *gpio_provider_ = nullptr;
+    IPanelManager *panel_manager_ = nullptr;
 };

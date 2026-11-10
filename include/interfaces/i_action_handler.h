@@ -20,7 +20,7 @@
  */
 class IActionHandler
 {
-public:
+  public:
     virtual ~IActionHandler() = default;
 
     /**

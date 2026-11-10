@@ -4,8 +4,8 @@
 #include <lvgl.h>
 
 // Project Includes
-#include "interfaces/i_display_provider.h"
 #include "definitions/types.h"
+#include "interfaces/i_display_provider.h"
 
 /**
  * @interface IComponent
