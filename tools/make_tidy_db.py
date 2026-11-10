@@ -3,7 +3,8 @@
 
 PlatformIO's database is written for the xtensa GCC. clang rejects its machine flags, and without the
 toolchain's C++ headers it cannot find the standard library. This drops the flags clang does not know, targets
-xtensa, and adds the toolchain's C++ include directories. `-Dfinal=` works around clang rejecting `final` on
+xtensa, and adds the toolchain's C++, GCC and newlib include directories. `-nostdlibinc` keeps the host's own
+headers (glibc on a Linux runner) out: newlib's limits.h chains to the next limits.h, which must be GCC's. `-Dfinal=` works around clang rejecting `final` on
 BasePanel's function-pointer-returning declarations, which GCC accepts.
 
 Usage: make_tidy_db.py <compile_commands.json in> <directory to write the database to>
@@ -35,14 +36,17 @@ def main():
     if not cxx:
         sys.exit("make_tidy_db: no xtensa C++ headers under " + root)
     version = cxx[-1]
-    includes = [version, os.path.join(version, "xtensa-esp-elf"), os.path.join(root, "xtensa-esp-elf", "include")]
+    gcc_dirs = sorted(glob.glob(os.path.join(root, "lib", "gcc", "xtensa-esp-elf", "*")))
+    gcc_includes = [d for g in gcc_dirs[-1:] for d in (os.path.join(g, "include"), os.path.join(g, "include-fixed"))]
+    includes = [version, os.path.join(version, "xtensa-esp-elf")] + gcc_includes
+    includes.append(os.path.join(root, "xtensa-esp-elf", "include"))
 
     entries = []
     for entry in json.load(open(src)):
         args = shlex.split(entry["command"]) if "command" in entry else list(entry["arguments"])
         args = [a for a in args if not a.startswith(UNSUPPORTED)]
         args[0] = "clang++"
-        args += ["--target=xtensa", "-nostdinc++", "-Dfinal="]
+        args += ["--target=xtensa", "-nostdinc++", "-nostdlibinc", "-Dfinal="]
         for inc in includes:
             args += ["-isystem", inc]
         args += ["-Wno-unknown-warning-option", "-Wno-unknown-attributes"]
