@@ -60,18 +60,18 @@ constexpr const char *ToString(PanelId id)
 {
     switch (id)
     {
-    case PanelId::Splash:
-        return "Splash";
-    case PanelId::Oil:
-        return "Oil";
-    case PanelId::Config:
-        return "Config";
-    case PanelId::Error:
-        return "Error";
-    case PanelId::Key:
-        return "Key";
-    case PanelId::Lock:
-        return "Lock";
+        case PanelId::Splash:
+            return "Splash";
+        case PanelId::Oil:
+            return "Oil";
+        case PanelId::Config:
+            return "Config";
+        case PanelId::Error:
+            return "Error";
+        case PanelId::Key:
+            return "Key";
+        case PanelId::Lock:
+            return "Lock";
     }
     return "Unknown";
 }
@@ -80,12 +80,12 @@ constexpr const char *ToString(ThemeId id)
 {
     switch (id)
     {
-    case ThemeId::Day:
-        return "Day";
-    case ThemeId::Night:
-        return "Night";
-    case ThemeId::Error:
-        return "Error";
+        case ThemeId::Day:
+            return "Day";
+        case ThemeId::Night:
+            return "Night";
+        case ThemeId::Error:
+            return "Error";
     }
     return "Unknown";
 }
@@ -94,12 +94,12 @@ constexpr const char *ToString(KeyState state)
 {
     switch (state)
     {
-    case KeyState::Inactive:
-        return "Inactive";
-    case KeyState::Present:
-        return "Present";
-    case KeyState::NotPresent:
-        return "NotPresent";
+        case KeyState::Inactive:
+            return "Inactive";
+        case KeyState::Present:
+            return "Present";
+        case KeyState::NotPresent:
+            return "NotPresent";
     }
     return "Unknown";
 }
@@ -108,12 +108,12 @@ constexpr const char *ToString(ErrorLevel level)
 {
     switch (level)
     {
-    case ErrorLevel::Warning:
-        return "Warning";
-    case ErrorLevel::Error:
-        return "Error";
-    case ErrorLevel::Critical:
-        return "Critical";
+        case ErrorLevel::Warning:
+            return "Warning";
+        case ErrorLevel::Error:
+            return "Error";
+        case ErrorLevel::Critical:
+            return "Critical";
     }
     return "Unknown";
 }
@@ -122,12 +122,12 @@ constexpr const char *ToString(ButtonEvent event)
 {
     switch (event)
     {
-    case ButtonEvent::None:
-        return "None";
-    case ButtonEvent::Short:
-        return "Short";
-    case ButtonEvent::Long:
-        return "Long";
+        case ButtonEvent::None:
+            return "None";
+        case ButtonEvent::Short:
+            return "Short";
+        case ButtonEvent::Long:
+            return "Long";
     }
     return "Unknown";
 }
@@ -136,14 +136,14 @@ constexpr const char *ToString(Fault fault)
 {
     switch (fault)
     {
-    case Fault::NvsWriteFailed:
-        return "NvsWriteFailed";
-    case Fault::SensorImplausible:
-        return "SensorImplausible";
-    case Fault::PanelBuildFailed:
-        return "PanelBuildFailed";
-    case Fault::DebugTest:
-        return "DebugTest";
+        case Fault::NvsWriteFailed:
+            return "NvsWriteFailed";
+        case Fault::SensorImplausible:
+            return "SensorImplausible";
+        case Fault::PanelBuildFailed:
+            return "PanelBuildFailed";
+        case Fault::DebugTest:
+            return "DebugTest";
     }
     return "Unknown";
 }

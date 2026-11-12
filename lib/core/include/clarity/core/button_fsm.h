@@ -29,35 +29,36 @@ class ButtonFsm
     {
         switch (state_)
         {
-        case State::Idle:
-            if (pressed)
-            {
-                state_ = State::Pressed;
-                pressed_at_ = now;
-            }
-            return ButtonEvent::None;
+            case State::Idle:
+                if (pressed)
+                {
+                    state_ = State::Pressed;
+                    pressed_at_ = now;
+                }
+                return ButtonEvent::None;
 
-        case State::Pressed: {
-            const uint32_t held = static_cast<uint32_t>(now - pressed_at_);
-            if (held >= long_press_ms_)
+            case State::Pressed:
             {
-                state_ = pressed ? State::LongFired : State::Idle;
-                return ButtonEvent::Long;
+                const uint32_t held = static_cast<uint32_t>(now - pressed_at_);
+                if (held >= long_press_ms_)
+                {
+                    state_ = pressed ? State::LongFired : State::Idle;
+                    return ButtonEvent::Long;
+                }
+                if (!pressed)
+                {
+                    state_ = State::Idle;
+                    return held >= min_short_ms_ ? ButtonEvent::Short : ButtonEvent::None;
+                }
+                return ButtonEvent::None;
             }
-            if (!pressed)
-            {
-                state_ = State::Idle;
-                return held >= min_short_ms_ ? ButtonEvent::Short : ButtonEvent::None;
-            }
-            return ButtonEvent::None;
-        }
 
-        case State::LongFired:
-            if (!pressed)
-            {
-                state_ = State::Idle;
-            }
-            return ButtonEvent::None;
+            case State::LongFired:
+                if (!pressed)
+                {
+                    state_ = State::Idle;
+                }
+                return ButtonEvent::None;
         }
         return ButtonEvent::None;
     }

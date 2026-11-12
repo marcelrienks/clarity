@@ -145,7 +145,6 @@ class StyleManager : public IStyleManager, public IConfig
 
     void SetConfigurationManager(IConfigurationManager *configuration_manager);
 
-
     // IConfig implementation (instance method for backward compatibility)
     void RegisterConfig(IConfigurationManager *configuration_manager) override;
 

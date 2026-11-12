@@ -108,7 +108,7 @@ void test_iir_filter_moves_part_way_to_new_level()
 {
     AnalogChannel ch(kBar, 100, kLimits, 0.5f);
     ch.Sample(0, 500);
-    ch.Sample(100, 500); // seeds 0 bar
+    ch.Sample(100, 500);  // seeds 0 bar
     ch.Sample(200, 2500); // target 10 bar
     TEST_ASSERT_FLOAT_WITHIN(0.0001f, 5.f, ch.Value());
     ch.Sample(300, 2500);

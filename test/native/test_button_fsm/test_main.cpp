@@ -169,7 +169,8 @@ void test_bounce_through_debouncer_gives_one_short()
     ButtonFsm fsm(MIN_SHORT, LONG_PRESS);
     int shorts = 0;
     int others = 0;
-    auto step = [&](uint32_t t, bool raw) {
+    auto step = [&](uint32_t t, bool raw)
+    {
         in.Sample(t, raw);
         ButtonEvent ev = fsm.Update(t, in.State());
         shorts += ev == ButtonEvent::Short ? 1 : 0;

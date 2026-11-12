@@ -7,9 +7,9 @@
 #include "clarity/core/types.h"
 
 #if defined(__GNUC__)
-#define CLARITY_PRINTF_LIKE(fmt_index, first_arg) __attribute__((format(printf, fmt_index, first_arg)))
+    #define CLARITY_PRINTF_LIKE(fmt_index, first_arg) __attribute__((format(printf, fmt_index, first_arg)))
 #else
-#define CLARITY_PRINTF_LIKE(fmt_index, first_arg)
+    #define CLARITY_PRINTF_LIKE(fmt_index, first_arg)
 #endif
 
 namespace clarity::core
@@ -20,10 +20,10 @@ struct ErrorInfo
 
     ErrorLevel level = ErrorLevel::Warning;
     Fault fault = Fault::DebugTest;
-    const char *source = "";                ///< String literal naming the reporter
-    char message[MESSAGE_SIZE] = {};        ///< Formatted detail, always terminated
-    uint32_t timestamp = 0;                 ///< Caller's millisecond clock at report time
-    bool acknowledged = false;              ///< Set by DismissAt() on a critical error, which stays listed
+    const char *source = "";         ///< String literal naming the reporter
+    char message[MESSAGE_SIZE] = {}; ///< Formatted detail, always terminated
+    uint32_t timestamp = 0;          ///< Caller's millisecond clock at report time
+    bool acknowledged = false;       ///< Set by DismissAt() on a critical error, which stays listed
 };
 
 /// Bounded list of user-visible faults, in report order.

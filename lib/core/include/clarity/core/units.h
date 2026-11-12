@@ -69,12 +69,12 @@ constexpr float ConvertPressure(float bar, PressureUnit unit) noexcept
 {
     switch (unit)
     {
-    case PressureUnit::Psi:
-        return BarToPsi(bar);
-    case PressureUnit::Kpa:
-        return BarToKpa(bar);
-    case PressureUnit::Bar:
-        break;
+        case PressureUnit::Psi:
+            return BarToPsi(bar);
+        case PressureUnit::Kpa:
+            return BarToKpa(bar);
+        case PressureUnit::Bar:
+            break;
     }
     return bar;
 }
@@ -113,12 +113,12 @@ constexpr const char *ToString(PressureUnit unit) noexcept
 {
     switch (unit)
     {
-    case PressureUnit::Bar:
-        return "Bar";
-    case PressureUnit::Psi:
-        return "PSI";
-    case PressureUnit::Kpa:
-        return "kPa";
+        case PressureUnit::Bar:
+            return "Bar";
+        case PressureUnit::Psi:
+            return "PSI";
+        case PressureUnit::Kpa:
+            return "kPa";
     }
     return "Unknown";
 }
@@ -127,10 +127,10 @@ constexpr const char *ToString(TemperatureUnit unit) noexcept
 {
     switch (unit)
     {
-    case TemperatureUnit::Celsius:
-        return "C";
-    case TemperatureUnit::Fahrenheit:
-        return "F";
+        case TemperatureUnit::Celsius:
+            return "C";
+        case TemperatureUnit::Fahrenheit:
+            return "F";
     }
     return "Unknown";
 }

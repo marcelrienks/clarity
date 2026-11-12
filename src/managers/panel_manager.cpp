@@ -199,24 +199,24 @@ void PanelManager::ApplyPendingTransition()
 
     switch (kind)
     {
-    case PendingKind::Load:
-        LoadRequested(panel_name.c_str(), is_trigger_driven);
-        break;
-    case PendingKind::Restore:
-        RestoreNow();
-        break;
-    case PendingKind::SplashDone:
-        // Ignore a completion that arrives after something else replaced the splash
-        if (current_panel_ == panel_names::SPLASH && !splash_target_panel_.empty())
-        {
-            const std::string target = std::move(splash_target_panel_);
-            splash_target_panel_.clear();
-            log_i("Splash panel completed - transitioning to target panel: %s", target.c_str());
-            CreateAndLoadPanelDirect(target.c_str(), splash_target_trigger_driven_);
-        }
-        break;
-    case PendingKind::None:
-        break;
+        case PendingKind::Load:
+            LoadRequested(panel_name.c_str(), is_trigger_driven);
+            break;
+        case PendingKind::Restore:
+            RestoreNow();
+            break;
+        case PendingKind::SplashDone:
+            // Ignore a completion that arrives after something else replaced the splash
+            if (current_panel_ == panel_names::SPLASH && !splash_target_panel_.empty())
+            {
+                const std::string target = std::move(splash_target_panel_);
+                splash_target_panel_.clear();
+                log_i("Splash panel completed - transitioning to target panel: %s", target.c_str());
+                CreateAndLoadPanelDirect(target.c_str(), splash_target_trigger_driven_);
+            }
+            break;
+        case PendingKind::None:
+            break;
     }
 }
 

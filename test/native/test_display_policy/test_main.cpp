@@ -153,8 +153,7 @@ void test_lights_never_change_the_requested_panel()
 
 void test_resolve_display_is_constexpr()
 {
-    static_assert(ResolveDisplay(VehicleInputs{false, false, true, false}, false).panel == OverridePanel::Lock,
-                  "lock");
+    static_assert(ResolveDisplay(VehicleInputs{false, false, true, false}, false).panel == OverridePanel::Lock, "lock");
     TEST_PASS();
 }
 
@@ -238,15 +237,15 @@ void test_scenario_sequence_themes()
         ThemeId theme;
     };
     const Step steps[] = {
-        {inputs(0, 0, 0, 1), false, OverridePanel::None, ThemeId::Night},  // 3 lights on
-        {inputs(0, 0, 1, 1), false, OverridePanel::Lock, ThemeId::Night},  // 4 lock
-        {inputs(0, 1, 1, 1), false, OverridePanel::Key, ThemeId::Night},   // 5 key not present
-        {inputs(1, 0, 1, 1), false, OverridePanel::Key, ThemeId::Night},   // 6 key present
-        {inputs(0, 1, 1, 1), false, OverridePanel::Key, ThemeId::Night},   // 8 key present off
-        {inputs(0, 1, 1, 1), true, OverridePanel::Error, ThemeId::Error},  // 9 debug error
-        {inputs(0, 1, 1, 1), false, OverridePanel::Key, ThemeId::Night},   // 11 errors cleared
-        {inputs(0, 0, 0, 1), false, OverridePanel::None, ThemeId::Night},  // 12 all off except lights
-        {inputs(0, 0, 0, 0), false, OverridePanel::None, ThemeId::Day},    // 13 lights off
+        {inputs(0, 0, 0, 1), false, OverridePanel::None, ThemeId::Night}, // 3 lights on
+        {inputs(0, 0, 1, 1), false, OverridePanel::Lock, ThemeId::Night}, // 4 lock
+        {inputs(0, 1, 1, 1), false, OverridePanel::Key, ThemeId::Night},  // 5 key not present
+        {inputs(1, 0, 1, 1), false, OverridePanel::Key, ThemeId::Night},  // 6 key present
+        {inputs(0, 1, 1, 1), false, OverridePanel::Key, ThemeId::Night},  // 8 key present off
+        {inputs(0, 1, 1, 1), true, OverridePanel::Error, ThemeId::Error}, // 9 debug error
+        {inputs(0, 1, 1, 1), false, OverridePanel::Key, ThemeId::Night},  // 11 errors cleared
+        {inputs(0, 0, 0, 1), false, OverridePanel::None, ThemeId::Night}, // 12 all off except lights
+        {inputs(0, 0, 0, 0), false, OverridePanel::None, ThemeId::Day},   // 13 lights off
     };
     for (const Step &s : steps)
     {

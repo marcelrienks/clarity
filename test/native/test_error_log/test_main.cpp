@@ -20,7 +20,8 @@ void fill(ErrorLog &log, ErrorLevel level, uint32_t first_ms, size_t n)
 {
     for (size_t i = 0; i < n; ++i)
     {
-        log.Report(first_ms + static_cast<uint32_t>(i), level, Fault::DebugTest, "fill", "e%u", static_cast<unsigned>(i));
+        log.Report(first_ms + static_cast<uint32_t>(i), level, Fault::DebugTest, "fill", "e%u",
+                   static_cast<unsigned>(i));
     }
 }
 } // namespace
@@ -36,7 +37,8 @@ void test_new_log_is_empty()
 void test_report_stores_all_fields()
 {
     ErrorLog log;
-    TEST_ASSERT_TRUE(log.Report(1234, ErrorLevel::Error, Fault::NvsWriteFailed, "Storage", "key %s failed (%d)", "abc", 7));
+    TEST_ASSERT_TRUE(
+        log.Report(1234, ErrorLevel::Error, Fault::NvsWriteFailed, "Storage", "key %s failed (%d)", "abc", 7));
     TEST_ASSERT_TRUE(log.HasActive());
     TEST_ASSERT_EQUAL_UINT(1, log.Count());
     const ErrorInfo &e = log.At(0);
