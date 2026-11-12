@@ -162,17 +162,69 @@ UIState PanelManager::GetUiState() const
 }
 
 /**
- * @brief Creates and loads a panel by name with optional splash screen
+ * @brief Requests a panel transition; it is applied by ApplyPendingTransition()
  * @param panel_name Name of the panel to create and load
  * @param isTriggerDriven Whether this panel load was triggered by hardware event
  *
- * Main panel loading method that handles splash screen logic. Shows splash
- * screen only for user-initiated loads (not trigger-driven) and when enabled
- * in preferences. Trigger-driven loads bypass splash for immediate response.
+ * Never swaps panels itself, so a panel can call this from its own button handler or an LVGL
+ * callback without being destroyed while it is executing (D-13). A later request replaces an
+ * earlier one that has not been applied yet.
  */
 void PanelManager::CreateAndLoadPanel(const char *panel_name, bool is_trigger_driven)
 {
     log_t("Panel transition requested: %s", panel_name);
+
+    pending_.kind = PendingKind::Load;
+    pending_.panel_name = panel_name;
+    pending_.is_trigger_driven = is_trigger_driven;
+}
+
+/**
+ * @brief Applies the pending transition request, if any (called once per main loop)
+ *
+ * Runs outside any panel or LVGL callback, so replacing the current panel is safe here.
+ */
+void PanelManager::ApplyPendingTransition()
+{
+    if (pending_.kind == PendingKind::None)
+    {
+        return;
+    }
+
+    // Take the request first: applying it can record a new one (a trigger loading its panel)
+    const PendingKind kind = pending_.kind;
+    const std::string panel_name = std::move(pending_.panel_name);
+    const bool is_trigger_driven = pending_.is_trigger_driven;
+    pending_ = PendingTransition{};
+
+    switch (kind)
+    {
+    case PendingKind::Load:
+        LoadRequested(panel_name.c_str(), is_trigger_driven);
+        break;
+    case PendingKind::Restore:
+        RestoreNow();
+        break;
+    case PendingKind::SplashDone:
+        // Ignore a completion that arrives after something else replaced the splash
+        if (current_panel_ == panel_names::SPLASH && !splash_target_panel_.empty())
+        {
+            const std::string target = std::move(splash_target_panel_);
+            splash_target_panel_.clear();
+            log_i("Splash panel completed - transitioning to target panel: %s", target.c_str());
+            CreateAndLoadPanelDirect(target.c_str(), splash_target_trigger_driven_);
+        }
+        break;
+    case PendingKind::None:
+        break;
+    }
+}
+
+/**
+ * @brief Loads a requested panel, with the splash first when enabled for user-initiated loads
+ */
+void PanelManager::LoadRequested(const char *panel_name, bool is_trigger_driven)
+{
 
     // Check if splash screen should be shown - only if NOT trigger-driven and splash is enabled
     bool show_splash = false;
@@ -303,12 +355,9 @@ void PanelManager::OnPanelLoadComplete(IPanel *panel)
     // Check if this is a splash panel completion that should trigger target panel load
     if (current_panel_ == panel_names::SPLASH && !splash_target_panel_.empty())
     {
-        log_i("Splash panel completed - transitioning to target panel: %s", splash_target_panel_.c_str());
-        // Splash target panel processing
-        SplashCompletionCallback(splash_target_panel_.c_str());
-
-        // Clear the target panel after using it
-        splash_target_panel_.clear();
+        // Called from the splash's LVGL timer: the splash is deleted later, by ApplyPendingTransition()
+        log_i("Splash panel completed - target panel: %s", splash_target_panel_.c_str());
+        pending_.kind = PendingKind::SplashDone;
     }
     else
     {
@@ -406,6 +455,14 @@ void PanelManager::CheckRestoration()
 {
     log_t("CheckRestoration() called");
 
+    pending_.kind = PendingKind::Restore;
+}
+
+/**
+ * @brief Evaluates restoration now (only called by ApplyPendingTransition())
+ */
+void PanelManager::RestoreNow()
+{
     // First check if any PANEL triggers are active that should take priority
     // This ensures we don't restore to oil panel if a trigger is still active
     if (interrupt_manager_)
@@ -596,15 +653,9 @@ void PanelManager::CreateAndLoadPanelDirect(const char *panel_name, bool is_trig
     // Update restoration tracking for non-splash panels
     UpdateRestorationTracking(panel_name, is_trigger_driven);
 
-    // Clean up existing panel
-    if (panel_)
-    {
-        panel_.reset();
-    }
-
-    // Create new panel
-    panel_ = CreatePanel(panel_name);
-    if (!panel_)
+    // Create the new panel first; on failure the current panel stays on screen
+    std::shared_ptr<IPanel> new_panel = CreatePanel(panel_name);
+    if (!new_panel)
     {
         HandlePanelCreationError(panel_name);
         return;
@@ -613,10 +664,7 @@ void PanelManager::CreateAndLoadPanelDirect(const char *panel_name, bool is_trig
     // Dependencies already injected via constructor
 
     // Initialize panel
-    panel_->Init();
-
-    // Update current panel directly (PanelNames are static constants)
-    current_panel_ = panel_name;
+    new_panel->Init();
 
     // Apply current theme from preferences BEFORE panel is loaded
     // This ensures correct theme is set before any rendering happens
@@ -625,6 +673,13 @@ void PanelManager::CreateAndLoadPanelDirect(const char *panel_name, bool is_trig
         style_manager_->ApplyCurrentTheme();
     }
 
+    // Swap: the old panel stays alive until the new screen is the active one (D-13)
+    std::shared_ptr<IPanel> old_panel = std::move(panel_);
+    panel_ = std::move(new_panel);
+
+    // Update current panel directly (PanelNames are static constants)
+    current_panel_ = panel_name;
+
     // Update universal button interrupts with this panel's functions
     UpdatePanelButtonFunctions(panel_.get());
 
@@ -632,6 +687,7 @@ void PanelManager::CreateAndLoadPanelDirect(const char *panel_name, bool is_trig
     SetUiState(UIState::BUSY);
 
     panel_->Load();
+    old_panel.reset();
     Ticker::HandleLvTasks();
 
     log_v("CreateAndLoadPanelDirect() completed");
@@ -660,25 +716,6 @@ void PanelManager::CreateAndLoadPanelWithSplash(const char *panel_name, bool is_
     // Splash panel itself is neutral - doesn't affect restoration logic
     // Use false for splash since it's just a transitional UI element
     CreateAndLoadPanelDirect(panel_names::SPLASH, false);
-}
-
-/**
- * @brief Callback executed when splash screen loading is complete
- * @param panel_name Name of the target panel to load after splash
- *
- * Cleans up the splash panel and loads the target panel with the original
- * trigger state preserved. This maintains proper restoration behavior for
- * panels loaded after splash screen transitions.
- */
-void PanelManager::SplashCompletionCallback(const char *panel_name)
-{
-    log_v("SplashCompletionCallback() called for panel: %s", panel_name);
-
-    panel_.reset();
-    Ticker::HandleLvTasks();
-
-    // Use the stored trigger state to preserve restoration behavior
-    CreateAndLoadPanelDirect(panel_name, splash_target_trigger_driven_);
 }
 
 /**

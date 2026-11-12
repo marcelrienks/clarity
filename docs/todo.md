@@ -184,9 +184,10 @@ Goal: the pure logic exists, with host tests, alongside the old code. Write the 
 
 Goal: replace the interrupt framework and `UIState` gate with sampled inputs, the pure policy and deferred transitions.
 
-- [ ] **4.1 Make transitions deferred (D-13, A-05).**
-  - [ ] Panels return a request instead of calling `PanelManager` directly; `PanelManager` applies it once per loop.
-  - [ ] Swap order: load the new screen first, then delete the old panel (`CreateAndLoadPanelDirect`).
+- [x] **4.1 Make transitions deferred (D-13, A-05).**
+  - [x] Panels still call `IPanelManager::CreateAndLoadPanel` (their `OnButton`/`NavIntent` form arrives with the phase 5 panel base), but it now only records a request. `LoadPanel`, `CheckRestoration` and the splash completion (`OnPanelLoadComplete`, from the LVGL timer) record one too. `PanelManager::ApplyPendingTransition()` applies the latest request once per loop (`main.cpp`, after trigger and error handling, before `UpdatePanel`) and once at the end of `setup()`. Nothing deletes a panel from inside its own call or an LVGL callback any more. A splash completion that arrives after something else replaced the splash is ignored. `CheckRestoration` evaluates at apply time, so a restoration and a trigger in the same pass resolve to the current state. The `[T]` strings are unchanged (`Panel transition requested` is logged at request, `No blocking interrupts - restoring` at apply).
+  - [x] Swap order: `CreateAndLoadPanelDirect` creates and initialises the new panel, loads its screen, then releases the old panel. A failed creation now keeps the current panel instead of leaving none. `SplashCompletionCallback` is gone.
+  - [x] Verified: all 7 envs build; Wokwi parts 1, 2 and 5 pass (the script reports PASSED; part 5 took 243 s, up from 111 s, so watch the 5 minute cap). `pio test -e native` not re-run (no `lib/core` change); `pio check` and Wokwi parts 3, 4 and 6 not run.
 - [ ] **4.2 `Inputs` wrapper.** Own 5 `DebouncedInput` + 1 `ButtonFsm`; pins from the existing pin table; debug GPIO 34 behind `CLARITY_DEBUG` with 3-sample stability (H-09). Seed every input in `Begin()` before the first splash decision (A-03).
 - [ ] **4.3 Wire the loop.** Replace `InterruptManager::Process()` with `Inputs::Sample` + `ResolveDisplay` + deferred apply. Preserve restoration, Config modality, key colour reload and splash deferral (Q-06) exactly as in §2.2.
 - [ ] **4.4 Preserve test events.** Emit the same `[T]` strings (`CheckRestoration() called`, `No blocking interrupts - restoring to '…'`, `KeyPresentActivate()`, and so on).

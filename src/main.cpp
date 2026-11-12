@@ -260,12 +260,15 @@ void setup()
             default_panel_name = *name_value;
         }
         panel_manager->CreateAndLoadPanel(default_panel_name.c_str());
-        Ticker::HandleLvTasks();
     }
     else
     {
         log_i("Panel trigger active at startup - skipping default panel load");
     }
+
+    // Initial triggers and the default panel only recorded a request: apply it before the first loop
+    panel_manager->ApplyPendingTransition();
+    Ticker::HandleLvTasks();
 
     log_i("Clarity application started successfully");
 }
@@ -318,6 +321,9 @@ void loop()
             error_panel_triggered = false;
         }
     }
+
+    // Apply the transition requested above or by a panel during the previous iteration
+    panel_manager->ApplyPendingTransition();
 
     // Update panel state only when IDLE - allows loading and animations to complete
     if (panel_manager->GetUiState() == UIState::IDLE)

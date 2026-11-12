@@ -90,6 +90,10 @@ class PanelManager : public IPanelManager, public IActionHandler
     // ========== Panel Notification Methods ==========
     void OnPanelLoadComplete(IPanel *panel);
 
+    // ========== Deferred Transitions ==========
+    /// Applies the request recorded by CreateAndLoadPanel/LoadPanel/CheckRestoration. Call once per loop.
+    void ApplyPendingTransition();
+
     // ========== IActionHandler Implementation ==========
     void HandleShortPress() override;
     void HandleLongPress() override;
@@ -106,7 +110,8 @@ class PanelManager : public IPanelManager, public IActionHandler
     std::shared_ptr<IPanel> CreatePanel(const char *panel_name);
     void CreateAndLoadPanelDirect(const char *panel_name, bool is_trigger_driven = false);
     void CreateAndLoadPanelWithSplash(const char *panel_name, bool is_trigger_driven);
-    void SplashCompletionCallback(const char *panel_name);
+    void LoadRequested(const char *panel_name, bool is_trigger_driven);
+    void RestoreNow();
     void PanelCompletionCallback();
 
     // Helper methods for CreateAndLoadPanelDirect
@@ -119,6 +124,22 @@ class PanelManager : public IPanelManager, public IActionHandler
     std::shared_ptr<IPanel> panel_ = nullptr;
     UIState ui_state_ = UIState::IDLE;             ///< Current UI processing state
     bool current_panel_is_trigger_driven_ = false; ///< Track if current panel is trigger-driven
+
+    // ========== Deferred Transition State ==========
+    enum class PendingKind : uint8_t
+    {
+        None,
+        Load,       ///< Load `panel_name`
+        Restore,    ///< Evaluate restoration
+        SplashDone, ///< Splash finished; load its stored target
+    };
+    struct PendingTransition
+    {
+        PendingKind kind = PendingKind::None;
+        std::string panel_name;
+        bool is_trigger_driven = false;
+    };
+    PendingTransition pending_; ///< Latest unapplied request; panels never swap themselves
 
     // ========== Panel Name Storage Data Members ==========
     std::string splash_target_panel_;           ///< Target panel for splash transition
