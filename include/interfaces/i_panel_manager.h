@@ -5,10 +5,10 @@
 #include <memory>
 
 // Project Includes
+#include "definitions/types.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
-#include "definitions/types.h"
 
 /**
  * @interface IPanelManager
@@ -31,7 +31,7 @@ class IPanelManager
 
     // Core Functionality Methods
     virtual void Init() = 0;
-    virtual void CreateAndLoadPanel(const char *panelName, bool isTriggerDriven = false) = 0;
+    virtual void CreateAndLoadPanel(const char *panel_name, bool is_trigger_driven = false) = 0;
     virtual void UpdatePanel() = 0;
 
     // State Management Methods
@@ -40,7 +40,8 @@ class IPanelManager
     virtual const char *GetCurrentPanel() const = 0;
     virtual const char *GetRestorationPanel() const = 0;
     virtual bool IsCurrentPanelTriggerDriven() const = 0;
+    virtual KeyState GetKeyState() const = 0;
 
     // Trigger Integration Methods
-    virtual void TriggerPanelSwitchCallback(const char *triggerId) = 0;
+    virtual void TriggerPanelSwitchCallback(const char *trigger_id) = 0;
 };

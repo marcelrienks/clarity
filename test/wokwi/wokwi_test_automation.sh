@@ -91,11 +91,26 @@ log_step() {
     echo -e "${PURPLE}[STEP]${NC} $1"
 }
 
+# Firmware env for a scenario file: the suffix before .yaml picks the env
+# (_release, _splash, _failinit -> test-wokwi-<suffix>), no suffix means test-wokwi
+env_for_scenario() {
+    case "$1" in
+        *_release.yaml)  echo "test-wokwi-release" ;;
+        *_splash.yaml)   echo "test-wokwi-splash" ;;
+        *_failinit.yaml) echo "test-wokwi-failinit" ;;
+        *)               echo "test-wokwi" ;;
+    esac
+}
+
 show_usage() {
     echo "Clarity Wokwi Test Automation"
     echo
     echo "USAGE:"
-    echo "  $0 [--help|-h|help]"
+    echo "  $0 [--help|-h|help] [PART...]"
+    echo
+    echo "PART is a scenario part number (1-8), for example: $0 6"
+    echo "With no PART every part runs. Each part costs Wokwi CI minutes, so while"
+    echo "developing run only the part that covers the change."
     echo
     echo "This script runs the fully automated Clarity integration test"
     echo "using push button simulation for complete automation."
@@ -152,9 +167,30 @@ main() {
         exit 1
     fi
     
-    if [[ ! -f "${SCRIPT_DIR}/scenario_automated.yaml" ]]; then
-        log_error "Automation scenario not found: ${SCRIPT_DIR}/scenario_automated.yaml"
+    SCENARIOS=("${SCRIPT_DIR}"/scenario_automated_*.yaml)
+    if [[ ! -f "${SCENARIOS[0]}" ]]; then
+        log_error "No automation scenarios found: ${SCRIPT_DIR}/scenario_automated_*.yaml"
         exit 1
+    fi
+
+    # Optional part numbers on the command line select which parts run
+    if [[ $# -gt 0 ]]; then
+        local selected=()
+        local part match
+        for part in "$@"; do
+            if [[ ! "$part" =~ ^[0-9]+$ ]]; then
+                log_error "Invalid part '$part'. Use a part number, for example: $0 6"
+                exit 1
+            fi
+            match=("${SCRIPT_DIR}"/scenario_automated_${part}_*.yaml)
+            if [[ ! -f "${match[0]}" ]]; then
+                log_error "No scenario for part $part"
+                exit 1
+            fi
+            selected+=("${match[0]}")
+        done
+        SCENARIOS=("${selected[@]}")
+        log_info "Running selected parts only: $*"
     fi
     
     # Check that we have either wokwi.toml or wokwi_automated.toml for base config
@@ -163,10 +199,15 @@ main() {
         exit 1
     fi
     
-    if [[ ! -f "${PROJECT_ROOT}/.pio/build/test-wokwi/firmware.bin" ]]; then
-        log_error "Firmware not built. Run: pio run -e test-wokwi"
-        exit 1
-    fi
+    # Each scenario runs on the firmware its file name suffix selects (env_for_scenario)
+    for scenario in "${SCENARIOS[@]}"; do
+        local env
+        env="$(env_for_scenario "$scenario")"
+        if [[ ! -f "${PROJECT_ROOT}/.pio/build/${env}/firmware.bin" ]]; then
+            log_error "Firmware not built for $(basename "$scenario"). Run: pio run -e ${env}"
+            exit 1
+        fi
+    done
     
     # Check if wokwi-cli is available
     if ! command -v $WOKWI_CLI &> /dev/null; then
@@ -182,11 +223,24 @@ main() {
     cd "${SCRIPT_DIR}"
     
     # Run the automated test with explicit parameters (no file swapping needed)
-    local elf_path="${PROJECT_ROOT}/.pio/build/test-wokwi/firmware.bin"
-    log_info "Executing: $WOKWI_CLI --elf $elf_path --diagram-file diagram_automated.json --scenario scenario_automated.yaml --timeout ${TIMEOUT}000"
-    log_info "Using test-wokwi environment firmware with push button automation"
-    
-    if $WOKWI_CLI --elf "$elf_path" --diagram-file diagram_automated.json --scenario scenario_automated.yaml --timeout ${TIMEOUT}000; then
+    # Wokwi caps a session at 5 minutes of wall-clock time, so the scenario is split into
+    # parts that each boot the firmware fresh. Every part must pass.
+    local failed=()
+    for scenario in "${SCENARIOS[@]}"; do
+        local name
+        name="$(basename "$scenario")"
+        local elf_path="${PROJECT_ROOT}/.pio/build/$(env_for_scenario "$name")/firmware.bin"
+        log_info "Executing: $WOKWI_CLI --elf $elf_path --diagram-file diagram_automated.json --scenario $name --timeout ${TIMEOUT}000"
+        local started=$SECONDS
+        if $WOKWI_CLI --elf "$elf_path" --diagram-file diagram_automated.json --scenario "$name" --timeout ${TIMEOUT}000; then
+            log_success "$name passed in $((SECONDS - started))s"
+        else
+            log_error "$name FAILED after $((SECONDS - started))s"
+            failed+=("$name")
+        fi
+    done
+
+    if [[ ${#failed[@]} -eq 0 ]]; then
         log_success "✅ Automated integration test PASSED!"
         log_success "All trigger systems validated successfully"
         echo
@@ -203,7 +257,7 @@ main() {
         log_success "🎉 Full automation achieved! No manual interaction required."
         exit 0
     else
-        log_error "❌ Automated integration test FAILED!"
+        log_error "❌ Automated integration test FAILED! Failed scenarios: ${failed[*]}"
         log_warning "Check the automation scenario output above for details"
         exit 1
     fi

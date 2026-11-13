@@ -13,23 +13,16 @@
  * Initializes the key component with style service for applying theme colors.
  * Sets key icon pointer to nullptr for later initialization.
  */
-KeyComponent::KeyComponent(IStyleManager *styleManager) : keyIcon_(nullptr), styleManager_(styleManager)
+KeyComponent::KeyComponent(IStyleManager *style_manager) : key_icon_(nullptr), style_manager_(style_manager)
 {
 }
 
 /**
- * @brief Destructor that cleans up the key icon
+ * @brief Destructor; deletes nothing
  *
- * Deletes the LVGL key icon object if it exists to prevent memory leaks.
- * Uses LVGL's object deletion function for proper cleanup.
+ * The key icon is a child of the panel's screen and is deleted with it.
  */
-KeyComponent::~KeyComponent()
-{
-    if (keyIcon_)
-    {
-        lv_obj_del(keyIcon_);
-    }
-}
+KeyComponent::~KeyComponent() = default;
 
 // ========== IComponent Implementation ==========
 
@@ -40,7 +33,7 @@ KeyComponent::~KeyComponent()
  */
 void KeyComponent::Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display)
 {
-    
+
     if (!display)
     {
         log_e("KeyComponent requires display provider");
@@ -48,11 +41,11 @@ void KeyComponent::Render(lv_obj_t *screen, const ComponentLocation &location, I
                                              "Cannot render - display provider is null");
         return;
     }
-    keyIcon_ = display->CreateImage(screen);
-    lv_image_set_src(keyIcon_, &key_solid);
+    key_icon_ = display->CreateImage(screen);
+    lv_image_set_src(key_icon_, &key_solid);
 
     // Apply location settings
-    lv_obj_align(keyIcon_, location.align, location.x_offset, location.y_offset);
+    lv_obj_align(key_icon_, location.align, location.x_offset, location.y_offset);
 }
 
 // ========== Public Interface Methods ==========
@@ -61,26 +54,28 @@ void KeyComponent::Render(lv_obj_t *screen, const ComponentLocation &location, I
  * @brief Set the key icon color based on key state
  * @param keyState The current key state to determine color
  */
-void KeyComponent::SetColor(KeyState keyState)
+void KeyComponent::SetColor(KeyState key_state)
 {
-    
-    if (!styleManager_ || !keyIcon_)
+
+    if (!style_manager_ || !key_icon_)
     {
         return;
     }
-    
+
     lv_color_t colour;
-    if (keyState == KeyState::Present)
+    if (key_state == KeyState::Present)
     {
-        colour = styleManager_->GetThemeColors().keyPresent;
+        colour = style_manager_->GetThemeColors().keyPresent;
         log_t("Key icon color set to GREEN");
     }
     else // KeyState::NotPresent or KeyState::Inactive
     {
-        colour = styleManager_->GetThemeColors().keyNotPresent;
+        colour = style_manager_->GetThemeColors().keyNotPresent;
         log_t("Key icon color set to RED");
     }
 
-    lv_obj_set_style_image_recolor(keyIcon_, colour, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_image_recolor_opa(keyIcon_, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_image_recolor(key_icon_, colour,
+                                   static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
+    lv_obj_set_style_image_recolor_opa(key_icon_, LV_OPA_COVER,
+                                       static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
 }

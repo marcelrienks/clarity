@@ -19,7 +19,8 @@
 /**
  * @brief Priority levels for triggers and system events
  */
-enum class Priority {
+enum class Priority
+{
     LOW_PRIORITY = 0,
     NORMAL = 1,
     IMPORTANT = 2,
@@ -29,16 +30,18 @@ enum class Priority {
 /**
  * @brief Types of triggers in the interrupt system
  */
-enum class TriggerType {
-    PANEL,  // Panel-related triggers
-    STYLE,  // Style and theme triggers
-    SYSTEM  // System-level triggers
+enum class TriggerType
+{
+    PANEL, // Panel-related triggers
+    STYLE, // Style and theme triggers
+    SYSTEM // System-level triggers
 };
 
 /**
  * @brief Error severity levels
  */
-enum class ErrorLevel {
+enum class ErrorLevel
+{
     WARNING = 0,
     ERROR = 1,
     CRITICAL = 2
@@ -47,7 +50,8 @@ enum class ErrorLevel {
 /**
  * @brief Button press action types
  */
-enum class ActionPress {
+enum class ActionPress
+{
     SHORT,
     LONG
 };
@@ -55,7 +59,8 @@ enum class ActionPress {
 /**
  * @brief Button action types for action handler
  */
-enum class ButtonAction {
+enum class ButtonAction
+{
     NONE,
     SHORT_PRESS,
     LONG_PRESS
@@ -64,16 +69,18 @@ enum class ButtonAction {
 /**
  * @brief UI state for controlling system responsiveness
  */
-enum class UIState {
-    IDLE,    // UI is idle and can accept new events
-    BUSY,    // UI is busy (animations, loading, etc.)
-    LOADING  // UI is in loading state
+enum class UIState
+{
+    IDLE,   // UI is idle and can accept new events
+    BUSY,   // UI is busy (animations, loading, etc.)
+    LOADING // UI is in loading state
 };
 
 /**
  * @brief Key state for automotive key presence detection
  */
-enum class KeyState {
+enum class KeyState
+{
     Present,
     NotPresent,
     Inactive
@@ -82,7 +89,8 @@ enum class KeyState {
 /**
  * @brief Oil sensor types for animations and callbacks
  */
-enum class OilSensorTypes {
+enum class OilSensorTypes
+{
     Pressure,
     Temperature
 };
@@ -90,11 +98,17 @@ enum class OilSensorTypes {
 /**
  * @brief Convert UIState enum to string for logging
  */
-inline const char* UIStateToString(UIState state) {
-    switch (state) {
-        case UIState::IDLE: return "IDLE";
-        case UIState::BUSY: return "BUSY";
-        case UIState::LOADING: return "LOADING";
-        default: return "UNKNOWN";
+inline const char *UIStateToString(UIState state)
+{
+    switch (state)
+    {
+        case UIState::IDLE:
+            return "IDLE";
+        case UIState::BUSY:
+            return "BUSY";
+        case UIState::LOADING:
+            return "LOADING";
+        default:
+            return "UNKNOWN";
     }
 }

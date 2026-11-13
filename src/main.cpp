@@ -1,23 +1,27 @@
 #include "main.h"
-#include "factories/provider_factory.h"
-#include "factories/manager_factory.h"
-#include "managers/error_manager.h"
-#include "managers/interrupt_manager.h"
-#include "managers/panel_manager.h"
-#include "interfaces/i_configuration_manager.h"
+#include "app/display_controller.h"
+#include "app/inputs.h"
 #include "definitions/configs.h"
+#include "definitions/constants.h"
+#include "definitions/types.h"
+#include "factories/manager_factory.h"
+#include "factories/provider_factory.h"
+#include "interfaces/i_configuration_manager.h"
+#include "interfaces/i_display_provider.h"
+#include "interfaces/i_gpio_provider.h"
+#include "managers/configuration_manager.h"
+#include "managers/error_manager.h"
+#include "managers/panel_manager.h"
 #include "managers/style_manager.h"
 #include "providers/device_provider.h"
-#include "interfaces/i_gpio_provider.h"
-#include "interfaces/i_display_provider.h"
-#include "definitions/constants.h"
 #include "utilities/logging.h"
+#include "utilities/test_inject.h"
 #include "utilities/ticker.h"
-#include "definitions/types.h"
-#include "managers/configuration_manager.h"
+#include <esp_system.h>
 
 // Self-registration at program startup
-static bool system_config_registered = []() {
+static bool system_config_registered = []()
+{
     ConfigurationManager::AddSchema(SystemConfig::RegisterConfigSchema);
     return true;
 }();
@@ -25,48 +29,56 @@ static bool system_config_registered = []() {
 // ========== Global Variables ==========
 
 // Global variable definitions (declarations are in main.h)
-std::unique_ptr<ProviderFactory> providerFactory;
-std::unique_ptr<ManagerFactory> managerFactory;
-std::unique_ptr<DeviceProvider> deviceProvider;
-std::unique_ptr<IGpioProvider> gpioProvider;
-std::unique_ptr<IDisplayProvider> displayProvider;
-std::unique_ptr<StyleManager> styleManager;
-std::unique_ptr<IConfigurationManager> configurationManager;
-std::unique_ptr<PanelManager> panelManager;
-InterruptManager *interruptManager;
-ErrorManager *errorManager;
+std::unique_ptr<ProviderFactory> provider_factory;
+std::unique_ptr<ManagerFactory> manager_factory;
+std::unique_ptr<DeviceProvider> device_provider;
+std::unique_ptr<IGpioProvider> gpio_provider;
+std::unique_ptr<IDisplayProvider> display_provider;
+std::unique_ptr<StyleManager> style_manager;
+std::unique_ptr<IConfigurationManager> configuration_manager;
+std::unique_ptr<PanelManager> panel_manager;
+std::unique_ptr<Inputs> inputs;
+std::unique_ptr<DisplayController> display_controller;
+ErrorManager *error_manager;
+
+// Set when initializeServices() fails; loop() then does nothing but wait for the restart
+static bool init_failed = false;
+static uint32_t init_failed_at_ms = 0;
+static constexpr uint32_t INIT_FAILED_RESTART_DELAY_MS = 5000;
 
 // ========== System Configuration ==========
 
 /**
  * @brief Static method to register system configuration schema without instance
- * @param configurationManager Service to register schema with
+ * @param configManager Service to register schema with
  *
  * Called automatically at program startup through ConfigRegistry.
  * Registers the SystemConfig configuration schema without
  * requiring a manager instance to exist.
  */
-void SystemConfig::RegisterConfigSchema(IConfigurationManager* configurationManager)
+void SystemConfig::RegisterConfigSchema(IConfigurationManager *config_manager)
 {
-    if (!configurationManager) {
+    if (!config_manager)
+    {
         log_e("SystemConfig::RegisterConfigSchema: ConfigurationManager is null - system config registration failed!");
-        ErrorManager::Instance().ReportCriticalError("SystemConfig",
-                                                     "ConfigManager null - system config failed");
+        ErrorManager::Instance().ReportCriticalError("SystemConfig", "ConfigManager null - system config failed");
         return;
     }
 
     // Check if already registered to prevent duplicates
-    if (configurationManager->IsSchemaRegistered(ConfigConstants::Sections::SYSTEM)) {
+    if (config_manager->IsSchemaRegistered(config_constants::sections::SYSTEM))
+    {
         return;
     }
 
-    Config::ConfigSection section(ConfigConstants::Sections::SYSTEM, ConfigConstants::Sections::SYSTEM, ConfigConstants::SectionNames::SYSTEM);
+    config::ConfigSection section(config_constants::sections::SYSTEM, config_constants::sections::SYSTEM,
+                                  config_constants::section_names::SYSTEM);
 
-    section.AddItem(defaultPanelConfig);
-    section.AddItem(updateRateConfig);
-    section.AddItem(showSplashConfig);
+    section.AddItem(default_panel_config);
+    section.AddItem(update_rate_config);
+    section.AddItem(show_splash_config);
 
-    configurationManager->RegisterConfigSection(section);
+    config_manager->RegisterConfigSection(section);
     log_i("SystemConfig configuration schema registered (static)");
 }
 
@@ -77,10 +89,10 @@ void SystemConfig::RegisterConfigSchema(IConfigurationManager* configurationMana
  * New code path uses static RegisterConfigSchema instead.
  * Can be removed once migration is complete.
  */
-void registerSystemConfiguration()
+void RegisterSystemConfiguration()
 {
     // During migration, just delegate to static method
-    SystemConfig::RegisterConfigSchema(configurationManager.get());
+    SystemConfig::RegisterConfigSchema(configuration_manager.get());
 }
 
 // ========== Private Methods ==========
@@ -93,93 +105,94 @@ void registerSystemConfiguration()
  * order. Uses dual factory pattern with ProviderFactory for hardware abstraction
  * and ManagerFactory for system services. Reports critical errors on failure.
  */
-bool initializeServices()
+bool InitializeServices()
 {
     log_i("Starting Clarity service initialization with dual factory pattern...");
 
-    providerFactory = std::make_unique<ProviderFactory>();
-    if (!providerFactory) {
+#ifdef CLARITY_TEST_FAIL_INIT
+    // Test only (D-04): force the failed-init path
+    log_t("Test: forcing service initialization failure");
+    return false;
+#endif
+
+    provider_factory = std::make_unique<ProviderFactory>();
+    if (!provider_factory)
+    {
         log_e("Failed to create ProviderFactory - %s", "allocation failed");
         ErrorManager::Instance().ReportCriticalError("main", "ProviderFactory allocation failed");
         return false;
     }
 
-    deviceProvider = providerFactory->CreateDeviceProvider();
-    if (!deviceProvider) {
+    device_provider = provider_factory->CreateDeviceProvider();
+    if (!device_provider)
+    {
         log_e("Failed to create DeviceProvider via factory");
         ErrorManager::Instance().ReportCriticalError("main", "DeviceProvider creation failed");
         return false;
     }
 
-    gpioProvider = providerFactory->CreateGpioProvider();
-    if (!gpioProvider) {
+    gpio_provider = provider_factory->CreateGpioProvider();
+    if (!gpio_provider)
+    {
         log_e("Failed to create GpioProvider via factory");
         ErrorManager::Instance().ReportCriticalError("main", "GpioProvider creation failed");
         return false;
     }
 
-    displayProvider = providerFactory->CreateDisplayProvider(deviceProvider.get());
-    if (!displayProvider) {
+    display_provider = provider_factory->CreateDisplayProvider(device_provider.get());
+    if (!display_provider)
+    {
         log_e("Failed to create DisplayProvider via factory");
         ErrorManager::Instance().ReportCriticalError("main", "DisplayProvider creation failed");
         return false;
     }
 
-    managerFactory = std::make_unique<ManagerFactory>(std::move(providerFactory));
-    if (!managerFactory) {
+    manager_factory = std::make_unique<ManagerFactory>(std::move(provider_factory));
+    if (!manager_factory)
+    {
         log_e("Failed to create ManagerFactory - %s", "allocation failed");
         ErrorManager::Instance().ReportCriticalError("main", "ManagerFactory allocation failed");
         return false;
     }
 
     // Create ConfigurationManager via factory (sets up singleton)
-    configurationManager = managerFactory->CreateConfigurationManager();
-    if (!configurationManager) {
+    configuration_manager = manager_factory->CreateConfigurationManager();
+    if (!configuration_manager)
+    {
         log_e("Failed to create ConfigurationManager via factory");
         ErrorManager::Instance().ReportCriticalError("main", "ConfigurationManager creation failed");
         return false;
     }
-    // Initialize StyleManager with user's theme preference
-    std::string userTheme = Themes::DAY; // Default
-    if (auto themeValue = configurationManager->QueryConfig<std::string>(ConfigConstants::Keys::SYSTEM_THEME)) {
-        userTheme = *themeValue;
-    }
-    styleManager = managerFactory->CreateStyleManager(userTheme.c_str());
-    if (!styleManager) {
+    // Start with the Day theme: the lights signal selects Night once it is sampled
+    style_manager = manager_factory->CreateStyleManager(themes::DAY);
+    if (!style_manager)
+    {
         log_e("Failed to create StyleManager via factory");
         ErrorManager::Instance().ReportCriticalError("main", "StyleManager creation failed");
         return false;
     }
- 
-    styleManager->SetConfigurationManager(configurationManager.get());
-    
-    // Create InterruptManager with GPIO provider dependency
-    interruptManager = managerFactory->CreateInterruptManager(gpioProvider.get());
-    if (!interruptManager) {
-        log_e("Failed to create InterruptManager via factory");
-        ErrorManager::Instance().ReportCriticalError("main", "InterruptManager creation failed");
-        return false;
-    }
 
-    // Set preference service for button configuration
-    interruptManager->SetConfigurationManager(configurationManager.get());
+    style_manager->SetConfigurationManager(configuration_manager.get());
+
+    inputs = std::make_unique<Inputs>(*gpio_provider);
 
     // Create PanelManager with all dependencies
-    panelManager = managerFactory->CreatePanelManager(displayProvider.get(), gpioProvider.get(),
-                                                      styleManager.get(), configurationManager.get(),
-                                                      interruptManager);
+    panel_manager = manager_factory->CreatePanelManager(display_provider.get(), gpio_provider.get(),
+                                                        style_manager.get(), configuration_manager.get());
 
-    if (!panelManager) {
+    if (!panel_manager)
+    {
         log_e("Failed to create PanelManager via factory");
         ErrorManager::Instance().ReportCriticalError("main", "PanelManager creation failed");
         return false;
     }
 
-    // Set panel manager reference for UI state checking in interrupt processing
-    interruptManager->SetPanelManager(panelManager.get());
+    display_controller = std::make_unique<DisplayController>(*panel_manager, *style_manager);
+    panel_manager->SetDisplayController(display_controller.get());
 
-    errorManager = managerFactory->CreateErrorManager();
-    if (!errorManager) {
+    error_manager = manager_factory->CreateErrorManager();
+    if (!error_manager)
+    {
         log_e("Failed to create ErrorManager via factory");
         ErrorManager::Instance().ReportCriticalError("main", "ErrorManager creation failed");
         return false;
@@ -187,6 +200,18 @@ bool initializeServices()
 
     log_t("System ready");
     return true;
+}
+
+/// Long press threshold from the configuration; read every pass so a change applies to the press in progress
+static void UpdateButtonThresholds()
+{
+    int long_press_ms = config_constants::defaults::DEFAULT_LONG_PRESS_MS;
+    if (auto value = configuration_manager->QueryConfig<int>(config_constants::keys::BUTTON_LONG_PRESS_MS))
+    {
+        long_press_ms = *value;
+    }
+    inputs->SetButtonThresholds(clarity::core::InputSampler::DEFAULT_MIN_SHORT_MS,
+                                static_cast<uint32_t>(long_press_ms));
 }
 
 // ========== Arduino Functions ==========
@@ -202,38 +227,47 @@ void setup()
 {
     log_i("Starting Clarity application...");
 
-    if (!initializeServices())
+    if (!InitializeServices())
     {
+        log_e("Service initialization failed - restarting in %u ms", (unsigned)INIT_FAILED_RESTART_DELAY_MS);
+        log_t("Service initialization failed - restarting");
+        init_failed = true;
+        init_failed_at_ms = millis();
         return;
     }
 
     // Register all configuration schemas from components
     ConfigurationManager::Instance().RegisterAllSchemas();
 
-    Ticker::handleLvTasks();
+    Ticker::HandleLvTasks();
 
-    styleManager->InitializeStyles();
-    Ticker::handleLvTasks();
+    style_manager->InitializeStyles();
+    Ticker::HandleLvTasks();
 
-    // Process initial trigger states to ensure correct system state at startup
-    // This must happen after initialization but before loading the first panel
-    // If a PANEL trigger is active, it will load its panel and we should skip default panel load
-    interruptManager->ProcessInitialTriggerStates();
+    test_inject::Begin(gpio_provider.get());
 
-    // Only load default panel if no panel triggers are currently active
-    // If a trigger was active at startup, it has already loaded its panel
-    if (!interruptManager->HasActivePanelTriggers()) {
+    // Seed every input from its first read, then decide the first panel from the inputs: a key or lock
+    // that is active at boot shows its panel directly and skips the default panel and its splash
+    UpdateButtonThresholds();
+    inputs->Begin(millis());
+    const bool override_requested = display_controller->Begin(*inputs);
+
+    if (!override_requested)
+    {
         // Determine the default panel from configuration
-        std::string defaultPanelName = PanelNames::OIL; // Default
-        if (auto nameValue = configurationManager->QueryConfig<std::string>(ConfigConstants::Keys::SYSTEM_DEFAULT_PANEL)) {
-            defaultPanelName = *nameValue;
+        std::string default_panel_name = panel_names::OIL; // Default
+        if (auto name_value =
+                configuration_manager->QueryConfig<std::string>(config_constants::keys::SYSTEM_DEFAULT_PANEL))
+        {
+            default_panel_name = *name_value;
         }
-        panelManager->CreateAndLoadPanel(defaultPanelName.c_str());
-        Ticker::handleLvTasks();
-    } else {
-        log_i("Panel trigger active at startup - skipping default panel load");
+        panel_manager->CreateAndLoadPanel(default_panel_name.c_str());
     }
-    
+
+    // Initial triggers and the default panel only recorded a request: apply it before the first loop
+    panel_manager->ApplyPendingTransition();
+    Ticker::HandleLvTasks();
+
     log_i("Clarity application started successfully");
 }
 
@@ -247,39 +281,55 @@ void setup()
  */
 void loop()
 {
-    // Always process - ActionHandler runs always, TriggerHandler only on IDLE
-    interruptManager->Process();
+    // Init failed: managers may be null, so touch nothing and restart after a delay
+    if (init_failed)
+    {
+        if (millis() - init_failed_at_ms >= INIT_FAILED_RESTART_DELAY_MS)
+        {
+            esp_restart();
+        }
+        delay(10);
+        return;
+    }
+
+    UpdateButtonThresholds();
+    inputs->Sample(millis());
+    display_controller->Update(*inputs, panel_manager->GetUiState() == UIState::IDLE);
+    test_inject::Poll();
 
     // Check for error panel trigger - must be processed when UI is IDLE to avoid conflicts
-    static bool errorPanelTriggered = false;  // Track if error panel was already triggered
-    if (panelManager->GetUiState() == UIState::IDLE)
+    static bool error_panel_triggered = false; // Track if error panel was already triggered
+    if (panel_manager->GetUiState() == UIState::IDLE)
     {
-        bool shouldTriggerError = errorManager->ShouldTriggerErrorPanel();
-        const char* currentPanel = panelManager->GetCurrentPanel();
-        bool isCurrentlyErrorPanel = currentPanel && strcmp(currentPanel, PanelNames::ERROR) == 0;
-        
+        bool should_trigger_error = error_manager->ShouldTriggerErrorPanel();
+        const char *current_panel = panel_manager->GetCurrentPanel();
+        bool is_currently_error_panel = current_panel && strcmp(current_panel, panel_names::ERROR) == 0;
+
         // Trigger error panel if needed and not already triggered
-        if (shouldTriggerError && !errorPanelTriggered && !isCurrentlyErrorPanel)
+        if (should_trigger_error && !error_panel_triggered && !is_currently_error_panel)
         {
             log_t("ErrorOccurredActivate() - Loading ERROR panel");
-            panelManager->CreateAndLoadPanel(PanelNames::ERROR, true);  // Mark as trigger-driven
-            errorManager->SetErrorPanelActive(true);
-            errorPanelTriggered = true;
+            panel_manager->CreateAndLoadPanel(panel_names::ERROR, true); // Mark as trigger-driven
+            error_manager->SetErrorPanelActive(true);
+            error_panel_triggered = true;
         }
         // Reset trigger state when no longer needed
-        else if (!shouldTriggerError && errorPanelTriggered)
+        else if (!should_trigger_error && error_panel_triggered)
         {
-            errorManager->SetErrorPanelActive(false);
-            errorPanelTriggered = false;
+            error_manager->SetErrorPanelActive(false);
+            error_panel_triggered = false;
         }
     }
 
+    // Apply the transition requested above or by a panel during the previous iteration
+    panel_manager->ApplyPendingTransition();
+
     // Update panel state only when IDLE - allows loading and animations to complete
-    if (panelManager->GetUiState() == UIState::IDLE)
+    if (panel_manager->GetUiState() == UIState::IDLE)
     {
-        panelManager->UpdatePanel();
+        panel_manager->UpdatePanel();
     }
 
-    Ticker::handleLvTasks();
-    Ticker::handleDynamicDelay(millis());
+    Ticker::HandleLvTasks();
+    Ticker::HandleDynamicDelay(millis());
 }

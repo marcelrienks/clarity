@@ -56,15 +56,40 @@ cd test/wokwi
 test/wokwi/
 ├── diagram_automated.json        # Hardware configuration with push buttons
 ├── diagram.json                  # Alternative hardware configuration
-├── scenario_automated.yaml       # Complete automated test specification
+├── scenario_automated_1..8_*.yaml # Automated test, split in 8 parts (each boots fresh, see below)
 ├── wokwi_test_automation.sh      # Cross-platform automated test runner
 ├── wokwi_automated.toml         # Automated testing configuration
 └── wokwi.toml                   # Base testing configuration
 ```
 
+### Host tests and static checks
+
+- `pio test -e native` runs the Unity tests in `test/native/` against `lib/core` on the host (no Arduino, no LVGL). `lib/core` must not include platform headers; `tools/check_layering.sh` enforces it.
+- `tools/check_format.sh` fails if a project source is not clang-format clean (`.clang-format`; `include/icons` and `lv_conf.h` are skipped).
+- `pio check -e release` runs cppcheck on project sources (CI passes `--fail-on-defect=low`). clang-tidy (`.clang-tidy`) runs through `tools/run_clang_tidy.sh [env...]`, which needs `clang-tidy` on `PATH`, builds a clang-friendly compile database per env and fails on any finding. PlatformIO's own clang-tidy run is not used: it cannot parse the xtensa headers.
+- All three run in CI (`lint`, `check`, `native-test` jobs).
+
+### Scenario parts
+
+To save Wokwi CI minutes, pass part numbers to run only the parts that cover a change, for example `./wokwi_test_automation.sh 6` or `./wokwi_test_automation.sh 3 4`. With no argument every part runs; do that before a push or at the end of a phase.
+
+Wokwi caps a session at 5 minutes of wall-clock time and the simulator runs slowly, so the scenario is split into eight parts that each boot the firmware fresh: triggers (steps 1-8), errors and restoration (9-13, starts with a preamble that rebuilds the step 8 trigger state), three config parts (theme follows the lights, sections, exit), and an error panel lock-up check on the release-like firmware (part 6), a splash destroyed mid-animation (part 7) and a forced init failure (part 8). The file name suffix picks the firmware: `*_release.yaml` runs on `test-wokwi-release`, `*_splash.yaml` on `test-wokwi-splash`, `*_failinit.yaml` on `test-wokwi-failinit`, no suffix on `test-wokwi`. Build all four before running the suite. `wokwi_test_automation.sh` runs them in order and exits non-zero if any part fails or times out. Each part takes 60-100 s.
+
+Timing notes from the repair (0.3):
+- Leave at least 1000 ms after anything that rebuilds a panel or menu before the next button press. 200-300 ms there stalled the simulator until the 5 minute cap.
+- `wait-serial` only sees output printed after its step starts, so put the waits right after the action that produces the line. Long presses fire while the button is still held, so wait before releasing.
+- Poll logs from `gpio_sensor.cpp` are off by default (about 96% of serial output). Define `GPIO_POLL_LOGS` to see them.
+
 ### Build Environments
 - **`test-wokwi`**: Clean integration testing (CORE_DEBUG_LEVEL=0 + TEST_LOGS)
 - **`debug-local`**: Full debug testing (CORE_DEBUG_LEVEL=5 + TEST_LOGS)
+- **`test-wokwi-release`**: Release-like build (no `CLARITY_DEBUG`, `-Os`) with `TEST_LOGS` and `CLARITY_TEST_INJECT_ERROR`. For defects that only show without `CLARITY_DEBUG` (D-03). Also seeds a removed default panel (`CLARITY_TEST_SEED_INVALID_PANEL`, D-07) and a non-numeric splash duration (`CLARITY_TEST_SEED_INVALID_SPLASH`, D-23). Used by `scenario_automated_6_error_release.yaml`.
+- **`test-wokwi-splash`**: Debug build (LVGL asserts on) with `CLARITY_TEST_SPLASH_INTERRUPT`, which destroys the splash halfway through its fade-in (D-02). Used by `scenario_automated_7_splash_interrupt_splash.yaml`.
+- **`test-wokwi-failinit`**: Release-like build with `CLARITY_TEST_FAIL_INIT`, which makes `initializeServices()` fail so the restart path runs (D-04). Used by `scenario_automated_8_init_failure_failinit.yaml`.
+
+### Error injection (`CLARITY_TEST_INJECT_ERROR`)
+
+Builds without `CLARITY_DEBUG` have no debug error trigger. With `CLARITY_TEST_INJECT_ERROR`, `utilities/test_inject.h` reports one `ERROR` ("Injected test error") on each rising edge of GPIO 34, the same pin as the debug error button (`btn2` in `diagram_automated.json`). It goes through `ErrorManager::ReportError`, so a scenario sees `[T] Error reported: ERROR` as with the debug button. Boot logs `[T] Test error injection armed`. The flag and `CLARITY_DEBUG` are mutually exclusive (compile error). Serial input is not an option: the backlight PWM owns GPIO 3 (UART0 RX).
 
 ### Hardware Configuration
 
@@ -110,7 +135,7 @@ chmod +x ~/bin/wokwi-cli
 **Option 2: Direct Download (Linux/WSL2)**
 ```bash
 # Download and install to ~/bin/
-curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linux -o ~/bin/wokwi-cli
+curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linuxstatic-x64 -o ~/bin/wokwi-cli
 chmod +x ~/bin/wokwi-cli
 ```
 
@@ -243,7 +268,7 @@ The integration test follows the complete scenario from scenarios.md covering al
 ### ✅ Integration Points  
 - [ ] Panel priorities: Key (CRITICAL) > Lock (IMPORTANT) > Oil (default)
 - [ ] Trigger restoration logic works correctly
-- [ ] Theme persists across panel switches
+- [ ] Theme follows the lights signal across panel switches
 - [ ] Error system overrides all other panels
 - [ ] Icon color changes without panel reloads
 - [ ] All automated scenario steps execute in order
@@ -367,7 +392,7 @@ curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-ma
 chmod +x ~/bin/wokwi-cli
 
 # Install for Linux/WSL2
-curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linux -o ~/bin/wokwi-cli
+curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linuxstatic-x64 -o ~/bin/wokwi-cli
 chmod +x ~/bin/wokwi-cli
 
 # Add to PATH if needed
@@ -426,27 +451,10 @@ cd test/wokwi
 
 ## Integration with CI/CD
 
-### GitHub Actions Example
-```yaml
-name: Integration Test
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install PlatformIO
-        run: pip install platformio
-      - name: Install Wokwi CLI
-        run: |
-          curl -L https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linux -o /usr/local/bin/wokwi-cli
-          chmod +x /usr/local/bin/wokwi-cli
-      - name: Build Test Environment
-        run: pio run -e test-wokwi
-      - name: Run Integration Test
-        run: |
-          cd test/wokwi
-          timeout 180 ./wokwi_test_automation.sh
-```
+### GitHub Actions
+
+The workflow is `.github/workflows/ci.yml` (see `.github/workflows/README.md`). It builds all four envs on every push and pull request, and runs the 5-part Wokwi scenario on non-draft pull requests from this repository. It needs the `WOKWI_CLI_TOKEN` secret and costs about 7 Wokwi CI minutes per run.
+
+Wokwi CLI for Linux CI: `https://github.com/wokwi/wokwi-cli/releases/download/<tag>/wokwi-cli-linuxstatic-x64` (there is no `wokwi-cli-linux` asset).
 
 This comprehensive testing framework provides automated integration testing with flexible build environments - supporting both clean CI/CD output and full debugging capabilities, with intelligent duplicate suppression to maintain readable logs during extended operation.

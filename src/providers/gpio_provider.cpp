@@ -54,7 +54,8 @@ void GpioProvider::PinMode(int pin, int mode)
  */
 void GpioProvider::AttachInterrupt(int pin, void (*callback)(), int mode)
 {
-    if (pin >= 0 && pin < MAX_GPIO_PIN) {
+    if (pin >= 0 && pin < MAX_GPIO_PIN)
+    {
         log_i("GPIO %d interrupt attached", pin);
         ::attachInterrupt(digitalPinToInterrupt(pin), callback, mode);
     }
@@ -69,7 +70,8 @@ void GpioProvider::AttachInterrupt(int pin, void (*callback)(), int mode)
  */
 void GpioProvider::DetachInterrupt(int pin)
 {
-    if (pin >= 0 && pin < MAX_GPIO_PIN) {
+    if (pin >= 0 && pin < MAX_GPIO_PIN)
+    {
         log_i("GPIO %d interrupt detached", pin);
         ::detachInterrupt(digitalPinToInterrupt(pin));
     }

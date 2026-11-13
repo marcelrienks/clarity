@@ -1,8 +1,8 @@
 #pragma once
 
-#include "panels/base_panel.h"
 #include "components/lock_component.h"
 #include "definitions/constants.h"
+#include "panels/base_panel.h"
 /**
  * @class LockPanel
  * @brief Lock status monitoring panel
@@ -30,24 +30,27 @@ class LockPanel : public BasePanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    LockPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *styleManager,
-              IPanelManager *panelManager = nullptr);
+    LockPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
+              IPanelManager *panel_manager = nullptr);
 
     // ========== Public Interface Methods ==========
-    static constexpr const char *NAME = PanelNames::LOCK;
+    static constexpr const char *NAME = panel_names::LOCK;
 
   protected:
     // ========== Protected Methods ==========
     void CreateContent() override;
     void UpdateContent() override;
-    const char* GetPanelName() const override { return PanelNames::LOCK; }
+    const char *GetPanelName() const override
+    {
+        return panel_names::LOCK;
+    }
 
     // Optional overrides
     void HandleLongPress() override;
 
   private:
     // ========== Private Data Members ==========
-    LockComponent lockComponent_;
-    bool componentInitialized_ = false;
-    bool isLockEngaged_ = false;
+    LockComponent lock_component_;
+    bool component_initialized_ = false;
+    bool is_lock_engaged_ = false;
 };

@@ -1,12 +1,12 @@
 #pragma once
+#include "definitions/types.h"
+#include "interfaces/i_action_handler.h"
+#include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_style_manager.h"
-#include "interfaces/i_action_handler.h"
-#include "definitions/types.h"
 
 #include <functional>
 #include <memory>
@@ -54,81 +54,113 @@
 
 // Forward declarations
 class StyleManager;
-class InterruptManager;
+class DisplayController;
 
-class PanelManager : public IPanelManager,
-                     public IActionHandler
+class PanelManager : public IPanelManager, public IActionHandler
 {
   public:
     // ========== Constructors/Destructor ==========
-    PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *styleManager,
-                 IConfigurationManager *configurationManager, InterruptManager* interruptManager = nullptr);
+    PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *style, IConfigurationManager *config);
     PanelManager(const PanelManager &) = delete;
     PanelManager &operator=(const PanelManager &) = delete;
-    ~PanelManager();
+    ~PanelManager() override;
 
     // ========== Static Methods ==========
     // Singleton access for new interrupt architecture
-    static PanelManager& Instance();
+    static PanelManager &Instance();
 
     // Interface accessors for dependency injection (CRITICAL for testability)
-    static IActionHandler& ActionService() { return Instance(); }
+    static IActionHandler &ActionService()
+    {
+        return Instance();
+    }
 
     // ========== IPanelManager Implementation ==========
     void Init() override;
     void SetUiState(UIState state) override;
     UIState GetUiState() const override;
-    void CreateAndLoadPanel(const char *panelName, bool isTriggerDriven = false) override;
+    void CreateAndLoadPanel(const char *panel_name, bool is_trigger_driven = false) override;
     void UpdatePanel() override;
     const char *GetCurrentPanel() const override;
     const char *GetRestorationPanel() const override;
     bool IsCurrentPanelTriggerDriven() const override;
-    void TriggerPanelSwitchCallback(const char *triggerId) override;
+    void TriggerPanelSwitchCallback(const char *trigger_id) override;
+    KeyState GetKeyState() const override;
 
     // ========== Panel Notification Methods ==========
-    void OnPanelLoadComplete(IPanel* panel);
+    void OnPanelLoadComplete(IPanel *panel);
+
+    // ========== Deferred Transitions ==========
+    /// Applies the request recorded by CreateAndLoadPanel/LoadPanel/CheckRestoration. Call once per loop.
+    void ApplyPendingTransition();
 
     // ========== IActionHandler Implementation ==========
     void HandleShortPress() override;
     void HandleLongPress() override;
 
     // ========== Trigger Execution Methods ==========
-    void LoadPanel(const char* panelName);
+    void LoadPanel(const char *panel_name);
     void CheckRestoration();
 
     // ========== Other Public Methods ==========
-    void UpdatePanelButtonFunctions(IPanel* panel);
+    /// The display controller answers restoration (which override is still active) and sets the key state
+    void SetDisplayController(DisplayController *controller)
+    {
+        display_controller_ = controller;
+    }
+    void SetKeyState(KeyState state)
+    {
+        key_state_ = state;
+    }
 
   private:
     // ========== Private Methods ==========
-    std::shared_ptr<IPanel> CreatePanel(const char *panelName);
-    void CreateAndLoadPanelDirect(const char *panelName, bool isTriggerDriven = false);
-    void CreateAndLoadPanelWithSplash(const char *panelName, bool isTriggerDriven);
-    void SplashCompletionCallback(const char *panelName);
+    std::shared_ptr<IPanel> CreatePanel(const char *panel_name);
+    void CreateAndLoadPanelDirect(const char *panel_name, bool is_trigger_driven = false);
+    void CreateAndLoadPanelWithSplash(const char *panel_name, bool is_trigger_driven);
+    void LoadRequested(const char *panel_name, bool is_trigger_driven);
+    void RestoreNow();
     void PanelCompletionCallback();
 
     // Helper methods for CreateAndLoadPanelDirect
-    void UpdateRestorationTracking(const char* panelName, bool isTriggerDriven);
-    void HandlePanelCreationError(const char* panelName);
+    void UpdateRestorationTracking(const char *panel_name, bool is_trigger_driven);
+    void HandlePanelCreationError(const char *panel_name);
 
     // ========== Panel State Data Members ==========
-    std::string currentPanel_ = PanelNames::OIL;     ///< Current panel state
-    std::string restorationPanel_ = PanelNames::OIL; ///< Panel to restore when all triggers are inactive
+    std::string current_panel_ = panel_names::OIL;     ///< Current panel state
+    std::string restoration_panel_ = panel_names::OIL; ///< Panel to restore when all triggers are inactive
     std::shared_ptr<IPanel> panel_ = nullptr;
-    UIState uiState_ = UIState::IDLE;          ///< Current UI processing state
-    bool currentPanelIsTriggerDriven_ = false; ///< Track if current panel is trigger-driven
+    UIState ui_state_ = UIState::IDLE;             ///< Current UI processing state
+    bool current_panel_is_trigger_driven_ = false; ///< Track if current panel is trigger-driven
+    KeyState key_state_ = KeyState::Inactive;      ///< What the key panel shows, set each loop pass
+
+    // ========== Deferred Transition State ==========
+    enum class PendingKind : uint8_t
+    {
+        None,
+        Load,       ///< Load `panel_name`
+        Restore,    ///< Evaluate restoration
+        SplashDone, ///< Splash finished; load its stored target
+    };
+    struct PendingTransition
+    {
+        PendingKind kind = PendingKind::None;
+        std::string panel_name;
+        bool is_trigger_driven = false;
+    };
+    PendingTransition pending_; ///< Latest unapplied request; panels never swap themselves
 
     // ========== Panel Name Storage Data Members ==========
-    std::string splashTargetPanel_;                   ///< Target panel for splash transition
-    bool splashTargetTriggerDriven_ = false;          ///< Preserve trigger state through splash transitions
+    std::string splash_target_panel_;           ///< Target panel for splash transition
+    bool splash_target_trigger_driven_ = false; ///< Preserve trigger state through splash transitions
 
     // ========== Service Dependencies ==========
-    IGpioProvider *gpioProvider_ = nullptr;           ///< GPIO provider for hardware access
-    IDisplayProvider *displayProvider_ = nullptr;     ///< Display provider for UI operations
-    IStyleManager *styleManager_ = nullptr;           ///< Style service for UI theming
-    InterruptManager *interruptManager_ = nullptr;    ///< Interrupt manager for button function injection
-    IConfigurationManager *configurationManager_ = nullptr; ///< Preference service for configuration settings
+    IGpioProvider *gpio_provider_ = nullptr;                 ///< GPIO provider for hardware access
+    IDisplayProvider *display_provider_ = nullptr;           ///< Display provider for UI operations
+    IStyleManager *style_manager_ = nullptr;                 ///< Style service for UI theming
+    DisplayController *display_controller_ = nullptr;        ///< Answers restoration with the active override
+    IConfigurationManager *configuration_manager_ = nullptr; ///< Preference service for configuration settings
 
     // ========== Cached Service References ==========
-    class ErrorManager& errorManager_;                ///< Cached ErrorManager reference
+    class ErrorManager &error_manager_; ///< Cached ErrorManager reference
 };

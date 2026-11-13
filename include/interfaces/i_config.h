@@ -10,13 +10,14 @@
  * interface and implement the RegisterConfig method to register their
  * configuration items with the preference service.
  */
-class IConfig {
-public:
+class IConfig
+{
+  public:
     virtual ~IConfig() = default;
 
     /**
      * @brief Register configuration items with the preference service
      * @param configurationManager The preference service to register configs with
      */
-    virtual void RegisterConfig(IConfigurationManager* configurationManager) = 0;
+    virtual void RegisterConfig(IConfigurationManager *configuration_manager) = 0;
 };

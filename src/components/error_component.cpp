@@ -1,8 +1,8 @@
 #include "components/error_component.h"
 #include "definitions/constants.h"
 #include <Arduino.h>
-#include <esp32-hal-log.h>
 #include <algorithm>
+#include <esp32-hal-log.h>
 
 // ========== Constructors and Destructor ==========
 
@@ -13,10 +13,10 @@
  * Initializes the error component with style service for theming.
  * Sets all UI element pointers to nullptr and initializes counters to zero.
  */
-ErrorComponent::ErrorComponent(IStyleManager *styleManager)
-    : styleManager_(styleManager), errorContainer_(nullptr), errorContentArea_(nullptr), errorCountLabel_(nullptr),
-      errorLevelLabel_(nullptr), errorSourceLabel_(nullptr), errorMessageLabel_(nullptr), navigationIndicator_(nullptr),
-      currentErrorIndex_(0)
+ErrorComponent::ErrorComponent(IStyleManager *style_manager)
+    : style_manager_(style_manager), error_container_(nullptr), error_content_area_(nullptr),
+      error_count_label_(nullptr), error_level_label_(nullptr), error_source_label_(nullptr),
+      error_message_label_(nullptr), navigation_indicator_(nullptr), current_error_index_(0)
 {
     log_v("ErrorComponent() constructor called");
 }
@@ -51,8 +51,7 @@ void ErrorComponent::Render(lv_obj_t *screen, const ComponentLocation &location,
     if (!screen)
     {
         log_e("ErrorComponent requires valid screen object");
-        ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "ErrorComponent",
-                                             "Cannot render - screen is null");
+        ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "ErrorComponent", "Cannot render - screen is null");
         return;
     }
 
@@ -65,21 +64,21 @@ void ErrorComponent::Render(lv_obj_t *screen, const ComponentLocation &location,
     }
 
     // Create main container using full 240x240 screen size
-    errorContainer_ = lv_obj_create(screen);
-    lv_obj_set_size(errorContainer_, 240, 240); // Full screen size
+    error_container_ = lv_obj_create(screen);
+    lv_obj_set_size(error_container_, 240, 240); // Full screen size
 
     // Apply location settings to the container
-    lv_obj_align(errorContainer_, location.align, location.x_offset, location.y_offset);
+    lv_obj_align(error_container_, location.align, location.x_offset, location.y_offset);
 
     // Apply circular styling with 2px colored border from screen edge
-    lv_obj_set_style_radius(errorContainer_, 120, 0);     // Make it circular (half of 240)
-    lv_obj_set_style_border_width(errorContainer_, 2, 0); // 2px colored border from edge
+    lv_obj_set_style_radius(error_container_, 120, 0);     // Make it circular (half of 240)
+    lv_obj_set_style_border_width(error_container_, 2, 0); // 2px colored border from edge
 
     // Ensure container has transparent background for error panel's dark theme
-    lv_obj_set_style_bg_opa(errorContainer_, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_opa(error_container_, LV_OPA_TRANSP, 0);
 
     // Create the internal UI structure for single error display
-    CreateSingleErrorUI(errorContainer_);
+    CreateSingleErrorUI(error_container_);
 
     // Initial update with current errors - fetch and sort immediately
     UpdateErrorDisplay();
@@ -111,15 +110,13 @@ void ErrorComponent::Refresh(const Reading &reading)
 void ErrorComponent::UpdateErrorDisplay()
 {
     // Get current errors from ErrorManager
-    std::vector<ErrorInfo> newErrors = ErrorManager::Instance().GetErrorQueue();
+    std::vector<ErrorInfo> new_errors = ErrorManager::Instance().GetErrorQueue();
 
     // Sort errors by severity (CRITICAL first, WARNING last)
-    std::sort(newErrors.begin(), newErrors.end(),
-        [](const ErrorInfo& a, const ErrorInfo& b) {
-            return static_cast<int>(a.level) > static_cast<int>(b.level);
-        });
+    std::sort(new_errors.begin(), new_errors.end(), [](const ErrorInfo &a, const ErrorInfo &b)
+              { return static_cast<int>(a.level) > static_cast<int>(b.level); });
 
-    UpdateErrorDisplay(newErrors);
+    UpdateErrorDisplay(new_errors);
 }
 
 /**
@@ -132,23 +129,23 @@ void ErrorComponent::UpdateErrorDisplay()
 void ErrorComponent::UpdateErrorDisplay(const std::vector<ErrorInfo> &errors)
 {
     // Store current error state
-    currentErrors_ = errors;
+    current_errors_ = errors;
 
     // Ensure current index is valid
-    if (currentErrorIndex_ >= currentErrors_.size())
+    if (current_error_index_ >= current_errors_.size())
     {
-        currentErrorIndex_ = 0;
+        current_error_index_ = 0;
     }
 
     // Display the current error
     DisplayCurrentError();
 
     // Update container border color based on current error level
-    if (!currentErrors_.empty() && currentErrorIndex_ < currentErrors_.size())
+    if (!current_errors_.empty() && current_error_index_ < current_errors_.size())
     {
-        ErrorLevel currentLevel = currentErrors_[currentErrorIndex_].level;
-        lv_color_t borderColor = StyleUtils::GetErrorColor(currentLevel);
-        lv_obj_set_style_border_color(errorContainer_, borderColor, 0);
+        ErrorLevel current_level = current_errors_[current_error_index_].level;
+        lv_color_t border_color = style_utils::GetErrorColor(current_level);
+        lv_obj_set_style_border_color(error_container_, border_color, 0);
     }
 }
 
@@ -160,30 +157,30 @@ void ErrorComponent::UpdateErrorDisplay(const std::vector<ErrorInfo> &errors)
  * Sets specific error to display from the list, validates index bounds,
  * and updates border color based on selected error's severity level.
  */
-void ErrorComponent::UpdateErrorDisplay(const std::vector<ErrorInfo> &errors, size_t currentIndex)
+void ErrorComponent::UpdateErrorDisplay(const std::vector<ErrorInfo> &errors, size_t current_index)
 {
     // Store current error state
-    currentErrors_ = errors;
+    current_errors_ = errors;
 
     // Set the current index
-    if (currentIndex < currentErrors_.size())
+    if (current_index < current_errors_.size())
     {
-        currentErrorIndex_ = currentIndex;
+        current_error_index_ = current_index;
     }
     else
     {
-        currentErrorIndex_ = 0;
+        current_error_index_ = 0;
     }
 
     // Display the current error
     DisplayCurrentError();
 
     // Update container border color based on current error level
-    if (!currentErrors_.empty() && currentErrorIndex_ < currentErrors_.size())
+    if (!current_errors_.empty() && current_error_index_ < current_errors_.size())
     {
-        ErrorLevel currentLevel = currentErrors_[currentErrorIndex_].level;
-        lv_color_t borderColor = StyleUtils::GetErrorColor(currentLevel);
-        lv_obj_set_style_border_color(errorContainer_, borderColor, 0);
+        ErrorLevel current_level = current_errors_[current_error_index_].level;
+        lv_color_t border_color = style_utils::GetErrorColor(current_level);
+        lv_obj_set_style_border_color(error_container_, border_color, 0);
     }
 }
 
@@ -202,50 +199,50 @@ void ErrorComponent::CreateSingleErrorUI(lv_obj_t *parent)
     log_v("CreateSingleErrorUI() called");
 
     // Create error count indicator at top
-    errorCountLabel_ = lv_label_create(parent);
-    lv_obj_align(errorCountLabel_, LV_ALIGN_TOP_MID, 0, 8); // Near top with minimal margin
-    lv_obj_set_style_text_font(errorCountLabel_, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(errorCountLabel_, lv_color_white(), 0); // Always white for dark background
-    lv_label_set_text(errorCountLabel_, UIStrings::ErrorUI::SINGLE_ERROR_COUNT);
+    error_count_label_ = lv_label_create(parent);
+    lv_obj_align(error_count_label_, LV_ALIGN_TOP_MID, 0, 8); // Near top with minimal margin
+    lv_obj_set_style_text_font(error_count_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(error_count_label_, lv_color_white(), 0); // Always white for dark background
+    lv_label_set_text(error_count_label_, ui_strings::error_ui::SINGLE_ERROR_COUNT);
 
     // Create main content area using most of the 220x220 available space
-    errorContentArea_ = lv_obj_create(parent);
-    lv_obj_set_size(errorContentArea_, 200, 180);            // Large content area
-    lv_obj_align(errorContentArea_, LV_ALIGN_CENTER, 0, 10); // Slightly down from center
-    lv_obj_set_style_bg_opa(errorContentArea_, LV_OPA_0, 0); // Transparent background
-    lv_obj_set_style_border_width(errorContentArea_, 0, 0);  // No border
-    lv_obj_set_style_pad_all(errorContentArea_, 5, 0);       // Minimal padding
+    error_content_area_ = lv_obj_create(parent);
+    lv_obj_set_size(error_content_area_, 200, 180);            // Large content area
+    lv_obj_align(error_content_area_, LV_ALIGN_CENTER, 0, 10); // Slightly down from center
+    lv_obj_set_style_bg_opa(error_content_area_, LV_OPA_0, 0); // Transparent background
+    lv_obj_set_style_border_width(error_content_area_, 0, 0);  // No border
+    lv_obj_set_style_pad_all(error_content_area_, 5, 0);       // Minimal padding
 
     // Create large error level indicator
-    errorLevelLabel_ = lv_label_create(errorContentArea_);
-    lv_obj_align(errorLevelLabel_, LV_ALIGN_TOP_MID, 0, 5);
-    lv_obj_set_style_text_font(errorLevelLabel_, &lv_font_montserrat_24, 0); // Large font
-    lv_obj_set_style_text_color(errorLevelLabel_, lv_color_white(), 0);
-    lv_label_set_text(errorLevelLabel_, UIStrings::ErrorUI::DEFAULT_ERROR_LEVEL);
+    error_level_label_ = lv_label_create(error_content_area_);
+    lv_obj_align(error_level_label_, LV_ALIGN_TOP_MID, 0, 5);
+    lv_obj_set_style_text_font(error_level_label_, &lv_font_montserrat_24, 0); // Large font
+    lv_obj_set_style_text_color(error_level_label_, lv_color_white(), 0);
+    lv_label_set_text(error_level_label_, ui_strings::error_ui::DEFAULT_ERROR_LEVEL);
 
     // Create error source label
-    errorSourceLabel_ = lv_label_create(errorContentArea_);
-    lv_obj_align(errorSourceLabel_, LV_ALIGN_TOP_MID, 0, 45);
-    lv_obj_set_style_text_font(errorSourceLabel_, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(errorSourceLabel_, lv_color_white(), 0);
-    lv_label_set_text(errorSourceLabel_, UIStrings::ErrorUI::DEFAULT_ERROR_SOURCE);
+    error_source_label_ = lv_label_create(error_content_area_);
+    lv_obj_align(error_source_label_, LV_ALIGN_TOP_MID, 0, 45);
+    lv_obj_set_style_text_font(error_source_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(error_source_label_, lv_color_white(), 0);
+    lv_label_set_text(error_source_label_, ui_strings::error_ui::DEFAULT_ERROR_SOURCE);
 
     // Create error message display with maximum available space
-    errorMessageLabel_ = lv_label_create(errorContentArea_);
-    lv_obj_set_size(errorMessageLabel_, 180, 100); // Large message area
-    lv_obj_align(errorMessageLabel_, LV_ALIGN_CENTER, 0, 25);
-    lv_obj_set_style_text_font(errorMessageLabel_, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(errorMessageLabel_, lv_color_white(), 0);
-    lv_obj_set_style_text_align(errorMessageLabel_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_long_mode(errorMessageLabel_, LV_LABEL_LONG_WRAP); // Multi-line text
-    lv_label_set_text(errorMessageLabel_, UIStrings::ErrorUI::LOADING_ERRORS_MESSAGE);
+    error_message_label_ = lv_label_create(error_content_area_);
+    lv_obj_set_size(error_message_label_, 180, 100); // Large message area
+    lv_obj_align(error_message_label_, LV_ALIGN_CENTER, 0, 25);
+    lv_obj_set_style_text_font(error_message_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(error_message_label_, lv_color_white(), 0);
+    lv_obj_set_style_text_align(error_message_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_long_mode(error_message_label_, LV_LABEL_LONG_WRAP); // Multi-line text
+    lv_label_set_text(error_message_label_, ui_strings::error_ui::LOADING_ERRORS_MESSAGE);
 
     // Create navigation indicator at bottom
-    navigationIndicator_ = lv_label_create(parent);
-    lv_obj_align(navigationIndicator_, LV_ALIGN_BOTTOM_MID, 0, -8);
-    lv_obj_set_style_text_font(navigationIndicator_, &lv_font_montserrat_10, 0);
-    lv_obj_set_style_text_color(navigationIndicator_, lv_color_white(), 0);
-    lv_label_set_text(navigationIndicator_, UIStrings::ErrorUI::LOADING_NAVIGATION);
+    navigation_indicator_ = lv_label_create(parent);
+    lv_obj_align(navigation_indicator_, LV_ALIGN_BOTTOM_MID, 0, -8);
+    lv_obj_set_style_text_font(navigation_indicator_, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_color(navigation_indicator_, lv_color_white(), 0);
+    lv_label_set_text(navigation_indicator_, ui_strings::error_ui::LOADING_NAVIGATION);
 }
 
 /**
@@ -258,41 +255,40 @@ void ErrorComponent::CreateSingleErrorUI(lv_obj_t *parent)
 void ErrorComponent::DisplayCurrentError()
 {
     log_v("DisplayCurrentError() called");
-    if (currentErrors_.empty())
+    if (current_errors_.empty())
     {
         // Don't update display when no errors - panel should be closing
         // This prevents the brief "0/0 errors" screen from showing
         return;
     }
 
-    if (currentErrorIndex_ >= currentErrors_.size())
+    if (current_error_index_ >= current_errors_.size())
     {
-        currentErrorIndex_ = 0; // Reset if out of bounds
+        current_error_index_ = 0; // Reset if out of bounds
     }
 
-    const ErrorInfo &currentError = currentErrors_[currentErrorIndex_];
+    const ErrorInfo &current_error = current_errors_[current_error_index_];
 
     // Update error count indicator
-    char positionText[16];
-    snprintf(positionText, sizeof(positionText), "errors: %zu", currentErrors_.size());
-    lv_label_set_text(errorCountLabel_, positionText);
+    char position_text[16];
+    snprintf(position_text, sizeof(position_text), "errors: %zu", current_errors_.size());
+    lv_label_set_text(error_count_label_, position_text);
 
     // Update error level with color
-    const char *levelText = GetErrorLevelText(currentError.level);
-    lv_label_set_text(errorLevelLabel_, levelText);
-    lv_obj_set_style_text_color(errorLevelLabel_, StyleUtils::GetErrorColor(currentError.level), 0);
+    const char *level_text = GetErrorLevelText(current_error.level);
+    lv_label_set_text(error_level_label_, level_text);
+    lv_obj_set_style_text_color(error_level_label_, style_utils::GetErrorColor(current_error.level), 0);
 
     // Update source
-    lv_label_set_text(errorSourceLabel_, currentError.source);
+    lv_label_set_text(error_source_label_, current_error.source);
 
     // Update message - can display full message now with wrapping
-    lv_label_set_text(errorMessageLabel_, currentError.message);
+    lv_label_set_text(error_message_label_, current_error.message);
 
     // Update navigation indicator - same for all errors
     // Short press cycles through errors, long press exits from any error
-    lv_label_set_text(navigationIndicator_, UIStrings::ErrorUI::NAVIGATION_INSTRUCTIONS);
+    lv_label_set_text(navigation_indicator_, ui_strings::error_ui::NAVIGATION_INSTRUCTIONS);
 }
-
 
 // ========== Helper Methods ==========
 
@@ -310,13 +306,13 @@ const char *ErrorComponent::GetErrorLevelText(ErrorLevel level)
     switch (level)
     {
         case ErrorLevel::CRITICAL:
-            return UIStrings::ErrorUI::LEVEL_CRITICAL;
+            return ui_strings::error_ui::LEVEL_CRITICAL;
         case ErrorLevel::ERROR:
-            return UIStrings::ErrorUI::LEVEL_ERROR;
+            return ui_strings::error_ui::LEVEL_ERROR;
         case ErrorLevel::WARNING:
-            return UIStrings::ErrorUI::LEVEL_WARNING;
+            return ui_strings::error_ui::LEVEL_WARNING;
         default:
-            return UIStrings::ErrorUI::LEVEL_UNKNOWN;
+            return ui_strings::error_ui::LEVEL_UNKNOWN;
     }
 }
 

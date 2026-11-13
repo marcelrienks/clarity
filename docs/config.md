@@ -21,7 +21,6 @@ The following tree shows all configuration sections as they appear in the Config
 ```
 📋 Configuration Menu
 ├── 📊 Display
-│   ├── Theme → Day, Night (default: Day)
 │   └── Brightness → 10%, 25%, 50%, 75%, 100% (default: 80%)
 │
 ├── 🛢️ Oil Pressure Sensor
@@ -40,7 +39,7 @@ The following tree shows all configuration sections as they appear in the Config
 │   └── Duration → 1500ms, 1750ms, 2000ms, 2500ms (default: 1500ms)
 │
 ├── ⚙️ System
-│   ├── Default Panel → OemOilPanel, ConfigPanel, DiagnosticPanel (default: OemOilPanel)
+│   ├── Default Panel → OemOilPanel, ConfigPanel (default: OemOilPanel)
 │   ├── Update Rate → 100, 250, 500, 750, 1000, 1500, 2000 ms (default: 500)
 │   └── Show Splash → true/false (default: true)
 │
@@ -125,7 +124,7 @@ inline Config::ConfigItem defaultPanelConfig(
     ConfigConstants::Items::DEFAULT_PANEL,
     UIStrings::ConfigLabels::DEFAULT_PANEL,
     std::string(ConfigConstants::Panels::OEM_OIL_PANEL),
-    Config::ConfigMetadata("OemOilPanel,ConfigPanel,DiagnosticPanel",
+    Config::ConfigMetadata("OemOilPanel,ConfigPanel",
                           Config::ConfigItemType::Selection)
 );
 
@@ -148,8 +147,8 @@ void registerSystemConfiguration() {
 ## Configuration Types
 
 ### ConfigItem Structure
-- **key**: Item identifier (e.g., "unit", "theme")
-- **displayName**: UI label (e.g., "Pressure Unit", "Theme")
+- **key**: Item identifier (e.g., "unit", "brightness")
+- **displayName**: UI label (e.g., "Pressure Unit", "Brightness")
 - **defaultValue**: ConfigValue variant (bool, int, float, string)
 - **metadata**: ConfigMetadata with constraints and type info
 
@@ -207,7 +206,7 @@ NVS Storage Structure:
 ├── cfg_system           → System settings
 ├── cfg_oil_pressure     → Oil pressure sensor config
 ├── cfg_oil_temp         → Oil temperature sensor config
-├── cfg_style            → Display/theme settings
+├── cfg_style            → Display settings (brightness). The theme is not stored: it follows the lights signal
 └── cfg_splash           → Splash screen settings
 ```
 

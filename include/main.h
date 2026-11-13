@@ -25,13 +25,18 @@
 #define UI_VERSION "4.1.0"
 
 // ========== System/Library Includes ==========
+// Third-party header: keep project warning flags from firing inside it
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#pragma GCC diagnostic ignored "-Woverloaded-virtual"
 #include <LovyanGFX.hpp>
+#pragma GCC diagnostic pop
 #include <lvgl.h>
 
 // ========== Project Includes ==========
-#include "utilities/ticker.h"
 #include "definitions/configs.h"
 #include "definitions/constants.h"
+#include "utilities/ticker.h"
 #include <memory>
 
 // ========== Forward Declarations ==========
@@ -43,45 +48,53 @@ class IDisplayProvider;
 class StyleManager;
 class IConfigurationManager;
 class PanelManager;
-class InterruptManager;
+class Inputs;
+class DisplayController;
 class ErrorManager;
 class ConfigurationManager;
 
 // ========== Global Variables ==========
 // Global factories - dual factory pattern implementation
-extern std::unique_ptr<ProviderFactory> providerFactory;
-extern std::unique_ptr<ManagerFactory> managerFactory;
+extern std::unique_ptr<ProviderFactory> provider_factory;
+extern std::unique_ptr<ManagerFactory> manager_factory;
 
 // Global providers - created by ProviderFactory
-extern std::unique_ptr<DeviceProvider> deviceProvider;
-extern std::unique_ptr<IGpioProvider> gpioProvider;
-extern std::unique_ptr<IDisplayProvider> displayProvider;
+extern std::unique_ptr<DeviceProvider> device_provider;
+extern std::unique_ptr<IGpioProvider> gpio_provider;
+extern std::unique_ptr<IDisplayProvider> display_provider;
 
 // Global managers - created by ManagerFactory
-extern std::unique_ptr<StyleManager> styleManager;
-extern std::unique_ptr<IConfigurationManager> preferenceManager;
-extern std::unique_ptr<PanelManager> panelManager;
-extern InterruptManager *interruptManager;
-extern ErrorManager *errorManager;
-extern std::unique_ptr<IConfigurationManager> configurationManager;
+extern std::unique_ptr<StyleManager> style_manager;
+extern std::unique_ptr<IConfigurationManager> preference_manager;
+extern std::unique_ptr<PanelManager> panel_manager;
+extern std::unique_ptr<Inputs> inputs;
+extern std::unique_ptr<DisplayController> display_controller;
+extern ErrorManager *error_manager;
+extern std::unique_ptr<IConfigurationManager> configuration_manager;
 
 // ========== System Configuration Items ==========
 // Inline definitions (C++17) - global scope configuration
-inline Config::ConfigItem defaultPanelConfig(ConfigConstants::Items::DEFAULT_PANEL, UIStrings::ConfigLabels::DEFAULT_PANEL,
-                                             std::string(ConfigConstants::Panels::OEM_OIL_PANEL),
-                                             Config::ConfigMetadata(ConfigConstants::Options::PANEL_OPTIONS, Config::ConfigItemType::Selection));
+inline config::ConfigItem default_panel_config(config_constants::items::DEFAULT_PANEL,
+                                               ui_strings::config_labels::DEFAULT_PANEL,
+                                               std::string(config_constants::panels::OEM_OIL_PANEL),
+                                               config::ConfigMetadata(config_constants::options::PANEL_OPTIONS,
+                                                                      config::ConfigItemType::Selection));
 
-inline Config::ConfigItem updateRateConfig(ConfigConstants::Items::UPDATE_RATE, UIStrings::ConfigLabels::UPDATE_RATE,
-                                           500, Config::ConfigMetadata(ConfigConstants::Options::SYSTEM_UPDATE_RATES, ConfigConstants::Units::MILLISECONDS, Config::ConfigItemType::Selection));
+inline config::ConfigItem update_rate_config(config_constants::items::UPDATE_RATE,
+                                             ui_strings::config_labels::UPDATE_RATE, 500,
+                                             config::ConfigMetadata(config_constants::options::SYSTEM_UPDATE_RATES,
+                                                                    config_constants::units::MILLISECONDS,
+                                                                    config::ConfigItemType::Selection));
 
-inline Config::ConfigItem showSplashConfig(ConfigConstants::Items::SHOW_SPLASH, UIStrings::ConfigLabels::SHOW_SPLASH,
-                                           true, Config::ConfigMetadata());
+inline config::ConfigItem show_splash_config(config_constants::items::SHOW_SPLASH,
+                                             ui_strings::config_labels::SHOW_SPLASH, true, config::ConfigMetadata());
 
 // ========== Function Declarations ==========
-void registerSystemConfiguration();
+void RegisterSystemConfiguration();
 
 // Static schema registration for self-registering pattern
-class SystemConfig {
-public:
-    static void RegisterConfigSchema(IConfigurationManager* configurationManager);
+class SystemConfig
+{
+  public:
+    static void RegisterConfigSchema(IConfigurationManager *configuration_manager);
 };

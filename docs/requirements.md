@@ -111,10 +111,10 @@ Clarity is a digital gauge system designed for automotive engine monitoring, bui
    - **Short Press**: Navigate through current menu level options
    - **Long Press**: Select highlighted option / Enter submenu / Apply setting
    - **Menu Structure**:
-     - **Main Menu**: Theme Settings, Default Panel, Exit
-     - **Theme Submenu**: Day Theme, Night Theme, Back
+     - **Main Menu**: one entry per section (Button, Display, Oil Press., Oil Temp., Splash Scr., System), then Exit
+     - **Display Submenu**: Brightness, Back (no theme setting: the theme follows the lights signal only)
      - **Panel Submenu**: Default panel selection options
-   - **Integration**: StyleManager (themes), PreferenceManager (persistence), PanelManager (defaults)
+   - **Integration**: PreferenceManager (persistence), PanelManager (defaults)
    - **State Persistence**: Menu state maintained during navigation
 
 #### 2.2.2 Panel Switching and Universal Button System
@@ -657,9 +657,9 @@ protected:
 - **Night Theme**: Red/dark colors for night vision
 
 #### 2.6.2 Theme Switching
-- Automatic based on light sensor
+- Driven only by the dash-light signal: lights on is Night, lights off is Day. There is no manual theme setting
 - Instant switching without panel reload
-- Theme persists across panel switches
+- The error panel temporarily applies the Error theme; the lights-driven theme returns afterwards
 
 ## 3. Non-Functional Requirements
 

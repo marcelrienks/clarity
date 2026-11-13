@@ -1,9 +1,9 @@
 #pragma once
 
+#include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_style_manager.h"
 #include <Arduino.h>
 #include <memory>
@@ -13,7 +13,6 @@ class PanelManager;
 class StyleManager;
 class DeviceProvider;
 class ConfigurationManager;
-class InterruptManager;
 class ErrorManager;
 class ProviderFactory;
 
@@ -21,7 +20,7 @@ class ProviderFactory;
  * @class ManagerFactory
  * @brief Concrete factory for creating manager instances with error handling and logging
  *
- * @details This factory implements IManagerFactory interface and provides methods 
+ * @details This factory implements IManagerFactory interface and provides methods
  * for creating all manager types used in the Clarity system. It uses IProviderFactory
  * to obtain hardware providers, implementing the dual factory pattern for clear
  * separation of concerns. Each factory method includes proper error handling,
@@ -35,49 +34,43 @@ class ProviderFactory;
  */
 class ManagerFactory
 {
-public:
+  public:
     // ========== Constructors and Destructor ==========
-    explicit ManagerFactory(std::unique_ptr<ProviderFactory> providerFactory);
+    explicit ManagerFactory(std::unique_ptr<ProviderFactory> provider_factory);
     ManagerFactory();
     ~ManagerFactory() = default;
-    
+
     // ========== Public Interface Methods ==========
     // Factory methods
     std::unique_ptr<PanelManager> CreatePanelManager(IDisplayProvider *display, IGpioProvider *gpio,
-                                                      IStyleManager *styleManager,
-                                                      IConfigurationManager *configurationManager,
-                                                      InterruptManager *interruptManager);
+                                                     IStyleManager *style_manager,
+                                                     IConfigurationManager *configuration_manager);
 
     std::unique_ptr<StyleManager> CreateStyleManager(const char *theme = nullptr);
 
     std::unique_ptr<IConfigurationManager> CreateConfigurationManager();
 
-    InterruptManager* CreateInterruptManager(IGpioProvider* gpioProvider);
+    ErrorManager *CreateErrorManager();
 
-    ErrorManager* CreateErrorManager();
-
-private:
+  private:
     // ========== Private Methods ==========
     bool InitializeProviders();
-    
+
     // ========== Static Methods ==========
     static std::unique_ptr<PanelManager> CreatePanelManagerImpl(IDisplayProvider *display, IGpioProvider *gpio,
-                                                                IStyleManager *styleManager,
-                                                                IConfigurationManager *configurationManager,
-                                                                InterruptManager *interruptManager);
+                                                                IStyleManager *style_manager,
+                                                                IConfigurationManager *configuration_manager);
 
     static std::unique_ptr<StyleManager> CreateStyleManagerImpl(const char *theme = nullptr);
 
     static std::unique_ptr<IConfigurationManager> CreateConfigurationManagerImpl();
 
-    static InterruptManager* CreateInterruptManagerImpl(IGpioProvider* gpioProvider);
-
-    static ErrorManager* CreateErrorManagerImpl();
+    static ErrorManager *CreateErrorManagerImpl();
 
     // ========== Private Data Members ==========
-    std::unique_ptr<ProviderFactory> providerFactory_;
-    
-    std::unique_ptr<IGpioProvider> gpioProvider_;
-    std::unique_ptr<IDisplayProvider> displayProvider_;
-    std::unique_ptr<DeviceProvider> deviceProvider_;
+    std::unique_ptr<ProviderFactory> provider_factory_;
+
+    std::unique_ptr<IGpioProvider> gpio_provider_;
+    std::unique_ptr<IDisplayProvider> display_provider_;
+    std::unique_ptr<DeviceProvider> device_provider_;
 };

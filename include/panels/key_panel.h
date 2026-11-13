@@ -1,8 +1,8 @@
 #pragma once
 
-#include "panels/base_panel.h"
 #include "components/key_component.h"
 #include "definitions/constants.h"
+#include "panels/base_panel.h"
 /**
  * @class KeyPanel
  * @brief Key status monitoring panel
@@ -30,27 +30,27 @@ class KeyPanel : public BasePanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *styleManager,
-             IPanelManager *panelManager = nullptr);
+    KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
+             IPanelManager *panel_manager = nullptr);
 
     // ========== Public Interface Methods ==========
-    static constexpr const char *NAME = PanelNames::KEY;
+    static constexpr const char *NAME = panel_names::KEY;
 
   protected:
     // ========== Protected Methods ==========
     void CreateContent() override;
     void UpdateContent() override;
-    const char* GetPanelName() const override { return PanelNames::KEY; }
+    const char *GetPanelName() const override
+    {
+        return panel_names::KEY;
+    }
 
     // Optional overrides
     void HandleLongPress() override;
 
   private:
-    // ========== Private Methods ==========
-    KeyState DetermineCurrentKeyState();
-
     // ========== Private Data Members ==========
-    KeyComponent keyComponent_;
-    bool componentInitialized_ = false;
-    KeyState currentKeyState_ = KeyState::Inactive;
+    KeyComponent key_component_;
+    bool component_initialized_ = false;
+    KeyState current_key_state_ = KeyState::Inactive;
 };

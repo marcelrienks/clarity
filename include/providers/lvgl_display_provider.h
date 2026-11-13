@@ -44,10 +44,10 @@
 class LvglDisplayProvider : public IDisplayProvider
 {
   private:
-    lv_obj_t *mainScreen_;
+    lv_obj_t *main_screen_;
 
   public:
-    explicit LvglDisplayProvider(lv_obj_t *mainScreen);
+    explicit LvglDisplayProvider(lv_obj_t *main_screen);
 
     lv_obj_t *CreateScreen() override;
 
@@ -60,5 +60,4 @@ class LvglDisplayProvider : public IDisplayProvider
     lv_obj_t *CreateScale(lv_obj_t *parent) override;
 
     lv_obj_t *CreateImage(lv_obj_t *parent) override;
-
 };

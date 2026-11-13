@@ -1,16 +1,17 @@
 #include "sensors/oil_temperature_sensor.h"
-#include "managers/error_manager.h"
 #include "definitions/configs.h"
-#include "utilities/logging.h"
 #include "definitions/constants.h"
-#include "utilities/unit_converter.h"
 #include "managers/configuration_manager.h"
+#include "managers/error_manager.h"
+#include "utilities/logging.h"
+#include "utilities/unit_converter.h"
 #include <Arduino.h>
-#include <esp32-hal-log.h>
 #include <algorithm>
+#include <esp32-hal-log.h>
 
 // Self-registration at program startup
-static bool oil_temperature_registered = []() {
+static bool oil_temperature_registered = []()
+{
     ConfigurationManager::AddSchema(OilTemperatureSensor::RegisterConfigSchema);
     return true;
 }();
@@ -26,13 +27,13 @@ static bool oil_temperature_registered = []() {
  * configuration values. Uses Celsius as the default temperature unit. This constructor
  * is used when no preference service is available for dynamic configuration.
  */
-OilTemperatureSensor::OilTemperatureSensor(IGpioProvider *gpioProvider, int updateRateMs)
-    : gpioProvider_(gpioProvider), updateIntervalMs_(updateRateMs)
+OilTemperatureSensor::OilTemperatureSensor(IGpioProvider *gpio_provider, int update_rate_ms)
+    : gpio_provider_(gpio_provider), update_interval_ms_(update_rate_ms)
 {
     log_v("OilTemperatureSensor() constructor called");
     // Set default unit to Celsius
-    targetUnit_ = ConfigConstants::Defaults::DEFAULT_TEMPERATURE_UNIT;
-    currentReading_ = 0;
+    target_unit_ = config_constants::defaults::DEFAULT_TEMPERATURE_UNIT;
+    current_reading_ = 0;
 }
 
 /**
@@ -45,13 +46,14 @@ OilTemperatureSensor::OilTemperatureSensor(IGpioProvider *gpioProvider, int upda
  * Allows for real-time calibration adjustments and unit changes. The preference service
  * enables live configuration updates and persistent storage of sensor settings.
  */
-OilTemperatureSensor::OilTemperatureSensor(IGpioProvider *gpioProvider, IConfigurationManager *configurationManager, int updateRateMs)
-    : gpioProvider_(gpioProvider), configurationManager_(configurationManager), updateIntervalMs_(updateRateMs)
+OilTemperatureSensor::OilTemperatureSensor(IGpioProvider *gpio_provider, IConfigurationManager *configuration_manager,
+                                           int update_rate_ms)
+    : gpio_provider_(gpio_provider), configuration_manager_(configuration_manager), update_interval_ms_(update_rate_ms)
 {
     log_v("OilTemperatureSensor() constructor with preference service called");
     // Set default unit to Celsius
-    targetUnit_ = ConfigConstants::Defaults::DEFAULT_TEMPERATURE_UNIT;
-    currentReading_ = 0;
+    target_unit_ = config_constants::defaults::DEFAULT_TEMPERATURE_UNIT;
+    current_reading_ = 0;
 }
 
 // Core Functionality Methods
@@ -74,7 +76,8 @@ void OilTemperatureSensor::Init()
     analogSetAttenuation(ADC_11db); // 0-3.3V range
 
     // Load configuration (schema already registered at startup)
-    if (configurationManager_) {
+    if (configuration_manager_)
+    {
         LoadConfiguration();
         log_i("OilTemperatureSensor initialized with configuration");
     }
@@ -94,7 +97,7 @@ void OilTemperatureSensor::Init()
 std::vector<std::string> OilTemperatureSensor::GetSupportedUnits() const
 {
     log_v("GetSupportedUnits() called");
-    return {ConfigConstants::Units::CELSIUS, ConfigConstants::Units::FAHRENHEIT};
+    return {config_constants::units::CELSIUS, config_constants::units::FAHRENHEIT};
 }
 
 /**
@@ -110,17 +113,17 @@ void OilTemperatureSensor::SetTargetUnit(const std::string &unit)
 {
     log_v("SetTargetUnit() called");
     // Validate unit is supported
-    auto supportedUnits = GetSupportedUnits();
-    if (std::find(supportedUnits.begin(), supportedUnits.end(), unit) == supportedUnits.end())
+    auto supported_units = GetSupportedUnits();
+    if (std::find(supported_units.begin(), supported_units.end(), unit) == supported_units.end())
     {
         // Use static string to avoid allocation in error path
-        static const char* errorMsg = "Unsupported temperature unit requested. Using default C.";
-        ErrorManager::Instance().ReportError(ErrorLevel::WARNING, "OilTemperatureSensor", errorMsg);
-        targetUnit_ = ConfigConstants::Defaults::DEFAULT_TEMPERATURE_UNIT;
+        static const char *error_msg = "Unsupported temperature unit requested. Using default C.";
+        ErrorManager::Instance().ReportError(ErrorLevel::WARNING, "OilTemperatureSensor", error_msg);
+        target_unit_ = config_constants::defaults::DEFAULT_TEMPERATURE_UNIT;
     }
     else
     {
-        targetUnit_ = unit;
+        target_unit_ = unit;
     }
 }
 
@@ -137,36 +140,36 @@ void OilTemperatureSensor::SetTargetUnit(const std::string &unit)
 Reading OilTemperatureSensor::GetReading()
 {
     // Check if enough time has passed for update
-    if (ShouldUpdate(lastUpdateTime_, updateIntervalMs_))
+    if (ShouldUpdate(last_update_time_, update_interval_ms_))
     {
         // Read raw value from ADC
-        int32_t rawValue = ReadRawValue();
+        int32_t raw_value = ReadRawValue();
 
         // Validate ADC reading
-        if (!IsValidAdcReading(rawValue))
+        if (!IsValidAdcReading(raw_value))
         {
             // Use char buffer to avoid std::to_string allocation in error path
-            static char errorBuffer[64];
-            snprintf(errorBuffer, sizeof(errorBuffer), "Raw reading out of range: %d", rawValue);
-            ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "OilTemperatureSensor", errorBuffer);
+            static char error_buffer[64];
+            snprintf(error_buffer, sizeof(error_buffer), "Raw reading out of range: %ld", static_cast<long>(raw_value));
+            ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "OilTemperatureSensor", error_buffer);
             return std::monostate{}; // Return invalid reading
         }
 
         // Convert to target unit
-        int32_t newValue = ConvertReading(rawValue);
+        int32_t new_value = ConvertReading(raw_value);
 
         // Update change tracking
-        DetectChange(newValue, previousReading_);
+        DetectChange(new_value, previous_reading_);
 
         // Only update current reading if value actually changed
-        if (newValue != currentReading_)
+        if (new_value != current_reading_)
         {
-            currentReading_ = newValue;
-            log_t("Temperature reading: %d %s", currentReading_, targetUnit_.c_str());
+            current_reading_ = new_value;
+            log_t("Temperature reading: %d %s", current_reading_, target_unit_.c_str());
         }
     }
 
-    return currentReading_;
+    return current_reading_;
 }
 
 /**
@@ -177,9 +180,9 @@ Reading OilTemperatureSensor::GetReading()
  * Lower values provide more responsive readings but increase CPU usage.
  * Used by both initialization and live configuration updates.
  */
-void OilTemperatureSensor::SetUpdateRate(int updateRateMs)
+void OilTemperatureSensor::SetUpdateRate(int update_rate_ms)
 {
-    updateIntervalMs_ = updateRateMs;
+    update_interval_ms_ = update_rate_ms;
 }
 
 // Internal methods
@@ -195,7 +198,7 @@ void OilTemperatureSensor::SetUpdateRate(int updateRateMs)
 int32_t OilTemperatureSensor::ReadRawValue()
 {
     // Read analog value from GPIO pin (0-4095 for 12-bit ADC)
-    return gpioProvider_->AnalogRead(gpio_pins::OIL_TEMPERATURE);
+    return gpio_provider_->AnalogRead(gpio_pins::OIL_TEMPERATURE);
 }
 
 /**
@@ -208,25 +211,25 @@ int32_t OilTemperatureSensor::ReadRawValue()
  * 0-120°C. All values are stored internally as Celsius and converted to the
  * requested unit for display.
  */
-int32_t OilTemperatureSensor::ConvertReading(int32_t rawValue)
+int32_t OilTemperatureSensor::ConvertReading(int32_t raw_value)
 {
     // Apply calibration
-    float calibratedValue = static_cast<float>(rawValue);
-    calibratedValue = (calibratedValue * calibrationScale_) + calibrationOffset_;
+    float calibrated_value = static_cast<float>(raw_value);
+    calibrated_value = (calibrated_value * calibration_scale_) + calibration_offset_;
 
     // Convert calibrated ADC value to Celsius (base unit)
     // Base calibration: 0-4095 ADC = 0-120°C
-    float celsiusValue = (calibratedValue * SensorConstants::TEMPERATURE_MAX_CELSIUS) / ADC_MAX_VALUE;
+    float celsius_value = (calibrated_value * sensor_constants::TEMPERATURE_MAX_CELSIUS) / ADC_MAX_VALUE;
 
     // Convert from base unit (Celsius) to target unit
-    if (targetUnit_ == ConfigConstants::Units::FAHRENHEIT)
+    if (target_unit_ == config_constants::units::FAHRENHEIT)
     {
-        return static_cast<int32_t>(UnitConverter::CelsiusToFahrenheit(celsiusValue));
+        return static_cast<int32_t>(unit_converter::CelsiusToFahrenheit(celsius_value));
     }
     else
     {
         // Already in Celsius
-        return static_cast<int32_t>(celsiusValue);
+        return static_cast<int32_t>(celsius_value);
     }
 }
 
@@ -241,9 +244,9 @@ int32_t OilTemperatureSensor::ConvertReading(int32_t rawValue)
  */
 bool OilTemperatureSensor::HasStateChanged()
 {
-    // Use cached reading to avoid double ADC reads - GetReading() updates currentReading_
-    int32_t cachedReading = static_cast<int32_t>(std::get<int32_t>(GetReading()));
-    return DetectChange(cachedReading, previousChangeReading_);
+    // Use cached reading to avoid double ADC reads - GetReading() updates current_reading_
+    int32_t cached_reading = static_cast<int32_t>(std::get<int32_t>(GetReading()));
+    return DetectChange(cached_reading, previous_change_reading_);
 }
 
 /**
@@ -256,40 +259,54 @@ bool OilTemperatureSensor::HasStateChanged()
  */
 void OilTemperatureSensor::LoadConfiguration()
 {
-    if (!configurationManager_) {
-        log_e("OilTemperatureSensor::LoadConfiguration: ConfigurationManager is null - cannot load sensor configuration!");
+    if (!configuration_manager_)
+    {
+        log_e("OilTemperatureSensor::LoadConfiguration: ConfigurationManager is null - cannot load sensor "
+              "configuration!");
         ErrorManager::Instance().ReportCriticalError("OilTemperatureSensor",
                                                      "ConfigManager null - using default settings");
         return;
     }
 
     // Load using type-safe config system with static constants
-    if (auto unitValue = configurationManager_->QueryConfig<std::string>(CONFIG_UNIT)) {
-        targetUnit_ = *unitValue;
-    } else {
-        targetUnit_ = ConfigConstants::Defaults::DEFAULT_TEMPERATURE_UNIT;
+    if (auto unit_value = configuration_manager_->QueryConfig<std::string>(CONFIG_UNIT))
+    {
+        target_unit_ = *unit_value;
+    }
+    else
+    {
+        target_unit_ = config_constants::defaults::DEFAULT_TEMPERATURE_UNIT;
     }
 
-    if (auto rateValue = configurationManager_->QueryConfig<int>(CONFIG_UPDATE_RATE)) {
-        updateIntervalMs_ = *rateValue;
-    } else {
-        updateIntervalMs_ = 500;
+    if (auto rate_value = configuration_manager_->QueryConfig<int>(CONFIG_UPDATE_RATE))
+    {
+        update_interval_ms_ = *rate_value;
+    }
+    else
+    {
+        update_interval_ms_ = 500;
     }
 
-    if (auto offsetValue = configurationManager_->QueryConfig<float>(CONFIG_OFFSET)) {
-        calibrationOffset_ = *offsetValue;
-    } else {
-        calibrationOffset_ = 0.0f;
+    if (auto offset_value = configuration_manager_->QueryConfig<float>(CONFIG_OFFSET))
+    {
+        calibration_offset_ = *offset_value;
+    }
+    else
+    {
+        calibration_offset_ = 0.0f;
     }
 
-    if (auto scaleValue = configurationManager_->QueryConfig<float>(CONFIG_SCALE)) {
-        calibrationScale_ = *scaleValue;
-    } else {
-        calibrationScale_ = 1.0f;
+    if (auto scale_value = configuration_manager_->QueryConfig<float>(CONFIG_SCALE))
+    {
+        calibration_scale_ = *scale_value;
+    }
+    else
+    {
+        calibration_scale_ = 1.0f;
     }
 
     log_i("Loaded oil temperature sensor configuration: unit=%s, rate=%lu, offset=%.2f, scale=%.2f",
-          targetUnit_.c_str(), updateIntervalMs_, calibrationOffset_, calibrationScale_);
+          target_unit_.c_str(), update_interval_ms_, calibration_offset_, calibration_scale_);
 }
 
 /**
@@ -300,33 +317,37 @@ void OilTemperatureSensor::LoadConfiguration()
  * Registers the oil temperature sensor configuration schema without
  * requiring a sensor instance to exist.
  */
-void OilTemperatureSensor::RegisterConfigSchema(IConfigurationManager* configurationManager)
+void OilTemperatureSensor::RegisterConfigSchema(IConfigurationManager *configuration_manager)
 {
-    if (!configurationManager) {
-        log_e("OilTemperatureSensor::RegisterConfigSchema: ConfigurationManager is null - sensor config registration failed!");
+    if (!configuration_manager)
+    {
+        log_e("OilTemperatureSensor::RegisterConfigSchema: ConfigurationManager is null - sensor config registration "
+              "failed!");
         ErrorManager::Instance().ReportCriticalError("OilTemperatureSensor",
                                                      "ConfigManager null - temp sensor config failed");
         return;
     }
 
     // Check if already registered to prevent duplicates
-    if (configurationManager->IsSchemaRegistered(CONFIG_SECTION)) {
+    if (configuration_manager->IsSchemaRegistered(CONFIG_SECTION))
+    {
         return;
     }
 
-    using namespace Config;
+    using namespace config;
 
     // Create configuration section for this sensor component
-    ConfigSection section(ConfigConstants::Sections::OIL_TEMPERATURE_SENSOR, CONFIG_SECTION, ConfigConstants::SectionNames::OIL_TEMPERATURE_SENSOR);
+    ConfigSection section(config_constants::sections::OIL_TEMPERATURE_SENSOR, CONFIG_SECTION,
+                          config_constants::section_names::OIL_TEMPERATURE_SENSOR);
 
-    section.AddItem(unitConfig_);
-    section.AddItem(updateRateConfig_);
-    section.AddItem(offsetConfig_);
-    section.AddItem(scaleConfig_);
-    section.AddItem(deadbandConfig_);
+    section.AddItem(unit_config);
+    section.AddItem(update_rate_config);
+    section.AddItem(offset_config);
+    section.AddItem(scale_config);
+    section.AddItem(deadband_config);
 
     // Register with preference service for persistence and UI generation
-    configurationManager->RegisterConfigSection(section);
+    configuration_manager->RegisterConfigSection(section);
     log_i("Registered oil temperature sensor configuration schema (static)");
 }
 
@@ -338,8 +359,8 @@ void OilTemperatureSensor::RegisterConfigSchema(IConfigurationManager* configura
  * New code path uses static RegisterConfigSchema instead.
  * Can be removed once all components are migrated.
  */
-void OilTemperatureSensor::RegisterConfig(IConfigurationManager* configurationManager)
+void OilTemperatureSensor::RegisterConfig(IConfigurationManager *configuration_manager)
 {
     // During migration, just delegate to static method
-    RegisterConfigSchema(configurationManager);
+    RegisterConfigSchema(configuration_manager);
 }

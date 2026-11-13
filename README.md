@@ -62,11 +62,9 @@ pio run -e release         # Optimized production build
 
 ### **Testing & Simulation**
 ```bash
-# Interactive manual testing with full verbose logs
-cd test/manual && ./wokwi_debug.sh
-
-# Automated integration testing with clean logs
-cd test/wokwi && ./wokwi_run.sh
+# Automated integration testing (5 Wokwi scenario parts, needs WOKWI_CLI_TOKEN)
+pio run -e test-wokwi
+cd test/wokwi && ./wokwi_test_automation.sh
 ```
 
 ---
@@ -121,10 +119,9 @@ cd test/wokwi && ./wokwi_run.sh
 ## 📦 **Dependencies**
 
 ### **Core Libraries**
-- **[Arduino Framework](https://github.com/espressif/arduino-esp32)** - ESP32 hardware abstraction
+- **[Arduino Framework](https://github.com/espressif/arduino-esp32)** - ESP32 hardware abstraction (Arduino core 3.3.12 via `espressif32` platform 8.0.0, pinned in `platformio.ini`)
 - **[LVGL 9.3.0](https://docs.lvgl.io/master/)** - Advanced graphics library optimized for embedded
 - **[LovyanGFX 1.2.7](https://github.com/lovyan03/LovyanGFX)** - High-performance display driver
-- **[ArduinoJson 7.4.2](https://arduinojson.org/)** - Efficient JSON parsing for configuration
 - **[Preferences 2.0.0](https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences)** - ESP32 NVS storage wrapper
 
 ### **Development Tools**

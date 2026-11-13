@@ -1,10 +1,10 @@
 #pragma once
 
+#include "definitions/styles.h"
+#include "definitions/types.h"
 #include "interfaces/i_component.h"
 #include "interfaces/i_style_manager.h"
 #include "managers/error_manager.h"
-#include "definitions/styles.h"
-#include "definitions/types.h"
 
 #include <lvgl.h>
 #include <vector>
@@ -37,10 +37,10 @@
  */
 class ErrorComponent : public IComponent
 {
-public:
+  public:
     // ========== Constructors and Destructor ==========
-    explicit ErrorComponent(IStyleManager *styleManager);
-    virtual ~ErrorComponent();
+    explicit ErrorComponent(IStyleManager *style_manager);
+    ~ErrorComponent() override;
 
     // ========== Public Interface Methods ==========
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;
@@ -49,30 +49,30 @@ public:
     // ========== Error-specific Methods ==========
     void UpdateErrorDisplay();
     void UpdateErrorDisplay(const std::vector<ErrorInfo> &errors);
-    void UpdateErrorDisplay(const std::vector<ErrorInfo> &errors, size_t currentIndex);
+    void UpdateErrorDisplay(const std::vector<ErrorInfo> &errors, size_t current_index);
     // Note: GPIO button cycling is now handled by ErrorPanel via AdvanceToNextError()
 
-protected:
+  protected:
     // Note: LVGL event handlers removed - never connected to UI elements
 
-private:
+  private:
     // ========== Private Methods ==========
     void CreateSingleErrorUI(lv_obj_t *parent);
     void DisplayCurrentError();
     const char *GetErrorLevelText(ErrorLevel level);
 
     // ========== Private Data Members ==========
-    IStyleManager *styleManager_;
-    lv_obj_t *errorContainer_;      // Main container for error display
-    lv_obj_t *errorContentArea_;    // Single error content display area
-    lv_obj_t *errorCountLabel_;     // Header showing current error position
-    lv_obj_t *errorLevelLabel_;     // Large error level indicator
-    lv_obj_t *errorSourceLabel_;    // Error source system label
-    lv_obj_t *errorMessageLabel_;   // Full error message display
-    lv_obj_t *navigationIndicator_; // Shows current position in error queue
+    IStyleManager *style_manager_;
+    lv_obj_t *error_container_;      // Main container for error display
+    lv_obj_t *error_content_area_;   // Single error content display area
+    lv_obj_t *error_count_label_;    // Header showing current error position
+    lv_obj_t *error_level_label_;    // Large error level indicator
+    lv_obj_t *error_source_label_;   // Error source system label
+    lv_obj_t *error_message_label_;  // Full error message display
+    lv_obj_t *navigation_indicator_; // Shows current position in error queue
 
-    std::vector<ErrorInfo> currentErrors_; // Cache of current error state
-    size_t currentErrorIndex_;             // Index of currently displayed error
+    std::vector<ErrorInfo> current_errors_; // Cache of current error state
+    size_t current_error_index_;            // Index of currently displayed error
 
     // Note: clearButton_ removed but ClearAllErrorsCallback logic preserved
     // for future implementation via alternative interaction method

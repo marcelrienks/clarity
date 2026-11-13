@@ -1,9 +1,9 @@
 #pragma once
 
+#include "definitions/types.h"
 #include "interfaces/i_component.h"
 #include "interfaces/i_panel_manager.h"
 #include "interfaces/i_style_manager.h"
-#include "definitions/types.h"
 #include <functional>
 #include <string>
 #include <vector>
@@ -45,12 +45,11 @@ class ConfigComponent : public IComponent
     };
 
     // ========== Constructors and Destructor ==========
-    ConfigComponent(IPanelManager* panelManager = nullptr, 
-                   IStyleManager* styleManager = nullptr);
-    ~ConfigComponent() = default;
-    
+    ConfigComponent(IPanelManager *panel_manager = nullptr, IStyleManager *style_manager = nullptr);
+    ~ConfigComponent() override = default;
+
     // ========== Public Interface Methods ==========
-    void ExecuteAction(const std::string& actionType, const std::string& actionParam);
+    void ExecuteAction(const std::string &action_type, const std::string &action_param);
 
     // IComponent interface implementation
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;
@@ -58,10 +57,10 @@ class ConfigComponent : public IComponent
 
     // ConfigComponent specific initialization
     void Init(lv_obj_t *screen);
-    
+
     // Set style service for theme-aware colors
-    void SetStyleService(IStyleManager* styleManager);
-    
+    void SetStyleService(IStyleManager *style_manager);
+
     // Update colors based on current theme
     void UpdateThemeColors();
 
@@ -70,35 +69,36 @@ class ConfigComponent : public IComponent
     void SetMenuItems(const std::vector<MenuItem> &items);
     void SetCurrentIndex(size_t index);
     void SetHintText(const std::string &hint);
+
   private:
     // ========== Private Methods ==========
     void CreateUI();
     void UpdateMenuDisplay();
-    
+
     // Helper methods for UpdateMenuDisplay
-    void ApplyCenterItemStyle(lv_obj_t* label);
-    void ApplyCenterItemBackground(lv_obj_t* label);
-    void ApplyDefaultCenterBackground(lv_obj_t* label);
-    
+    void ApplyCenterItemStyle(lv_obj_t *label);
+    void ApplyCenterItemBackground(lv_obj_t *label);
+    void ApplyDefaultCenterBackground(lv_obj_t *label);
+
     // Theme-aware color helpers
-    lv_color_t GetThemeGradientColor(int distanceFromCenter, bool isSelected = false) const;
+    lv_color_t GetThemeGradientColor(int distance_from_center, bool is_selected = false) const;
 
     // ========== Private Data Members ==========
     lv_obj_t *screen_ = nullptr;
     lv_obj_t *container_ = nullptr;
-    lv_obj_t *titleLabel_ = nullptr;
-    lv_obj_t *menuContainer_ = nullptr;
-    std::vector<lv_obj_t *> menuLabels_;
-    lv_obj_t *hintLabel_ = nullptr;
+    lv_obj_t *title_label_ = nullptr;
+    lv_obj_t *menu_container_ = nullptr;
+    std::vector<lv_obj_t *> menu_labels_;
+    lv_obj_t *hint_label_ = nullptr;
 
     // Menu state
-    std::vector<MenuItem> menuItems_;
-    size_t currentIndex_ = 0;
-    std::string currentTitle_ = "Configuration";
-    
+    std::vector<MenuItem> menu_items_;
+    size_t current_index_ = 0;
+    std::string current_title_ = "Configuration";
+
     // Dependency-injected interfaces for direct calls
-    IPanelManager* panelManager_ = nullptr;
-    IStyleManager* styleManager_ = nullptr;
+    IPanelManager *panel_manager_ = nullptr;
+    IStyleManager *style_manager_ = nullptr;
 
     // Constants
     static constexpr int VISIBLE_ITEMS = 5;

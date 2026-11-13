@@ -12,7 +12,7 @@
  */
 
 // System/Library Includes
-    #include <lvgl.h>
+#include <lvgl.h>
 
 #include <cstdint>
 
@@ -51,18 +51,18 @@ struct ComponentLocation
     ComponentLocation() = default;
 
     /// Constructor for absolute positioning
-    ComponentLocation(lv_coord_t x, lv_coord_t y) : x(x), y(y)
+    ComponentLocation(lv_coord_t x_in, lv_coord_t y_in) : x(x_in), y(y_in)
     {
     }
 
     /// Constructor for relative alignment with optional offsets
-    ComponentLocation(lv_align_t align, lv_coord_t x_offset = 0, lv_coord_t y_offset = 0)
-        : align(align), x_offset(x_offset), y_offset(y_offset)
+    ComponentLocation(lv_align_t align_in, lv_coord_t x_offset_in = 0, lv_coord_t y_offset_in = 0)
+        : align(align_in), x_offset(x_offset_in), y_offset(y_offset_in)
     {
     }
 
     /// Constructor for rotation start point of scales
-    ComponentLocation(int32_t rotation) : rotation(rotation)
+    ComponentLocation(int32_t rotation_in) : rotation(rotation_in)
     {
     }
 };

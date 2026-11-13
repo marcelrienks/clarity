@@ -1,8 +1,8 @@
 #pragma once
 
+#include "definitions/types.h"
 #include "interfaces/i_component.h"
 #include "interfaces/i_style_manager.h"
-#include "definitions/types.h"
 
 #include <lvgl.h>
 
@@ -28,20 +28,20 @@
  */
 class KeyComponent : public IComponent
 {
-public:
+  public:
     // ========== Constructors and Destructor ==========
-    explicit KeyComponent(IStyleManager *styleManager);
-    virtual ~KeyComponent();
+    explicit KeyComponent(IStyleManager *style_manager);
+    ~KeyComponent() override;
 
     // ========== Public Interface Methods ==========
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;
-    void SetColor(KeyState keyState);
+    void SetColor(KeyState key_state);
 
-protected:
+  protected:
     // ========== Protected Data Members ==========
-    lv_obj_t *keyIcon_;
-    IStyleManager *styleManager_;
+    lv_obj_t *key_icon_;
+    IStyleManager *style_manager_;
 
-private:
+  private:
     // ========== Private Methods ==========
 };

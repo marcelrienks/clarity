@@ -1,6 +1,6 @@
 #include "components/clarity_component.h"
-#include "managers/error_manager.h"
 #include "definitions/constants.h"
+#include "managers/error_manager.h"
 #include <esp32-hal-log.h>
 
 // ========== Constructors and Destructor ==========
@@ -12,7 +12,7 @@
  * Initializes the clarity component with the provided style service for
  * applying themes and visual styling to the splash screen display.
  */
-ClarityComponent::ClarityComponent(IStyleManager *styleManager) : styleManager_(styleManager)
+ClarityComponent::ClarityComponent(IStyleManager *style_manager) : style_manager_(style_manager)
 {
     log_v("ClarityComponent constructor called");
 }
@@ -27,7 +27,7 @@ ClarityComponent::ClarityComponent(IStyleManager *styleManager) : styleManager_(
 void ClarityComponent::Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display)
 {
     log_v("Render() called");
-    
+
     if (!display)
     {
         log_e("ClarityComponent requires display provider");
@@ -36,10 +36,11 @@ void ClarityComponent::Render(lv_obj_t *screen, const ComponentLocation &locatio
         return;
     }
     lv_obj_t *splash = display->CreateLabel(screen);
-    lv_label_set_text(splash, UIConstants::APP_NAME);
+    lv_label_set_text(splash, ui_constants::APP_NAME);
 
     // Apply the current theme's text style
-    lv_obj_add_style(splash, &styleManager_->GetTextStyle(), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_add_style(splash, &style_manager_->GetTextStyle(),
+                     static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
 
     // Apply location settings
     lv_obj_align(splash, location.align, location.x_offset, location.y_offset);

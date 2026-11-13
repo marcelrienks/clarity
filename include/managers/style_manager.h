@@ -1,20 +1,20 @@
 #pragma once
 
-#include "interfaces/i_style_manager.h"
-#include "interfaces/i_configuration_manager.h"
-#include "interfaces/i_config.h"
+#include "definitions/configs.h"
+#include "definitions/constants.h"
 #include "definitions/styles.h"
 #include "definitions/types.h"
-#include "definitions/constants.h"
-#include "definitions/configs.h"
+#include "interfaces/i_config.h"
+#include "interfaces/i_configuration_manager.h"
+#include "interfaces/i_style_manager.h"
 
 #include <lvgl.h>
 #include <memory>
 #include <string>
 
-#define MAIN_DEFAULT LV_PART_MAIN | LV_STATE_DEFAULT
-#define ITEMS_DEFAULT LV_PART_ITEMS | LV_STATE_DEFAULT
-#define INDICATOR_DEFAULT LV_PART_INDICATOR | LV_STATE_DEFAULT
+#define MAIN_DEFAULT (static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT)
+#define ITEMS_DEFAULT (static_cast<lv_style_selector_t>(LV_PART_ITEMS) | LV_STATE_DEFAULT)
+#define INDICATOR_DEFAULT (static_cast<lv_style_selector_t>(LV_PART_INDICATOR) | LV_STATE_DEFAULT)
 
 /**
  * @class StyleManager
@@ -65,15 +65,15 @@
  */
 class StyleManager : public IStyleManager, public IConfig
 {
-public:
+  public:
     // ========== Constructors and Destructor ==========
     explicit StyleManager(const char *theme);
     StyleManager(const StyleManager &) = delete;
     StyleManager &operator=(const StyleManager &) = delete;
-    ~StyleManager();
+    ~StyleManager() override;
 
     // ========== Static Methods ==========
-    static StyleManager& Instance();
+    static StyleManager &Instance();
 
     // ========== Public Interface Methods ==========
     void InitializeStyles() override;
@@ -84,54 +84,54 @@ public:
 
     void ApplyCurrentTheme() override;
 
-    const ThemeColors &GetColours(const std::string& theme) const;
+    const ThemeColors &GetColours(const std::string &theme) const;
 
     lv_style_t &GetBackgroundStyle() override
     {
-        return backgroundStyle_;
+        return background_style_;
     }
 
     lv_style_t &GetTextStyle() override
     {
-        return textStyle_;
+        return text_style_;
     }
 
     lv_style_t &GetGaugeNormalStyle() override
     {
-        return gaugeNormalStyle_;
+        return gauge_normal_style_;
     }
 
     lv_style_t &GetGaugeWarningStyle() override
     {
-        return gaugeWarningStyle_;
+        return gauge_warning_style_;
     }
 
     lv_style_t &GetGaugeDangerStyle() override
     {
-        return gaugeDangerStyle_;
+        return gauge_danger_style_;
     }
 
     lv_style_t &GetGaugeIndicatorStyle() override
     {
-        return gaugeIndicatorStyle_;
+        return gauge_indicator_style_;
     }
 
     lv_style_t &GetGaugeItemsStyle() override
     {
-        return gaugeItemsStyle_;
+        return gauge_items_style_;
     }
 
     lv_style_t &GetGaugeMainStyle() override
     {
-        return gaugeMainStyle_;
+        return gauge_main_style_;
     }
 
     lv_style_t &GetGaugeDangerSectionStyle() override
     {
-        return gaugeDangerSectionStyle_;
+        return gauge_danger_section_style_;
     }
 
-    const std::string& GetCurrentTheme() const override;
+    const std::string &GetCurrentTheme() const override;
 
     const ThemeColors &GetThemeColors() const override
     {
@@ -143,61 +143,51 @@ public:
         return initialized_;
     }
 
-    void SwitchTheme(const char* themeName);
-
-    void SetConfigurationManager(IConfigurationManager* configurationManager);
-
-    void LoadConfiguration();
+    void SetConfigurationManager(IConfigurationManager *configuration_manager);
 
     // IConfig implementation (instance method for backward compatibility)
-    void RegisterConfig(IConfigurationManager* configurationManager) override;
+    void RegisterConfig(IConfigurationManager *configuration_manager) override;
 
     // Static schema registration for self-registering pattern
-    static void RegisterConfigSchema(IConfigurationManager* configurationManager);
-
-    // Live config update methods
-    void RefreshConfig();
-    void RegisterConfigCallback();
+    static void RegisterConfigSchema(IConfigurationManager *configuration_manager);
 
     // ========== Configuration Constants ==========
-    static constexpr const char* CONFIG_SECTION = ConfigConstants::Sections::STYLE_MANAGER;
-    static constexpr const char* CONFIG_THEME = ConfigConstants::Keys::STYLE_MANAGER_THEME;
-    static constexpr const char* CONFIG_BRIGHTNESS = ConfigConstants::Keys::STYLE_MANAGER_BRIGHTNESS;
+    static constexpr const char *CONFIG_SECTION = config_constants::sections::STYLE_MANAGER;
+    static constexpr const char *CONFIG_BRIGHTNESS = config_constants::keys::STYLE_MANAGER_BRIGHTNESS;
 
-private:
+  private:
     // ========== Private Methods ==========
     void ResetStyles();
 
     // ========== Configuration Items (inline definitions) ==========
-    inline static Config::ConfigItem themeConfig_{ConfigConstants::Items::THEME, UIStrings::ConfigLabels::THEME,
-                                                   std::string(Themes::DAY),
-                                                   Config::ConfigMetadata(ConfigConstants::Options::THEMES, Config::ConfigItemType::Selection)};
-    inline static Config::ConfigItem brightnessConfig_{ConfigConstants::Items::BRIGHTNESS, UIStrings::ConfigLabels::BRIGHTNESS,
-                                                        ConfigConstants::Defaults::DEFAULT_BRIGHTNESS,
-                                                        Config::ConfigMetadata(ConfigConstants::Options::BRIGHTNESS_LEVELS, "%", Config::ConfigItemType::Selection)};
+    inline static config::ConfigItem brightness_config{
+        config_constants::items::BRIGHTNESS, ui_strings::config_labels::BRIGHTNESS,
+        config_constants::defaults::DEFAULT_BRIGHTNESS,
+        config::ConfigMetadata(config_constants::options::BRIGHTNESS_LEVELS, "%", config::ConfigItemType::Selection)};
 
     // ========== Private Data Members ==========
-    std::string theme_ = Themes::NIGHT;
+    std::string theme_ = themes::DAY;      // Theme on screen now
+    std::string base_theme_ = themes::DAY; // Theme the lights signal asked for (never Error)
     bool initialized_ = false;
 
     // Core Style Objects
-    lv_style_t backgroundStyle_;   // Style for backgrounds
-    lv_style_t textStyle_;         // Style for general text
-    lv_style_t gaugeNormalStyle_;  // Style for gauges in normal range
-    lv_style_t gaugeWarningStyle_; // Style for gauges in warning range
-    lv_style_t gaugeDangerStyle_;  // Style for gauges in danger range
+    lv_style_t background_style_{};    // Style for backgrounds
+    lv_style_t text_style_{};          // Style for general text
+    lv_style_t gauge_normal_style_{};  // Style for gauges in normal range
+    lv_style_t gauge_warning_style_{}; // Style for gauges in warning range
+    lv_style_t gauge_danger_style_{};  // Style for gauges in danger range
 
     // Shared gauge component styles (replaces per-component allocation)
-    lv_style_t gaugeIndicatorStyle_;     // Style for gauge major ticks
-    lv_style_t gaugeItemsStyle_;         // Style for gauge minor ticks
-    lv_style_t gaugeMainStyle_;          // Style for gauge main part
-    lv_style_t gaugeDangerSectionStyle_; // Style for danger zone sections
+    lv_style_t gauge_indicator_style_{};      // Style for gauge major ticks
+    lv_style_t gauge_items_style_{};          // Style for gauge minor ticks
+    lv_style_t gauge_main_style_{};           // Style for gauge main part
+    lv_style_t gauge_danger_section_style_{}; // Style for danger zone sections
 
     // Theme color references from styles.h
-    const ThemeColors& dayThemeColours_ = ThemeDefinitions::DAY_THEME;
-    const ThemeColors& nightThemeColours_ = ThemeDefinitions::NIGHT_THEME;
-    const ThemeColors& errorThemeColours_ = ThemeDefinitions::ERROR_THEME;
+    const ThemeColors &day_theme_colours_ = theme_definitions::DAY_THEME;
+    const ThemeColors &night_theme_colours_ = theme_definitions::NIGHT_THEME;
+    const ThemeColors &error_theme_colours_ = theme_definitions::ERROR_THEME;
 
     // Direct preference reading support
-    IConfigurationManager* configurationManager_ = nullptr;
+    IConfigurationManager *configuration_manager_ = nullptr;
 };

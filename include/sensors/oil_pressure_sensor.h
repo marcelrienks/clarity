@@ -5,14 +5,14 @@
 #include <vector>
 
 // Project Includes
-#include "hardware/gpio_pins.h"
-#include "interfaces/i_gpio_provider.h"
-#include "interfaces/i_configuration_manager.h"
-#include "interfaces/i_config.h"
-#include "sensors/base_sensor.h"
-#include "definitions/types.h"
-#include "definitions/constants.h"
 #include "definitions/configs.h"
+#include "definitions/constants.h"
+#include "definitions/types.h"
+#include "hardware/gpio_pins.h"
+#include "interfaces/i_config.h"
+#include "interfaces/i_configuration_manager.h"
+#include "interfaces/i_gpio_provider.h"
+#include "sensors/base_sensor.h"
 
 /**
  * @class OilPressureSensor
@@ -45,71 +45,76 @@ class OilPressureSensor : public BaseSensor, public IConfig
 {
   public:
     // ========== Constructors and Destructor ==========
-    OilPressureSensor(IGpioProvider *gpioProvider, int updateRateMs = 500);
-    OilPressureSensor(IGpioProvider *gpioProvider, IConfigurationManager *configurationManager, int updateRateMs = 500);
+    OilPressureSensor(IGpioProvider *gpio_provider, int update_rate_ms = 500);
+    OilPressureSensor(IGpioProvider *gpio_provider, IConfigurationManager *configuration_manager,
+                      int update_rate_ms = 500);
 
     // ========== Public Interface Methods ==========
     // BaseSensor interface implementation
     void Init() override;
     Reading GetReading() override;
     bool HasStateChanged() override;
-    
+
     // ISensor optional methods
     void SetTargetUnit(const std::string &unit) override;
     std::vector<std::string> GetSupportedUnits() const override;
 
-    void SetUpdateRate(int updateRateMs);
+    void SetUpdateRate(int update_rate_ms);
 
     void LoadConfiguration();
 
     // IConfig implementation (instance method for backward compatibility)
-    void RegisterConfig(IConfigurationManager* configurationManager) override;
+    void RegisterConfig(IConfigurationManager *configuration_manager) override;
 
     // Static schema registration for self-registering pattern
-    static void RegisterConfigSchema(IConfigurationManager* configurationManager);
+    static void RegisterConfigSchema(IConfigurationManager *configuration_manager);
 
     // ========== Configuration Constants ==========
-    static constexpr const char* CONFIG_SECTION = ConfigConstants::Sections::OIL_PRESSURE_SENSOR;
-    static constexpr const char* CONFIG_UNIT = ConfigConstants::Keys::OIL_PRESSURE_UNIT;
-    static constexpr const char* CONFIG_UPDATE_RATE = ConfigConstants::Keys::OIL_PRESSURE_UPDATE_RATE;
-    static constexpr const char* CONFIG_OFFSET = ConfigConstants::Keys::OIL_PRESSURE_OFFSET;
-    static constexpr const char* CONFIG_SCALE = ConfigConstants::Keys::OIL_PRESSURE_SCALE;
+    static constexpr const char *CONFIG_SECTION = config_constants::sections::OIL_PRESSURE_SENSOR;
+    static constexpr const char *CONFIG_UNIT = config_constants::keys::OIL_PRESSURE_UNIT;
+    static constexpr const char *CONFIG_UPDATE_RATE = config_constants::keys::OIL_PRESSURE_UPDATE_RATE;
+    static constexpr const char *CONFIG_OFFSET = config_constants::keys::OIL_PRESSURE_OFFSET;
+    static constexpr const char *CONFIG_SCALE = config_constants::keys::OIL_PRESSURE_SCALE;
 
   protected:
     // ========== Protected Methods ==========
     int32_t ReadRawValue();
-    int32_t ConvertReading(int32_t rawValue);
+    int32_t ConvertReading(int32_t raw_value);
 
   private:
     // ========== Configuration Items (inline definitions) ==========
-    inline static Config::ConfigItem unitConfig_{ConfigConstants::Items::UNIT, UIStrings::ConfigLabels::PRESSURE_UNIT,
-                                                  std::string(ConfigConstants::Defaults::DEFAULT_PRESSURE_UNIT),
-                                                  Config::ConfigMetadata(ConfigConstants::Options::PRESSURE_UNITS, Config::ConfigItemType::Selection)};
-    inline static Config::ConfigItem updateRateConfig_{ConfigConstants::Items::UPDATE_RATE, UIStrings::ConfigLabels::UPDATE_RATE_MS,
-                                                        ConfigConstants::Defaults::DEFAULT_UPDATE_RATE,
-                                                        Config::ConfigMetadata(ConfigConstants::Options::UPDATE_RATES, Config::ConfigItemType::Selection)};
-    inline static Config::ConfigItem offsetConfig_{ConfigConstants::Items::OFFSET, UIStrings::ConfigLabels::CALIBRATION_OFFSET,
-                                                    ConfigConstants::Defaults::DEFAULT_CALIBRATION_OFFSET,
-                                                    Config::ConfigMetadata(ConfigConstants::Options::CALIBRATION_OFFSETS, Config::ConfigItemType::Selection)};
-    inline static Config::ConfigItem scaleConfig_{ConfigConstants::Items::SCALE, UIStrings::ConfigLabels::CALIBRATION_SCALE,
-                                                   ConfigConstants::Defaults::DEFAULT_CALIBRATION_SCALE,
-                                                   Config::ConfigMetadata(ConfigConstants::Options::CALIBRATION_SCALES, Config::ConfigItemType::Selection)};
+    inline static config::ConfigItem unit_config{
+        config_constants::items::UNIT, ui_strings::config_labels::PRESSURE_UNIT,
+        std::string(config_constants::defaults::DEFAULT_PRESSURE_UNIT),
+        config::ConfigMetadata(config_constants::options::PRESSURE_UNITS, config::ConfigItemType::Selection)};
+    inline static config::ConfigItem update_rate_config{
+        config_constants::items::UPDATE_RATE, ui_strings::config_labels::UPDATE_RATE_MS,
+        config_constants::defaults::DEFAULT_UPDATE_RATE,
+        config::ConfigMetadata(config_constants::options::UPDATE_RATES, config::ConfigItemType::Selection)};
+    inline static config::ConfigItem offset_config{
+        config_constants::items::OFFSET, ui_strings::config_labels::CALIBRATION_OFFSET,
+        config_constants::defaults::DEFAULT_CALIBRATION_OFFSET,
+        config::ConfigMetadata(config_constants::options::CALIBRATION_OFFSETS, config::ConfigItemType::Selection)};
+    inline static config::ConfigItem scale_config{
+        config_constants::items::SCALE, ui_strings::config_labels::CALIBRATION_SCALE,
+        config_constants::defaults::DEFAULT_CALIBRATION_SCALE,
+        config::ConfigMetadata(config_constants::options::CALIBRATION_SCALES, config::ConfigItemType::Selection)};
 
     // Display behavior configuration (deadband for animation filtering)
-    inline static Config::ConfigItem deadbandConfig_{ConfigConstants::Keys::OIL_PRESSURE_DEADBAND_PERCENT,
-                                                      "Pressure Display Deadband",
-                                                      3, // Default 3%
-                                                      Config::ConfigMetadata{"1,3,5", Config::ConfigItemType::Selection}};
+    inline static config::ConfigItem deadband_config{
+        config_constants::keys::OIL_PRESSURE_DEADBAND_PERCENT, "Pressure Display Deadband",
+        3, // Default 3%
+        config::ConfigMetadata{"1,3,5", config::ConfigItemType::Selection}};
 
     // ========== Private Data Members ==========
-    IGpioProvider *gpioProvider_;
-    IConfigurationManager *configurationManager_ = nullptr;
-    float calibrationOffset_ = 0.0f;
-    float calibrationScale_ = 1.0f;
-    std::string targetUnit_ = "Bar";
-    int32_t currentReading_ = 0;
-    int32_t previousReading_ = 0;  // For GetReading() change tracking
-    int32_t previousChangeReading_ = 0;  // For HasStateChanged() separate tracking
-    unsigned long lastUpdateTime_ = 0;
-    unsigned long updateIntervalMs_;
+    IGpioProvider *gpio_provider_;
+    IConfigurationManager *configuration_manager_ = nullptr;
+    float calibration_offset_ = 0.0f;
+    float calibration_scale_ = 1.0f;
+    std::string target_unit_ = "Bar";
+    int32_t current_reading_ = 0;
+    int32_t previous_reading_ = 0;        // For GetReading() change tracking
+    int32_t previous_change_reading_ = 0; // For HasStateChanged() separate tracking
+    unsigned long last_update_time_ = 0;
+    unsigned long update_interval_ms_;
 };

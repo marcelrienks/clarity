@@ -4,4 +4,4 @@ gdbServerPort = 3333
 firmware = '../../.pio/build/test-wokwi/firmware.bin'
 elf = '../../.pio/build/test-wokwi/firmware.elf'
 diagram = 'diagram_automated.json'
-scenario = 'scenario_automated.yaml'
+scenario = 'scenario_automated_1_triggers.yaml'

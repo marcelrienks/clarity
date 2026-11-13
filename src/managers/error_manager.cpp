@@ -27,25 +27,25 @@ void ErrorManager::ReportError(ErrorLevel level, const char *source, const std::
     AutoDismissOldWarnings();
 
     // Create error info structure
-    ErrorInfo errorInfo;
-    errorInfo.level = level;
-    errorInfo.source = source;
-    errorInfo.SetMessage(message);
-    errorInfo.timestamp = millis();
-    errorInfo.acknowledged = false;
+    ErrorInfo error_info;
+    error_info.level = level;
+    error_info.source = source;
+    error_info.SetMessage(message);
+    error_info.timestamp = millis();
+    error_info.acknowledged = false;
 
     // Add to queue
-    errorQueue_.push_back(errorInfo);
+    error_queue_.push_back(error_info);
 
     // Trim queue if necessary to maintain memory constraints
     TrimErrorQueue();
 
     // Log error with appropriate level
-    const char *levelStr = (level == ErrorLevel::WARNING) ? "WARNING"
-                           : (level == ErrorLevel::ERROR) ? "ERROR"
-                                                          : "CRITICAL";
-    log_e("[%s] %s: %s", levelStr, source, errorInfo.message);
-    log_t("Error reported: %s", levelStr);
+    [[maybe_unused]] const char *level_str = (level == ErrorLevel::WARNING) ? "WARNING"
+                                             : (level == ErrorLevel::ERROR) ? "ERROR"
+                                                                            : "CRITICAL";
+    log_e("[%s] %s: %s", level_str, source, error_info.message);
+    log_t("Error reported: %s", level_str);
 }
 
 /**
@@ -69,7 +69,7 @@ void ErrorManager::ReportCriticalError(const char *source, const std::string &me
  */
 bool ErrorManager::HasPendingErrors() const
 {
-    return !errorQueue_.empty();
+    return !error_queue_.empty();
 }
 
 /**
@@ -77,7 +77,7 @@ bool ErrorManager::HasPendingErrors() const
  */
 bool ErrorManager::HasCriticalErrors() const
 {
-    return std::any_of(errorQueue_.begin(), errorQueue_.end(), [](const ErrorInfo &error)
+    return std::any_of(error_queue_.begin(), error_queue_.end(), [](const ErrorInfo &error)
                        { return error.level == ErrorLevel::CRITICAL && !error.acknowledged; });
 }
 
@@ -86,26 +86,25 @@ bool ErrorManager::HasCriticalErrors() const
  */
 std::vector<ErrorInfo> ErrorManager::GetErrorQueue() const
 {
-    return errorQueue_;
+    return error_queue_;
 }
 
 /**
  * @brief Acknowledge error and apply removal policy based on severity
  * @details Warnings/errors are removed immediately, critical errors remain until explicit clear
  */
-void ErrorManager::AcknowledgeError(size_t errorIndex)
+void ErrorManager::AcknowledgeError(size_t error_index)
 {
-    if (errorIndex < errorQueue_.size())
+    if (error_index < error_queue_.size())
     {
-        errorQueue_[errorIndex].acknowledged = true;
+        error_queue_[error_index].acknowledged = true;
 
         // Apply removal policy: remove non-critical errors immediately
         // Critical errors remain visible until explicitly cleared
-        if (errorQueue_[errorIndex].level != ErrorLevel::CRITICAL)
+        if (error_queue_[error_index].level != ErrorLevel::CRITICAL)
         {
-            errorQueue_.erase(errorQueue_.begin() + errorIndex);
+            error_queue_.erase(error_queue_.begin() + static_cast<std::ptrdiff_t>(error_index));
         }
-
     }
 }
 
@@ -114,8 +113,8 @@ void ErrorManager::AcknowledgeError(size_t errorIndex)
  */
 void ErrorManager::ClearAllErrors()
 {
-    errorQueue_.clear();
-    errorPanelActive_ = false;
+    error_queue_.clear();
+    error_panel_active_ = false;
 }
 
 /**
@@ -138,7 +137,7 @@ bool ErrorManager::ShouldTriggerErrorPanel() const
  */
 void ErrorManager::SetErrorPanelActive(bool active)
 {
-    errorPanelActive_ = active;
+    error_panel_active_ = active;
 }
 
 /**
@@ -146,7 +145,7 @@ void ErrorManager::SetErrorPanelActive(bool active)
  */
 bool ErrorManager::IsErrorPanelActive() const
 {
-    return errorPanelActive_;
+    return error_panel_active_;
 }
 
 // ========== Private Methods ==========
@@ -157,11 +156,11 @@ bool ErrorManager::IsErrorPanelActive() const
  */
 void ErrorManager::TrimErrorQueue()
 {
-    if (errorQueue_.size() > MAX_ERROR_QUEUE_SIZE)
+    if (error_queue_.size() > MAX_ERROR_QUEUE_SIZE)
     {
         // Sort by priority (critical > error > warning) and timestamp (newer first)
         // Higher error level enum values indicate higher priority
-        std::sort(errorQueue_.begin(), errorQueue_.end(),
+        std::sort(error_queue_.begin(), error_queue_.end(),
                   [](const ErrorInfo &a, const ErrorInfo &b)
                   {
                       if (a.level != b.level)
@@ -172,7 +171,7 @@ void ErrorManager::TrimErrorQueue()
                   });
 
         // Keep only the most recent/important errors within memory constraints
-        errorQueue_.resize(MAX_ERROR_QUEUE_SIZE);
+        error_queue_.resize(MAX_ERROR_QUEUE_SIZE);
     }
 }
 
@@ -182,13 +181,12 @@ void ErrorManager::TrimErrorQueue()
 void ErrorManager::AutoDismissOldWarnings()
 {
     auto now = millis();
-    auto it = errorQueue_.begin();
-    while (it != errorQueue_.end())
+    auto it = error_queue_.begin();
+    while (it != error_queue_.end())
     {
-        if (it->level == ErrorLevel::WARNING &&
-            (now - it->timestamp) > WARNING_AUTO_DISMISS_TIME)
+        if (it->level == ErrorLevel::WARNING && (now - it->timestamp) > WARNING_AUTO_DISMISS_TIME)
         {
-            it = errorQueue_.erase(it);
+            it = error_queue_.erase(it);
         }
         else
         {

@@ -103,7 +103,7 @@ This is the behavioural contract, derived from the code. Where the code and the 
 
 1. Initialise the GC9A01 240×240 display over SPI2 at 80 MHz with DMA. Colour inversion is on for hardware builds (`INVERT`). Wokwi builds apply a mirror/BGR fix (`WOKWI_EMULATOR`). Backlight is at 100%. LVGL 9 runs with two partial render buffers.
 2. Load all settings from NVS, falling back to defaults for missing keys.
-3. Initialise LVGL styles and apply the user theme (`style_manager.theme`, default `Day`).
+3. Initialise LVGL styles with the Day theme. The theme is not a setting: it follows the dash-light signal only (Q-05).
 4. Evaluate the vehicle inputs once. If a panel override is active (key or lock), show it directly with no splash, and skip the default panel. If lights are on, apply the Night theme.
 5. Otherwise show the default panel (`system.default_panel`, default Oil). If `system.show_splash` is true (the default), show the splash first.
 6. Splash: the "Clarity" label fades in, holds 500 ms, fades out, then the target panel loads. Total duration comes from `splash_panel.duration` (1500/1750/2000/2500 ms). Each fade lasts `(duration − 500) / 2` ms.
@@ -136,7 +136,7 @@ This is the behavioural contract, derived from the code. Where the code and the 
 | Error | Errors sorted by severity, border coloured by level, "n/m" counter. New errors appear live. | Mark the current error viewed and show the next. After the last one, all errors are cleared. | Clear all errors and restore |
 | Config | Menu built from the settings sections, sorted by display name, plus Exit. Section items show "Label: value". Booleans toggle in place. Other items open an option list with a `> ` marker on the current value. 5-item scrolling wheel with fading; Night theme uses dark red. | next item | select (enter section, toggle, open options, set value, Back, or Exit) |
 
-Selecting a value persists it to NVS immediately. Changing the theme recolours the Config menu immediately. Exit loads the restoration panel.
+Selecting a value persists it to NVS immediately. The Config menu is coloured by the current lights-driven theme. Exit loads the restoration panel.
 
 ### 2.4 Button timing
 
@@ -155,7 +155,7 @@ NVS namespaces are `"cfg_" + section`, truncated to 15 characters. **Existing de
 | system (System) | `default_panel` | `cfg_system` | string | `OemOilPanel` | OemOilPanel, ConfigPanel, DiagnosticPanel | Yes. DiagnosticPanel is broken (D-07). |
 | | `update_rate` | | int | 500 | 100…2000 | Yes (used as the sample rate for **both** oil sensors) |
 | | `show_splash` | | bool | true | toggle | Yes |
-| style_manager (Display) | `theme` | `cfg_style_manag` | string | `Day` | Day, Night | Partly (D-06) |
+| ~~style_manager (Display) `theme`~~ | removed (Q-05): the theme follows the lights signal only. A value already stored under `cfg_style_manag` is left in NVS and ignored. | | | | | |
 | | `brightness` | | int | 80 | 0…100 step 10 | **No** (D-05a) |
 | oil_pressure_sensor (Oil Press.) | `unit` | `cfg_oil_pressur` | string | `Bar` | Bar, PSI, kPa | No visible effect (D-09) |
 | | `update_rate` | | int | 500 | 250…2000 | **No** (D-05d) |
@@ -179,7 +179,7 @@ NVS namespaces are `"cfg_" + section`, truncated to 15 characters. **Existing de
 
 There are three palettes: Day, Night and Error.
 
-- Lights on → Night. Lights off → Day, regardless of the user's theme (see Q-05).
+- Lights on → Night. Lights off → Day. The theme is not user-configurable (Q-05).
 - The error panel applies the Error palette.
 - The Config panel overrides the Night background with dark red.
 
@@ -194,7 +194,7 @@ There are three palettes: Day, Night and Error.
 
 ### 2.9 Test contract
 
-`test/wokwi/scenario_automated.yaml` drives the simulator and waits for `[T] …` serial lines from `log_t()`. **These strings are an interface.** Every message the scenario waits for must keep its exact text through the restructure, or the scenario must be updated in the same change. Today 9 of the expected messages are no longer printed (D-22).
+`test/wokwi/scenario_automated_*.yaml` (five parts) drive the simulator and waits for `[T] …` serial lines from `log_t()`. **These strings are an interface.** Every message the scenario waits for must keep its exact text through the restructure, or the scenario must be updated in the same change. Today 9 of the expected messages are no longer printed (D-22).
 
 ### 2.10 Documented behaviour that differs from the code
 
@@ -268,7 +268,7 @@ The three sources are `StyleManager::theme_` (the constructor argument, never up
 - `main.cpp:143-147` reads `system.theme`, which is never registered, so the constructor theme is always Day.
 - `GetCurrentTheme()` returns a reference to a function-local static string (`style_manager.cpp:255`).
 
-**Fix:** have one theme controller. The effective theme is a function of (error panel shown, lights, user preference), and is applied only when it changes (A-08). Q-05 covers lights-off behaviour.
+**Fix:** have one theme controller. The effective theme is a function of (error panel shown, lights), and is applied only when it changes (A-08). Q-05 resolved this: there is no user preference, so every symptom that depends on a configured theme (the `ApplyCurrentTheme()` comparison, lights-off forcing Day over the preference, `GetCurrentTheme()` returning the configured value, the dead live-update callback, the `system.theme` read) disappears with the Config theme setting. `StyleManager::GetCurrentTheme()` now returns the applied theme, and `ApplyCurrentTheme()` re-applies the theme the lights signal asked for after the error panel.
 
 ### D-07: The "DiagnosticPanel" option hangs the device or bricks restoration (S1, Confirmed)
 
@@ -562,7 +562,7 @@ void App::Tick() {
         screens_.OnButton(*ev);               // panels return intents; they never switch screens themselves
 
     const DisplayRequest req = ResolveDisplay(inputs_.State(), errors_.HasActive());
-    theme_.Apply(EffectiveTheme(req, inputs_.State(), settings_.theme));
+    theme_.Apply(EffectiveTheme(req, inputs_.State()));
     screens_.Apply(req, now);                 // the single transition point
     screens_.Update(now, sensors_.Values());  // gauges and other refreshes
 
@@ -599,9 +599,9 @@ constexpr DisplayRequest ResolveDisplay(const VehicleInputs& in, bool errorsActi
     return {OverridePanel::None, KeyState::Inactive};
 }
 
-constexpr ThemeId EffectiveTheme(const DisplayRequest& r, const VehicleInputs& in, ThemeId user) {
+constexpr ThemeId EffectiveTheme(const DisplayRequest& r, const VehicleInputs& in) {
     if (r.panel == OverridePanel::Error) return ThemeId::Error;
-    return in.lights ? ThemeId::Night : user;   // Q-05: implements the RECOMMENDED answer (restore user preference), not today's behaviour
+    return in.lights ? ThemeId::Night : ThemeId::Day;   // Q-05: the theme follows the dash-light signal only
 }
 }
 ```
@@ -613,7 +613,7 @@ constexpr ThemeId EffectiveTheme(const DisplayRequest& r, const VehicleInputs& i
 - No override, and the current screen is an override: restore the user panel without splash and emit `CheckRestoration() called` / `No blocking interrupts - restoring to '…'`.
 - Config is modal over the user panel. An override discards Config, and restoration returns to the user panel (§2.2).
 
-**Equivalence with today's behaviour.** Each row is a table-driven unit test (T-02). Row 13 matches today only because the user theme is Day. Today, lights-off is a one-off event that sets Day, while boot with lights off uses the user theme, so no pure function of the current inputs reproduces both. Keeping today's behaviour (Q-05) needs a latched "lights were seen on" flag in `ScreenManager` or `Theme`.
+**Equivalence with today's behaviour.** Each row is a table-driven unit test (T-02). Q-05 is resolved (`docs/decisions.md`): the lights input is the car's dash-light signal, so lights on gives Night and lights off gives Day, with no latch. This differs from today only at boot with the lights off and a saved Night theme (today: the saved theme; now: Day).
 
 | Scenario step (`docs/scenarios.md`) | Inputs (KP, KNP, Lock, Lights, Errors) | Expected screen | Expected theme |
 |---|---|---|---|
@@ -625,8 +625,8 @@ constexpr ThemeId EffectiveTheme(const DisplayRequest& r, const VehicleInputs& i
 | 9 Debug error | 0,1,1,1,1 | Error | Error |
 | 11 Errors cleared | 0,1,1,1,0 | Key (red) | Night |
 | 12 All off except lights | 0,0,0,1,0 | Oil (restored, no splash) | Night |
-| 13 Lights off | 0,0,0,0,0 | Oil | user theme (Day) |
-| Boot with lock active | 0,0,1,0,0 | Lock; no splash, no default panel | user |
+| 13 Lights off | 0,0,0,0,0 | Oil | Day |
+| Boot with lock active | 0,0,1,0,0 | Lock; no splash, no default panel | Day |
 
 **Deletes:** `InterruptManager`, `TriggerHandler`, `interrupts.h`, `Trigger`/`Action`, `Priority`/`TriggerType`, `UIState`, and `ErrorManager::SetErrorPanelActive`/`IsErrorPanelActive`.
 
@@ -716,7 +716,6 @@ struct Settings {
     PanelId  defaultPanel  = PanelId::Oil;
     uint16_t updateRateMs  = 500;
     bool     showSplash    = true;
-    ThemeId  theme         = ThemeId::Day;
     uint8_t  brightnessPct = 80;
     SensorSettings pressure{}, temperature{};
     uint16_t debounceMs    = 50;     // Q-04 is still open; today's stored default is 400
@@ -732,8 +731,8 @@ struct Settings {
 - Add `static_assert(Fits15("…"))` on every key and namespace.
 - **`SettingsMenu`** is a `constexpr` table of sections. Each section has a title and fields. Each field has a label, an option list, and get/set functions. `ConfigPanel` renders the table, preserving today's sorted sections, `Label: value` rows, toggles, `> ` markers and Exit.
   - In C++17, use pointer + count. Use `std::span` once on C++20 (Q-11).
-  - Option lists are typed (`PanelId`, `ThemeId`, `uint16_t` ms values), so `DiagnosticPanel` can't be offered (D-07).
-- **Change propagation:** `Settings` is read by reference each tick. Consumers that cache derived state (sensor transfer, button thresholds, theme) compare a `revision` counter bumped on every `Set`. There are no callbacks.
+  - Option lists are typed (`PanelId`, `uint16_t` ms values), so `DiagnosticPanel` can't be offered (D-07).
+- **Change propagation:** `Settings` is read by reference each tick. Consumers that cache derived state (sensor transfer, button thresholds) compare a `revision` counter bumped on every `Set`. There are no callbacks.
 
 **Deletes:** `ConfigurationManager`, `StorageProvider`, `IConfigurationManager`, `IStorageProvider`, `IConfig`, `configs.h`, `ConfigConstants::{Keys,Items,Options,Types,BooleanValues}`, the six `AddSchema` blocks, the `inline static ConfigItem` members, and ArduinoJson (which was never used, `storage_provider.h:7`).
 
@@ -1017,7 +1016,7 @@ Options (Q-13):
 | Level | Tool | What it covers |
 |---|---|---|
 | Unit (host) | `pio test -e native` with Unity | Everything in `lib/core` |
-| Integration (simulated hardware) | Wokwi CLI + `scenario_automated.yaml` | Boot, priorities, restoration, error flow, config flow, theme |
+| Integration (simulated hardware) | Wokwi CLI + `scenario_automated_*.yaml` | Boot, priorities, restoration, error flow, config flow, theme |
 | Static | cppcheck, clang-tidy, warnings as errors on project sources | Defect classes in §3 |
 | Hardware smoke | Manual checklist per release | Display, ADC, backlight, real switches |
 
@@ -1037,7 +1036,7 @@ Options (Q-13):
 - Add scenarios for:
   - a `release`-like build without `CLARITY_DEBUG`, covering error → short-press through to the end (D-03), using an injected error. Add a test-only injection hook for this (for example a `CLARITY_TEST_INJECT_ERROR` flag, or a scenario-driven input, compiled into the `wokwi` env only). Do not rely on D-05e, which Phase 6 removes;
   - boot with lock or key already active;
-  - Config Day → Night → Day theme round trip (D-06);
+  - the theme follows the lights signal, including while Config is open (D-06; replaces the removed Config theme round trip);
   - saving the dead-band setting (D-05e).
 - Keep the scenario tied to `util/test_events.h` (A-11).
 
@@ -1125,7 +1124,7 @@ Phase 3 can run in parallel with Phase 4 once Phase 2 lands. Phases 4 and 5 both
 | Q-02 | What is the oil temperature sender's characteristic? | Linear (today) or NTC lookup table | Table driven by the actual sender's datasheet |
 | Q-03 | The unit settings have no visible effect. | Add a numeric readout; or keep the settings for a future readout; or remove them | Add a small numeric readout under each icon, or keep and document |
 | Q-04 | What should `debounce_ms` (200/400/600 ms) mean? These values are long for contact debounce. | (a) contact debounce with options 20/50/100 ms; (b) a "minimum short press" guard; (c) remove it | (a), migrating the stored value by clamping |
-| Q-05 | Which theme should apply when lights turn off? | Force Day (today); or restore the user's preference | Restore the user's preference |
+| Q-05 | Which theme should apply when lights turn off? | Force Day (today); or restore the user's preference | **Resolved**: Day. The signal is the car's dash lighting, so the theme follows it only (see `decisions.md`) |
 | Q-06 | Can overrides interrupt the splash? | Defer until the splash finishes (today); or preempt | Defer (keeps today's behaviour) |
 | Q-07 | Today button actions and overrides wait up to ~750 ms during needle animations. | Keep the wait; or act immediately | Act immediately (no BUSY gate) |
 | Q-08 | What should a short press on the splash do? | Nothing (code); or skip to the target panel (docs) | Skip; it's cheap and documented |

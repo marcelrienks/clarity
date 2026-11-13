@@ -2,9 +2,14 @@
 
 #define LGFX_USE_V1
 
+// Third-party header: keep project warning flags from firing inside it
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#pragma GCC diagnostic ignored "-Woverloaded-virtual"
 #include <LovyanGFX.hpp>
-#include <lvgl.h>
+#pragma GCC diagnostic pop
 #include "definitions/constants.h"
+#include <lvgl.h>
 
 // Screen - use constants from centralized location
 #define SCREEN_WIDTH 240
@@ -20,12 +25,12 @@
 // Pins - use constants from centralized location
 #define SCLK 18
 #define MOSI 23
-#define MISO -1
+#define MISO (-1)
 #define DC 16
 #define CS 22
 #define RST 4
 #define BL 3
-#define BUZZER -1
+#define BUZZER (-1)
 
 /**
  * @class DeviceProvider
@@ -42,41 +47,40 @@
  *
  * @design_pattern Dependency Injectable - managed through service container
  * @thread_safety LVGL display callbacks are thread-safe
- * @memory_usage ~57KB for dual display buffers (240*60*2*2 bytes)
+ * @memory_usage ~57.6KB for dual display buffers (240*60*2*2 bytes)
  *
  * @context This is the main hardware interface that all panels and components
  * render to. The display is 240x240 pixels with a round form factor.
  */
 class DeviceProvider : public lgfx::LGFX_Device
 {
-public:
+  public:
     // ========== Constructors and Destructor ==========
     DeviceProvider();
     DeviceProvider(const DeviceProvider &) = delete;
     DeviceProvider &operator=(const DeviceProvider &) = delete;
-    ~DeviceProvider() = default;
+    ~DeviceProvider() override = default;
 
     // ========== Public Interface Methods ==========
-    void prepare();
-    lv_obj_t* GetScreen() const;
+    void Prepare();
+    lv_obj_t *GetScreen() const;
     bool IsReady() const;
 
-private:
+  private:
     // ========== Static Methods ==========
-    static void display_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *data);
+    static void DisplayFlushCallback(lv_display_t *display, const lv_area_t *area, unsigned char *data);
 
     // ========== Private Data Members ==========
-    lv_obj_t *screen_;
+    lv_obj_t *screen_{};
 
-    lgfx::Panel_GC9A01 panelInstance_; // Waveshare Round 1.28inch LCD Display Module
-    lgfx::Light_PWM lightInstance_;
-    lgfx::Bus_SPI busInstance_;
+    lgfx::Panel_GC9A01 panel_instance_; // Waveshare Round 1.28inch LCD Display Module
+    lgfx::Light_PWM light_instance_;
+    lgfx::Bus_SPI bus_instance_;
 
-    // Optimized buffer configuration for memory efficiency
-    // Using 40 lines (1/6 of screen) reduces memory usage from ~57KB to ~38KB
-    // while maintaining smooth rendering performance
-    static constexpr unsigned int BUFFER_LINE_COUNT = 40; // Reduced from 60 for memory optimization
-    static constexpr unsigned int LV_BUFFER_SIZE =
-        (SCREEN_WIDTH * BUFFER_LINE_COUNT * sizeof(lv_color_t));
-    uint8_t lvBuffer_[2][LV_BUFFER_SIZE];
+    // Two partial-render buffers of 60 lines each (a quarter of the 240 line screen).
+    // RGB565 is 2 bytes per pixel: 240 * 60 * 2 = 28.8KB per buffer, ~57.6KB in total.
+    static constexpr unsigned int BUFFER_LINE_COUNT = 60;
+    static constexpr unsigned int BYTES_PER_PIXEL = 2; // LV_COLOR_FORMAT_RGB565
+    static constexpr unsigned int LV_BUFFER_SIZE = (SCREEN_WIDTH * BUFFER_LINE_COUNT * BYTES_PER_PIXEL);
+    uint8_t lv_buffer_[2][LV_BUFFER_SIZE]{};
 };

@@ -1,10 +1,10 @@
 #pragma once
 
+#include "definitions/types.h"
 #include "hardware/gpio_pins.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_sensor.h"
 #include "sensors/base_sensor.h"
-#include "definitions/types.h"
 #include <Arduino.h>
 
 /**
@@ -15,24 +15,19 @@
  * enabling the consolidation of multiple similar sensor classes into a
  * single generic implementation.
  */
-struct GpioSensorConfig {
-    uint8_t pin;                    ///< GPIO pin number
-    uint8_t pinMode;                ///< Pin mode (INPUT, INPUT_PULLUP, INPUT_PULLDOWN)
-    const char* name;               ///< Human-readable sensor name for logging
-    bool activeHigh;                ///< true if HIGH means active, false if LOW means active
-    bool debugOnly;                 ///< true if sensor is only available in debug builds
+struct GpioSensorConfig
+{
+    uint8_t pin;      ///< GPIO pin number
+    uint8_t pinMode;  ///< Pin mode (INPUT, INPUT_PULLUP, INPUT_PULLDOWN)
+    const char *name; ///< Human-readable sensor name for logging
+    bool activeHigh;  ///< true if HIGH means active, false if LOW means active
+    bool debugOnly;   ///< true if sensor is only available in debug builds
 
-    constexpr GpioSensorConfig(
-        uint8_t pin,
-        uint8_t pinMode,
-        const char* name,
-        bool activeHigh = true,
-        bool debugOnly = false)
-        : pin(pin)
-        , pinMode(pinMode)
-        , name(name)
-        , activeHigh(activeHigh)
-        , debugOnly(debugOnly) {}
+    constexpr GpioSensorConfig(uint8_t pin_in, uint8_t pin_mode_in, const char *name_in, bool active_high_in = true,
+                               bool debug_only_in = false)
+        : pin(pin_in), pinMode(pin_mode_in), name(name_in), activeHigh(active_high_in), debugOnly(debug_only_in)
+    {
+    }
 };
 
 /**
@@ -68,10 +63,10 @@ struct GpioSensorConfig {
  */
 class GpioSensor : public BaseSensor
 {
-public:
+  public:
     // ========== Constructors and Destructor ==========
-    GpioSensor(const GpioSensorConfig& config, IGpioProvider* gpioProvider);
-    ~GpioSensor();
+    GpioSensor(const GpioSensorConfig &config, IGpioProvider *gpio_provider);
+    ~GpioSensor() override;
 
     // ========== Public Interface Methods ==========
     // ISensor interface implementation
@@ -83,55 +78,46 @@ public:
 
     bool GetState();
 
-protected:
+  protected:
     // ========== Protected Methods ==========
     void OnInterruptTriggered() override;
 
-private:
+  private:
     // ========== Private Methods ==========
-    bool readRawPinState();
-    bool readLogicalState();
+    bool ReadRawPinState();
+    bool ReadLogicalState();
 
     // ========== Private Data Members ==========
-    GpioSensorConfig config_;       ///< Sensor configuration
-    IGpioProvider* gpioProvider_;   ///< GPIO hardware abstraction
-    bool previousState_;            ///< Previous state for change detection
+    GpioSensorConfig config_;      ///< Sensor configuration
+    IGpioProvider *gpio_provider_; ///< GPIO hardware abstraction
+    bool previous_state_;          ///< Previous state for change detection
 };
 
 // Predefined sensor configurations for common use cases
-namespace sensor_configs {
-    /**
-     * @brief Key present sensor configuration (GPIO 25)
-     */
-    constexpr GpioSensorConfig KEY_PRESENT{
-        gpio_pins::KEY_PRESENT, INPUT_PULLDOWN, "KeyPresent", true, false
-    };
+namespace sensor_configs
+{
+/**
+ * @brief Key present sensor configuration (GPIO 25)
+ */
+constexpr GpioSensorConfig KEY_PRESENT{gpio_pins::KEY_PRESENT, INPUT_PULLDOWN, "KeyPresent", true, false};
 
-    /**
-     * @brief Key not present sensor configuration (GPIO 26)
-     */
-    constexpr GpioSensorConfig KEY_NOT_PRESENT{
-        gpio_pins::KEY_NOT_PRESENT, INPUT_PULLDOWN, "KeyNotPresent", true, false
-    };
+/**
+ * @brief Key not present sensor configuration (GPIO 26)
+ */
+constexpr GpioSensorConfig KEY_NOT_PRESENT{gpio_pins::KEY_NOT_PRESENT, INPUT_PULLDOWN, "KeyNotPresent", true, false};
 
-    /**
-     * @brief Lock sensor configuration (GPIO 27)
-     */
-    constexpr GpioSensorConfig LOCK{
-        gpio_pins::LOCK, INPUT_PULLDOWN, "Lock", true, false
-    };
+/**
+ * @brief Lock sensor configuration (GPIO 27)
+ */
+constexpr GpioSensorConfig LOCK{gpio_pins::LOCK, INPUT_PULLDOWN, "Lock", true, false};
 
-    /**
-     * @brief Lights sensor configuration (GPIO 33)
-     */
-    constexpr GpioSensorConfig LIGHTS{
-        gpio_pins::LIGHTS, INPUT_PULLDOWN, "Lights", true, false
-    };
+/**
+ * @brief Lights sensor configuration (GPIO 33)
+ */
+constexpr GpioSensorConfig LIGHTS{gpio_pins::LIGHTS, INPUT_PULLDOWN, "Lights", true, false};
 
-    /**
-     * @brief Debug error sensor configuration (GPIO 34, debug builds only)
-     */
-    constexpr GpioSensorConfig DEBUG_ERROR{
-        gpio_pins::DEBUG_ERROR, INPUT, "DebugError", true, true
-    };
-}
+/**
+ * @brief Debug error sensor configuration (GPIO 34, debug builds only)
+ */
+constexpr GpioSensorConfig DEBUG_ERROR{gpio_pins::DEBUG_ERROR, INPUT, "DebugError", true, true};
+} // namespace sensor_configs

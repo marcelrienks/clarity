@@ -1,19 +1,23 @@
 #include "providers/storage_provider.h"
+#include "definitions/constants.h"
 #include "managers/error_manager.h"
 #include "utilities/logging.h"
-#include "definitions/constants.h"
 #include <algorithm>
 #include <sstream>
 
 // Helper class for RAII mutex handling
-class SemaphoreGuard {
-private:
-    SemaphoreHandle_t& semaphore_;
-public:
-    SemaphoreGuard(SemaphoreHandle_t& sem) : semaphore_(sem) {
+class SemaphoreGuard
+{
+  private:
+    SemaphoreHandle_t &semaphore_;
+
+  public:
+    SemaphoreGuard(SemaphoreHandle_t &sem) : semaphore_(sem)
+    {
         xSemaphoreTake(semaphore_, portMAX_DELAY);
     }
-    ~SemaphoreGuard() {
+    ~SemaphoreGuard()
+    {
         xSemaphoreGive(semaphore_);
     }
 };
@@ -26,10 +30,10 @@ public:
  * Initializes the storage system with thread-safe access and NVS backend.
  * Handles NVS initialization errors and prepares storage for configuration data.
  */
-StorageProvider::StorageProvider() {
-    // Initialize thread safety semaphore
-    configMutex_ = xSemaphoreCreateMutex();
-    if (!configMutex_) {
+StorageProvider::StorageProvider() : config_mutex_(xSemaphoreCreateMutex()) // thread safety semaphore
+{
+    if (!config_mutex_)
+    {
         log_e("Failed to create config mutex");
         ErrorManager::Instance().ReportCriticalError("PreferenceStorage",
                                                      "Failed to create config mutex - thread safety compromised");
@@ -38,22 +42,36 @@ StorageProvider::StorageProvider() {
 
     // Initialize NVS
     esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
         nvs_flash_erase();
         err = nvs_flash_init();
     }
 
-    if (err != ESP_OK) {
+    if (err != ESP_OK)
+    {
         log_e("Failed to initialize NVS: %s", esp_err_to_name(err));
         ErrorManager::Instance().ReportCriticalError("PreferenceStorage",
                                                      "Failed to initialize NVS - preferences cannot be saved");
         return;
     }
 
+#ifdef CLARITY_TEST_SEED_INVALID_PANEL
+    // Test only: store a removed panel name as the default panel (D-07)
+    {
+        Preferences seed;
+        seed.begin(GetSectionNamespace(config_constants::sections::SYSTEM).c_str(), false);
+        seed.putString(config_constants::items::DEFAULT_PANEL, "DiagnosticPanel");
+        seed.end();
+    }
+#endif
+
     // Create default sections
 
     // Load all registered sections
-    LoadAllConfigSections();
+    // StorageProvider is never subclassed, so the call cannot reach an override
+    // cppcheck-suppress virtualCallInConstructor
+    StorageProvider::LoadAllConfigSections();
 
     log_i("ConfigurationManager initialized");
 }
@@ -73,23 +91,25 @@ StorageProvider::StorageProvider() {
  * After registration, any existing persisted values are automatically loaded from NVS,
  * allowing components to immediately access their stored configuration.
  */
-bool StorageProvider::RegisterConfigSection(const Config::ConfigSection& section) {
+bool StorageProvider::RegisterConfigSection(const config::ConfigSection &section)
+{
     log_v("RegisterConfigSection() called");
-    SemaphoreGuard lock(configMutex_);
+    SemaphoreGuard lock(config_mutex_);
 
     // Check if section already exists - prevent duplicate registration
-    if (registeredSections_.find(section.sectionName) != registeredSections_.end()) {
-        log_w("Section '%s' already registered", section.sectionName.c_str());
+    if (registered_sections_.find(section.section_name) != registered_sections_.end())
+    {
+        log_w("Section '%s' already registered", section.section_name.c_str());
         return false;
     }
 
     // Store section definition in memory for later access
-    registeredSections_[section.sectionName] = section;
-    log_i("Registered config section: %s", section.sectionName.c_str());
+    registered_sections_[section.section_name] = section;
+    log_i("Registered config section: %s", section.section_name.c_str());
 
     // Load any existing persisted values for this section from NVS
     // This allows components to register config and immediately access stored values
-    LoadConfigSection(section.sectionName);
+    LoadConfigSection(section.section_name);
 
     return true;
 }
@@ -102,28 +122,32 @@ bool StorageProvider::RegisterConfigSection(const Config::ConfigSection& section
  * list enables dynamic UI creation where menus are built based on what
  * components have registered, rather than hardcoded menu structures.
  */
-std::vector<std::string> StorageProvider::GetRegisteredSectionNames() const {
-    SemaphoreGuard lock(configMutex_);
+std::vector<std::string> StorageProvider::GetRegisteredSectionNames() const
+{
+    SemaphoreGuard lock(config_mutex_);
 
-    // Create vector of pairs (sectionName, displayName) for sorting
-    std::vector<std::pair<std::string, std::string>> sectionPairs;
-    sectionPairs.reserve(registeredSections_.size());
+    // Create vector of pairs (section_name, displayName) for sorting
+    std::vector<std::pair<std::string, std::string>> section_pairs;
+    section_pairs.reserve(registered_sections_.size());
 
-    for (const auto& [name, section] : registeredSections_) {
-        sectionPairs.emplace_back(name, section.displayName);
+    for (const auto &[name, section] : registered_sections_)
+    {
+        section_pairs.emplace_back(name, section.displayName);
     }
 
     // Sort alphabetically by displayName
-    std::sort(sectionPairs.begin(), sectionPairs.end(),
-        [](const auto& a, const auto& b) {
-            return a.second < b.second;  // Compare displayName (second element)
-        });
+    std::sort(section_pairs.begin(), section_pairs.end(),
+              [](const auto &a, const auto &b)
+              {
+                  return a.second < b.second; // Compare displayName (second element)
+              });
 
     // Extract sorted section names
     std::vector<std::string> names;
-    names.reserve(sectionPairs.size());
-    for (const auto& [sectionName, displayName] : sectionPairs) {
-        names.push_back(sectionName);
+    names.reserve(section_pairs.size());
+    for (const auto &[section_name, display_name] : section_pairs)
+    {
+        names.push_back(section_name);
     }
 
     return names;
@@ -131,18 +155,20 @@ std::vector<std::string> StorageProvider::GetRegisteredSectionNames() const {
 
 /**
  * @brief Retrieve a specific configuration section by name
- * @param sectionName Name of the section to retrieve
+ * @param section_name Name of the section to retrieve
  * @return Optional containing section if found, nullopt if not registered
  *
  * Returns the complete section definition including current values and metadata.
  * Used by ConfigPanel to build configuration UIs and by components to access
  * their registered configuration structure.
  */
-std::optional<Config::ConfigSection> StorageProvider::GetConfigSection(const std::string& sectionName) const {
-    SemaphoreGuard lock(configMutex_);
+std::optional<config::ConfigSection> StorageProvider::GetConfigSection(const std::string &section_name) const
+{
+    SemaphoreGuard lock(config_mutex_);
 
-    auto it = registeredSections_.find(sectionName);
-    if (it != registeredSections_.end()) {
+    auto it = registered_sections_.find(section_name);
+    if (it != registered_sections_.end())
+    {
         return it->second;
     }
 
@@ -151,31 +177,35 @@ std::optional<Config::ConfigSection> StorageProvider::GetConfigSection(const std
 
 /**
  * @brief Save a specific configuration section to NVS storage
- * @param sectionName Name of the section to persist
+ * @param section_name Name of the section to persist
  * @return true if save operation successful
  *
  * Persists all configuration items in the specified section to sectioned NVS storage.
  * Each section gets its own NVS namespace for organization. Used when components
  * want to save their specific configuration without affecting other sections.
  */
-bool StorageProvider::SaveConfigSection(const std::string& sectionName) {
-    auto it = registeredSections_.find(sectionName);
-    if (it == registeredSections_.end()) {
-        log_w("Section not found: %s", sectionName.c_str());
+bool StorageProvider::SaveConfigSection(const std::string &section_name)
+{
+    auto it = registered_sections_.find(section_name);
+    if (it == registered_sections_.end())
+    {
+        log_w("Section not found: %s", section_name.c_str());
         return false;
     }
 
-    const Config::ConfigSection& section = it->second;
-    std::string nsName = GetSectionNamespace(sectionName);
+    const config::ConfigSection &section = it->second;
+    std::string ns_name = GetSectionNamespace(section_name);
 
-    preferences_.begin(nsName.c_str(), false);
+    preferences_.begin(ns_name.c_str(), false);
     bool success = true;
 
-    for (const auto& item : section.items) {
-        if (!StoreValueToNVS(preferences_, item.key, item.value)) {
-            log_e("Failed to store config item: %s.%s", sectionName.c_str(), item.key.c_str());
+    for (const auto &item : section.items)
+    {
+        if (!StoreValueToNVS(preferences_, item.key, item.value))
+        {
+            log_e("Failed to store config item: %s.%s", section_name.c_str(), item.key.c_str());
             ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "ConfigurationManager",
-                                                "Failed to store config item to NVS");
+                                                 "Failed to store config item to NVS");
             success = false;
         }
     }
@@ -187,28 +217,45 @@ bool StorageProvider::SaveConfigSection(const std::string& sectionName) {
 
 /**
  * @brief Load a specific configuration section from NVS storage
- * @param sectionName Name of the section to load
+ * @param section_name Name of the section to load
  * @return true if load operation successful
  *
  * Loads persisted values from sectioned NVS storage into the in-memory section definition.
  * Called automatically after component registration to restore previous configuration.
  * Updates the registered section with stored values while preserving metadata.
  */
-bool StorageProvider::LoadConfigSection(const std::string& sectionName) {
-    auto it = registeredSections_.find(sectionName);
-    if (it == registeredSections_.end()) {
+bool StorageProvider::LoadConfigSection(const std::string &section_name)
+{
+    auto it = registered_sections_.find(section_name);
+    if (it == registered_sections_.end())
+    {
         return false;
     }
 
-    Config::ConfigSection& section = it->second;
-    std::string nsName = GetSectionNamespace(sectionName);
+    config::ConfigSection &section = it->second;
+    std::string ns_name = GetSectionNamespace(section_name);
 
-    preferences_.begin(nsName.c_str(), true); // read-only
+    preferences_.begin(ns_name.c_str(), true); // read-only
 
-    for (auto& item : section.items) {
+    for (auto &item : section.items)
+    {
         // Only overwrite default if value exists in NVS
-        if (preferences_.isKey(item.key.c_str())) {
-            item.value = LoadValueFromNVS(preferences_, item.key, item.defaultValue);
+        if (preferences_.isKey(item.key.c_str()))
+        {
+            config::ConfigValue stored = LoadValueFromNVS(preferences_, item.key, item.defaultValue);
+
+            // A stored selection that is no longer an allowed option (for example a
+            // removed panel) falls back to the default instead of failing later (D-07)
+            if (item.metadata.itemType == config::ConfigItemType::Selection &&
+                std::holds_alternative<std::string>(stored) &&
+                !ValidateEnumValue(std::get<std::string>(stored), item.metadata.constraints))
+            {
+                log_w("Stored value '%s' for %s.%s is not an allowed option, using default",
+                      std::get<std::string>(stored).c_str(), section_name.c_str(), item.key.c_str());
+                log_t("Invalid stored value for %s.%s, using default", section_name.c_str(), item.key.c_str());
+                continue;
+            }
+            item.value = stored;
         }
         // Otherwise preserve the default value in item.value
     }
@@ -225,14 +272,17 @@ bool StorageProvider::LoadConfigSection(const std::string& sectionName) {
  * registered sections and saves each one to its respective NVS namespace.
  * Used during application shutdown or when performing complete configuration backup.
  */
-bool StorageProvider::SaveAllConfigSections() {
-    bool allSuccess = true;
-    for (const auto& [name, section] : registeredSections_) {
-        if (!SaveConfigSection(name)) {
-            allSuccess = false;
+bool StorageProvider::SaveAllConfigSections()
+{
+    bool all_success = true;
+    for (const auto &[name, section] : registered_sections_)
+    {
+        if (!SaveConfigSection(name))
+        {
+            all_success = false;
         }
     }
-    return allSuccess;
+    return all_success;
 }
 
 /**
@@ -243,61 +293,71 @@ bool StorageProvider::SaveAllConfigSections() {
  * registered sections and loads persisted values from their respective NVS namespaces.
  * Called during application startup to restore previous configuration state.
  */
-bool StorageProvider::LoadAllConfigSections() {
-    bool allSuccess = true;
-    for (const auto& [name, section] : registeredSections_) {
-        if (!LoadConfigSection(name)) {
-            allSuccess = false;
+bool StorageProvider::LoadAllConfigSections()
+{
+    bool all_success = true;
+    for (const auto &[name, section] : registered_sections_)
+    {
+        if (!LoadConfigSection(name))
+        {
+            all_success = false;
         }
     }
-    return allSuccess;
+    return all_success;
 }
 
-bool StorageProvider::ValidateConfigValue(const std::string& fullKey, const Config::ConfigValue& value) const {
-    auto [sectionName, itemKey] = ParseConfigKey(fullKey);
+bool StorageProvider::ValidateConfigValue(const std::string &full_key, const config::ConfigValue &value) const
+{
+    auto [section_name, item_key] = ParseConfigKey(full_key);
 
-    auto sectionIt = registeredSections_.find(sectionName);
-    if (sectionIt == registeredSections_.end()) {
+    auto section_it = registered_sections_.find(section_name);
+    if (section_it == registered_sections_.end())
+    {
         return false;
     }
 
-    const Config::ConfigSection& section = sectionIt->second;
-    auto itemIt = std::find_if(section.items.begin(), section.items.end(),
-        [&itemKey](const Config::ConfigItem& item) { return item.key == itemKey; });
+    const config::ConfigSection &section = section_it->second;
+    auto item_it = std::find_if(section.items.begin(), section.items.end(),
+                                [&item_key](const config::ConfigItem &item) { return item.key == item_key; });
 
-    if (itemIt == section.items.end()) {
+    if (item_it == section.items.end())
+    {
         return false;
     }
 
-    const Config::ConfigItem& item = *itemIt;
+    const config::ConfigItem &item = *item_it;
 
     // Type validation - ensure types match between new value and existing value
-    if (!TypesMatch(value, item.value)) {
-        log_w("Type mismatch for key %s - expected %s, got %s",
-              fullKey.c_str(),
-              GetTypeName(item.value).c_str(),
+    if (!TypesMatch(value, item.value))
+    {
+        log_w("Type mismatch for key %s - expected %s, got %s", full_key.c_str(), GetTypeName(item.value).c_str(),
               GetTypeName(value).c_str());
         return false;
     }
 
     // Validate based on value type and metadata
-    if (std::holds_alternative<int>(value)) {
+    if (std::holds_alternative<int>(value))
+    {
         auto val = std::get<int>(value);
         return ValidateIntRange(val, item.metadata.constraints);
     }
-    else if (std::holds_alternative<float>(value)) {
+    else if (std::holds_alternative<float>(value))
+    {
         auto val = std::get<float>(value);
         return ValidateFloatRange(val, item.metadata.constraints);
     }
-    else if (std::holds_alternative<std::string>(value)) {
+    else if (std::holds_alternative<std::string>(value))
+    {
         auto val = std::get<std::string>(value);
         // For selection items (enum-like), validate against constraints
-        if (item.metadata.itemType == Config::ConfigItemType::Selection) {
+        if (item.metadata.itemType == config::ConfigItemType::Selection)
+        {
             return ValidateEnumValue(val, item.metadata.constraints);
         }
         return true; // Free-form strings always valid
     }
-    else if (std::holds_alternative<bool>(value)) {
+    else if (std::holds_alternative<bool>(value))
+    {
         return true; // Booleans always valid
     }
 
@@ -306,111 +366,127 @@ bool StorageProvider::ValidateConfigValue(const std::string& fullKey, const Conf
 
 // ========== Live Update Implementation ==========
 
-uint32_t StorageProvider::RegisterChangeCallback(const std::string& fullKey, ConfigChangeCallback callback) {
-    SemaphoreGuard lock(configMutex_);
-    uint32_t callbackId = nextCallbackId_++;
-    changeCallbacks_[callbackId] = std::make_pair(fullKey, callback);
-    return callbackId;
+uint32_t StorageProvider::RegisterChangeCallback(const std::string &full_key, ConfigChangeCallback callback)
+{
+    SemaphoreGuard lock(config_mutex_);
+    uint32_t callback_id = next_callback_id_++;
+    change_callbacks_[callback_id] = std::make_pair(full_key, callback);
+    return callback_id;
 }
 
-bool StorageProvider::IsSchemaRegistered(const std::string& sectionName) const {
-    SemaphoreGuard lock(configMutex_);
-    return registeredSections_.find(sectionName) != registeredSections_.end();
+bool StorageProvider::IsSchemaRegistered(const std::string &section_name) const
+{
+    SemaphoreGuard lock(config_mutex_);
+    return registered_sections_.find(section_name) != registered_sections_.end();
 }
 
 // ========== Protected Implementation Methods ==========
 
-std::optional<Config::ConfigValue> StorageProvider::QueryConfigValue(const std::string& fullKey) const {
+std::optional<config::ConfigValue> StorageProvider::QueryConfigValue(const std::string &full_key) const
+{
     // Parse dot-separated key into section and item (e.g., "oil_temp_sensor.unit")
-    auto [sectionName, itemKey] = ParseConfigKey(fullKey);
+    auto [section_name, item_key] = ParseConfigKey(full_key);
 
     // Find the registered section by name
-    auto sectionIt = registeredSections_.find(sectionName);
-    if (sectionIt == registeredSections_.end()) {
+    auto section_it = registered_sections_.find(section_name);
+    if (section_it == registered_sections_.end())
+    {
         return std::nullopt; // Section not registered
     }
 
     // Search for the specific configuration item within the section
-    const Config::ConfigSection& section = sectionIt->second;
-    auto itemIt = std::find_if(section.items.begin(), section.items.end(),
-        [&itemKey](const Config::ConfigItem& item) { return item.key == itemKey; });
+    const config::ConfigSection &section = section_it->second;
+    auto item_it = std::find_if(section.items.begin(), section.items.end(),
+                                [&item_key](const config::ConfigItem &item) { return item.key == item_key; });
 
-    if (itemIt == section.items.end()) {
+    if (item_it == section.items.end())
+    {
         return std::nullopt; // Item not found in section
     }
 
     // Return the current value stored in memory
-    return itemIt->value;
+    return item_it->value;
 }
 
-bool StorageProvider::UpdateConfigValue(const std::string& fullKey, const Config::ConfigValue& value) {
+bool StorageProvider::UpdateConfigValue(const std::string &full_key, const config::ConfigValue &value)
+{
     // Parse dot-separated key into section and item components
-    auto [sectionName, itemKey] = ParseConfigKey(fullKey);
+    auto [section_name, item_key] = ParseConfigKey(full_key);
 
     // Find the registered section
-    auto sectionIt = registeredSections_.find(sectionName);
-    if (sectionIt == registeredSections_.end()) {
-        log_w("Section not found for key: %s", fullKey.c_str());
+    auto section_it = registered_sections_.find(section_name);
+    if (section_it == registered_sections_.end())
+    {
+        log_w("Section not found for key: %s", full_key.c_str());
         return false;
     }
 
     // Find the specific configuration item within the section
-    Config::ConfigSection& section = sectionIt->second;
-    auto itemIt = std::find_if(section.items.begin(), section.items.end(),
-        [&itemKey](Config::ConfigItem& item) { return item.key == itemKey; });
+    config::ConfigSection &section = section_it->second;
+    auto item_it = std::find_if(section.items.begin(), section.items.end(),
+                                [&item_key](config::ConfigItem &item) { return item.key == item_key; });
 
-    if (itemIt == section.items.end()) {
-        log_w("Item not found for key: %s", fullKey.c_str());
+    if (item_it == section.items.end())
+    {
+        log_w("Item not found for key: %s", full_key.c_str());
         return false;
     }
 
     // Store old value for change notifications
-    std::optional<Config::ConfigValue> oldValue = itemIt->value;
+    std::optional<config::ConfigValue> old_value = item_it->value;
 
     // Validate new value against metadata constraints (range, enum options, etc.)
-    if (!ValidateConfigValue(fullKey, value)) {
-        log_w("Validation failed for key: %s", fullKey.c_str());
+    if (!ValidateConfigValue(full_key, value))
+    {
+        log_w("Validation failed for key: %s", full_key.c_str());
         return false;
     }
 
     // Update in-memory value
-    itemIt->value = value;
+    item_it->value = value;
 
     // Persist to sectioned NVS storage - each section gets its own namespace
-    std::string nsName = GetSectionNamespace(sectionName);
-    preferences_.begin(nsName.c_str(), false); // false = read/write mode
-    bool success = StoreValueToNVS(preferences_, itemKey, value);
+    std::string ns_name = GetSectionNamespace(section_name);
+    preferences_.begin(ns_name.c_str(), false); // false = read/write mode
+    bool success = StoreValueToNVS(preferences_, item_key, value);
     preferences_.end();
 
-    if (success) {
-        log_i("Updated config %s = %s", fullKey.c_str(),
-              ToString(value).c_str());
+    if (success)
+    {
+        log_i("Updated config %s = %s", full_key.c_str(), ToString(value).c_str());
 
         // Notify all registered callbacks about the configuration change
         // Callbacks can watch specific keys or all changes (empty watchedKey)
-        for (const auto& [callbackId, keyCallbackPair] : changeCallbacks_) {
-            const std::string& watchedKey = keyCallbackPair.first;
-            const ConfigChangeCallback& callback = keyCallbackPair.second;
+        for (const auto &[callback_id, key_callback_pair] : change_callbacks_)
+        {
+            const std::string &watched_key = key_callback_pair.first;
+            const ConfigChangeCallback &callback = key_callback_pair.second;
 
             // Check if callback watches this key specifically or all changes
-            if (watchedKey.empty() || watchedKey == fullKey) {
-                try {
+            if (watched_key.empty() || watched_key == full_key)
+            {
+                try
+                {
                     // Call registered callback with key, old value, and new value
-                    callback(fullKey, oldValue, value);
-                    log_t("Notified callback %u for update: %s", callbackId, fullKey.c_str());
-                } catch (const std::exception& e) {
-                    log_e("Exception in change callback %u: %s", callbackId, e.what());
+                    callback(full_key, old_value, value);
+                    log_t("Notified callback %u for update: %s", callback_id, full_key.c_str());
+                }
+                catch (const std::exception &e)
+                {
+                    log_e("Exception in change callback %u: %s", callback_id, e.what());
                     ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "StorageProvider",
-                                                        "Exception in change callback");
+                                                         "Exception in change callback");
                 }
             }
         }
-    } else {
+    }
+    else
+    {
         // Rollback in-memory value on NVS write failure
-        itemIt->value = *oldValue;
-        log_e("Failed to save config to NVS for key: %s", fullKey.c_str());
+        item_it->value = *old_value;
+        log_e("Failed to save config to NVS for key: %s", full_key.c_str());
         ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "ConfigurationManager",
-                                            "Failed to save config value to NVS");
+                                             "Failed to save config value to NVS");
     }
 
     return success;
@@ -418,26 +494,30 @@ bool StorageProvider::UpdateConfigValue(const std::string& fullKey, const Config
 
 // ========== Private Helper Methods ==========
 
-std::pair<std::string, std::string> StorageProvider::ParseConfigKey(const std::string& fullKey) const {
-    size_t dotPos = fullKey.find('.');
-    if (dotPos == std::string::npos) {
-        return {"", fullKey};
+std::pair<std::string, std::string> StorageProvider::ParseConfigKey(const std::string &full_key) const
+{
+    size_t dot_pos = full_key.find('.');
+    if (dot_pos == std::string::npos)
+    {
+        return {"", full_key};
     }
-    return {fullKey.substr(0, dotPos), fullKey.substr(dotPos + 1)};
+    return {full_key.substr(0, dot_pos), full_key.substr(dot_pos + 1)};
 }
 
 /**
  * @brief Generate NVS namespace string for a configuration section
- * @param sectionName Name of the configuration section
+ * @param section_name Name of the configuration section
  * @return NVS namespace string with prefix, truncated if necessary
  *
  * Creates proper NVS namespace by prefixing section name and ensuring
  * it fits within NVS 15-character namespace limit. Truncates if needed.
  */
-std::string StorageProvider::GetSectionNamespace(const std::string& sectionName) const {
-    std::string ns = SECTION_PREFIX_ + sectionName;
-    if (ns.length() > MAX_NAMESPACE_LEN_) {
-        ns = ns.substr(0, MAX_NAMESPACE_LEN_);
+std::string StorageProvider::GetSectionNamespace(const std::string &section_name) const
+{
+    std::string ns = section_prefix + section_name;
+    if (ns.length() > MAX_NAMESPACE_LEN)
+    {
+        ns.resize(MAX_NAMESPACE_LEN);
     }
     return ns;
 }
@@ -451,17 +531,27 @@ std::string StorageProvider::GetSectionNamespace(const std::string& sectionName)
  * Parses range constraints and validates integer values. Returns true
  * for empty constraints or parsing errors (permissive validation).
  */
-bool StorageProvider::ValidateIntRange(int value, const std::string& constraints) const {
-    if (constraints.empty()) return true;
+bool StorageProvider::ValidateIntRange(int value, const std::string &constraints) const
+{
+    if (constraints.empty())
+    {
+        return true;
+    }
 
-    size_t dashPos = constraints.find('-');
-    if (dashPos == std::string::npos) return true;
+    size_t dash_pos = constraints.find('-');
+    if (dash_pos == std::string::npos)
+    {
+        return true;
+    }
 
-    try {
-        int min = std::stoi(constraints.substr(0, dashPos));
-        int max = std::stoi(constraints.substr(dashPos + 1));
+    try
+    {
+        int min = std::stoi(constraints.substr(0, dash_pos));
+        int max = std::stoi(constraints.substr(dash_pos + 1));
         return value >= min && value <= max;
-    } catch (...) {
+    }
+    catch (...)
+    {
         return true; // If parsing fails, allow the value
     }
 }
@@ -475,17 +565,27 @@ bool StorageProvider::ValidateIntRange(int value, const std::string& constraints
  * Parses range constraints and validates float values. Returns true
  * for empty constraints or parsing errors (permissive validation).
  */
-bool StorageProvider::ValidateFloatRange(float value, const std::string& constraints) const {
-    if (constraints.empty()) return true;
+bool StorageProvider::ValidateFloatRange(float value, const std::string &constraints) const
+{
+    if (constraints.empty())
+    {
+        return true;
+    }
 
-    size_t dashPos = constraints.find('-');
-    if (dashPos == std::string::npos) return true;
+    size_t dash_pos = constraints.find('-');
+    if (dash_pos == std::string::npos)
+    {
+        return true;
+    }
 
-    try {
-        float min = std::stof(constraints.substr(0, dashPos));
-        float max = std::stof(constraints.substr(dashPos + 1));
+    try
+    {
+        float min = std::stof(constraints.substr(0, dash_pos));
+        float max = std::stof(constraints.substr(dash_pos + 1));
         return value >= min && value <= max;
-    } catch (...) {
+    }
+    catch (...)
+    {
         return true;
     }
 }
@@ -499,8 +599,12 @@ bool StorageProvider::ValidateFloatRange(float value, const std::string& constra
  * Parses comma-separated options and checks if value is valid.
  * Used for dropdown/enum configuration validation.
  */
-bool StorageProvider::ValidateEnumValue(const std::string& value, const std::string& constraints) const {
-    if (constraints.empty()) return true;
+bool StorageProvider::ValidateEnumValue(const std::string &value, const std::string &constraints) const
+{
+    if (constraints.empty())
+    {
+        return true;
+    }
 
     auto options = ParseOptions(constraints);
     return std::find(options.begin(), options.end(), value) != options.end();
@@ -514,16 +618,19 @@ bool StorageProvider::ValidateEnumValue(const std::string& value, const std::str
  * Splits string by commas, trims whitespace from each option,
  * and filters out empty entries. Used for enum validation.
  */
-std::vector<std::string> StorageProvider::ParseOptions(const std::string& str) const {
+std::vector<std::string> StorageProvider::ParseOptions(const std::string &str) const
+{
     std::vector<std::string> options;
     std::stringstream ss(str);
     std::string option;
 
-    while (std::getline(ss, option, ',')) {
+    while (std::getline(ss, option, ','))
+    {
         // Trim whitespace
         option.erase(0, option.find_first_not_of(" \t"));
         option.erase(option.find_last_not_of(" \t") + 1);
-        if (!option.empty()) {
+        if (!option.empty())
+        {
             options.push_back(option);
         }
     }
@@ -542,18 +649,22 @@ std::vector<std::string> StorageProvider::ParseOptions(const std::string& str) c
  * Converts ConfigValue to appropriate NVS type and stores using type-specific
  * putters. Handles type safety by validating ConfigValue content matches expected type.
  */
-bool StorageProvider::StoreValueToNVS(Preferences& prefs, const std::string& key,
-                                               const Config::ConfigValue& value) {
-    if (std::holds_alternative<int>(value)) {
+bool StorageProvider::StoreValueToNVS(Preferences &prefs, const std::string &key, const config::ConfigValue &value)
+{
+    if (std::holds_alternative<int>(value))
+    {
         return prefs.putInt(key.c_str(), std::get<int>(value));
     }
-    else if (std::holds_alternative<float>(value)) {
+    else if (std::holds_alternative<float>(value))
+    {
         return prefs.putFloat(key.c_str(), std::get<float>(value));
     }
-    else if (std::holds_alternative<bool>(value)) {
+    else if (std::holds_alternative<bool>(value))
+    {
         return prefs.putBool(key.c_str(), std::get<bool>(value));
     }
-    else if (std::holds_alternative<std::string>(value)) {
+    else if (std::holds_alternative<std::string>(value))
+    {
         return prefs.putString(key.c_str(), std::get<std::string>(value).c_str());
     }
 
@@ -572,19 +683,24 @@ bool StorageProvider::StoreValueToNVS(Preferences& prefs, const std::string& key
  * Handles both String and Enum types as strings since enums are stored as their string values.
  * Returns std::monostate for unknown types to indicate invalid/unhandled configuration.
  */
-Config::ConfigValue StorageProvider::LoadValueFromNVS(Preferences& prefs, const std::string& key,
-                                                               const Config::ConfigValue& templateValue) {
-    if (std::holds_alternative<int>(templateValue)) {
-        return prefs.getInt(key.c_str(), std::get<int>(templateValue));
+config::ConfigValue StorageProvider::LoadValueFromNVS(Preferences &prefs, const std::string &key,
+                                                      const config::ConfigValue &template_value)
+{
+    if (std::holds_alternative<int>(template_value))
+    {
+        return prefs.getInt(key.c_str(), std::get<int>(template_value));
     }
-    else if (std::holds_alternative<float>(templateValue)) {
-        return prefs.getFloat(key.c_str(), std::get<float>(templateValue));
+    else if (std::holds_alternative<float>(template_value))
+    {
+        return prefs.getFloat(key.c_str(), std::get<float>(template_value));
     }
-    else if (std::holds_alternative<bool>(templateValue)) {
-        return prefs.getBool(key.c_str(), std::get<bool>(templateValue));
+    else if (std::holds_alternative<bool>(template_value))
+    {
+        return prefs.getBool(key.c_str(), std::get<bool>(template_value));
     }
-    else if (std::holds_alternative<std::string>(templateValue)) {
-        return std::string(prefs.getString(key.c_str(), std::get<std::string>(templateValue).c_str()).c_str());
+    else if (std::holds_alternative<std::string>(template_value))
+    {
+        return std::string(prefs.getString(key.c_str(), std::get<std::string>(template_value).c_str()).c_str());
     }
 
     return std::monostate{};
@@ -598,28 +714,42 @@ Config::ConfigValue StorageProvider::LoadValueFromNVS(Preferences& prefs, const 
  * @param value The ConfigValue to check
  * @return Type name as string for UI/logging
  */
-std::string StorageProvider::GetTypeName(const Config::ConfigValue& value) const {
-    return std::visit([](const auto& v) -> std::string {
-        using T = std::decay_t<decltype(v)>;
-        if constexpr (std::is_same_v<T, std::monostate>) {
-            return ConfigConstants::Types::UNSET;
-        } else if constexpr (std::is_same_v<T, int>) {
-            return ConfigConstants::Types::INTEGER_INTERNAL;
-        } else if constexpr (std::is_same_v<T, float>) {
-            return ConfigConstants::Types::FLOAT_INTERNAL;
-        } else if constexpr (std::is_same_v<T, bool>) {
-            return ConfigConstants::Types::BOOLEAN_INTERNAL;
-        } else if constexpr (std::is_same_v<T, std::string>) {
-            return ConfigConstants::Types::STRING_INTERNAL;
-        }
-        return ConfigConstants::Types::UNKNOWN;
-    }, value);
+std::string StorageProvider::GetTypeName(const config::ConfigValue &value) const
+{
+    return std::visit(
+        [](const auto &v) -> std::string
+        {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, std::monostate>)
+            {
+                return config_constants::types::UNSET;
+            }
+            else if constexpr (std::is_same_v<T, int>)
+            {
+                return config_constants::types::INTEGER_INTERNAL;
+            }
+            else if constexpr (std::is_same_v<T, float>)
+            {
+                return config_constants::types::FLOAT_INTERNAL;
+            }
+            else if constexpr (std::is_same_v<T, bool>)
+            {
+                return config_constants::types::BOOLEAN_INTERNAL;
+            }
+            else if constexpr (std::is_same_v<T, std::string>)
+            {
+                return config_constants::types::STRING_INTERNAL;
+            }
+            return config_constants::types::UNKNOWN;
+        },
+        value);
 }
 
 /**
  * @brief Check if value type matches another value's type
  */
-bool StorageProvider::TypesMatch(const Config::ConfigValue& a, const Config::ConfigValue& b) const {
+bool StorageProvider::TypesMatch(const config::ConfigValue &a, const config::ConfigValue &b) const
+{
     return a.index() == b.index();
 }
 
@@ -628,19 +758,31 @@ bool StorageProvider::TypesMatch(const Config::ConfigValue& a, const Config::Con
  * @param value The ConfigValue to convert
  * @return String representation of the value
  */
-std::string StorageProvider::ToString(const Config::ConfigValue& value) const {
-    return std::visit([](const auto& v) -> std::string {
-        using T = std::decay_t<decltype(v)>;
-        if constexpr (std::is_same_v<T, std::monostate>) {
-            return ConfigConstants::BooleanValues::EMPTY_STRING;
-        } else if constexpr (std::is_same_v<T, bool>) {
-            return v ? ConfigConstants::BooleanValues::TRUE_STRING : ConfigConstants::BooleanValues::FALSE_STRING;
-        } else if constexpr (std::is_same_v<T, std::string>) {
-            return v;
-        } else {
-            return std::to_string(v);
-        }
-    }, value);
+std::string StorageProvider::ToString(const config::ConfigValue &value) const
+{
+    return std::visit(
+        [](const auto &v) -> std::string
+        {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, std::monostate>)
+            {
+                return config_constants::boolean_values::EMPTY_STRING;
+            }
+            else if constexpr (std::is_same_v<T, bool>)
+            {
+                return v ? config_constants::boolean_values::TRUE_STRING
+                         : config_constants::boolean_values::FALSE_STRING;
+            }
+            else if constexpr (std::is_same_v<T, std::string>)
+            {
+                return v;
+            }
+            else
+            {
+                return std::to_string(v);
+            }
+        },
+        value);
 }
 
 /**
@@ -649,41 +791,65 @@ std::string StorageProvider::ToString(const Config::ConfigValue& value) const {
  * @param templateValue Value whose type to match
  * @return ConfigValue containing the parsed value
  */
-Config::ConfigValue StorageProvider::FromString(const std::string& str, const Config::ConfigValue& templateValue) const {
-    return std::visit([&str](const auto& v) -> Config::ConfigValue {
-        using T = std::decay_t<decltype(v)>;
-        if constexpr (std::is_same_v<T, std::monostate>) {
-            // Try to infer: if it looks like a number, parse as int
-            // Otherwise return as string
-            try {
-                return std::stoi(str);
-            } catch (...) {
+config::ConfigValue StorageProvider::FromString(const std::string &str, const config::ConfigValue &template_value) const
+{
+    return std::visit(
+        [&str](const auto &v) -> config::ConfigValue
+        {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, std::monostate>)
+            {
+                // Try to infer: if it looks like a number, parse as int
+                // Otherwise return as string
+                try
+                {
+                    return std::stoi(str);
+                }
+                catch (...)
+                {
+                    return str;
+                }
+            }
+            else if constexpr (std::is_same_v<T, int>)
+            {
+                try
+                {
+                    return std::stoi(str);
+                }
+                catch (...)
+                {
+                    return std::monostate{};
+                }
+            }
+            else if constexpr (std::is_same_v<T, float>)
+            {
+                try
+                {
+                    return std::stof(str);
+                }
+                catch (...)
+                {
+                    return std::monostate{};
+                }
+            }
+            else if constexpr (std::is_same_v<T, bool>)
+            {
+                return (str == config_constants::boolean_values::TRUE_STRING ||
+                        str == config_constants::boolean_values::TRUE_NUMERIC);
+            }
+            else if constexpr (std::is_same_v<T, std::string>)
+            {
                 return str;
             }
-        } else if constexpr (std::is_same_v<T, int>) {
-            try {
-                return std::stoi(str);
-            } catch (...) {
-                return std::monostate{};
-            }
-        } else if constexpr (std::is_same_v<T, float>) {
-            try {
-                return std::stof(str);
-            } catch (...) {
-                return std::monostate{};
-            }
-        } else if constexpr (std::is_same_v<T, bool>) {
-            return (str == ConfigConstants::BooleanValues::TRUE_STRING || str == ConfigConstants::BooleanValues::TRUE_NUMERIC);
-        } else if constexpr (std::is_same_v<T, std::string>) {
-            return str;
-        }
-        return std::monostate{};
-    }, templateValue);
+            return std::monostate{};
+        },
+        template_value);
 }
 
 /**
  * @brief Check if a value is numeric (int or float)
  */
-bool StorageProvider::IsNumeric(const Config::ConfigValue& value) const {
+bool StorageProvider::IsNumeric(const config::ConfigValue &value) const
+{
     return std::holds_alternative<int>(value) || std::holds_alternative<float>(value);
 }

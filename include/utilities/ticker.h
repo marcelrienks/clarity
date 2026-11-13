@@ -19,8 +19,8 @@
  *
  * @core_functions:
  * - getElapsedMillis(): High-resolution timing using Arduino millis()
- * - handleLvTasks(): Process LVGL timer callbacks and animations
- * - handleDynamicDelay(): Adaptive delay based on execution time
+ * - HandleLvTasks(): Process LVGL timer callbacks and animations
+ * - HandleDynamicDelay(): Adaptive delay based on execution time
  *
  * @timing_strategy:
  * - Fixed LVGL tick processing
@@ -41,6 +41,6 @@ class Ticker
 {
   public:
     // Static Methods
-    static void handleDynamicDelay(uint32_t startTime);
-    static void handleLvTasks();
+    static void HandleDynamicDelay(uint32_t start_time);
+    static void HandleLvTasks();
 };

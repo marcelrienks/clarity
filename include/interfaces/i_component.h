@@ -4,8 +4,8 @@
 #include <lvgl.h>
 
 // Project Includes
-#include "interfaces/i_display_provider.h"
 #include "definitions/types.h"
+#include "interfaces/i_display_provider.h"
 
 /**
  * @interface IComponent
@@ -44,6 +44,8 @@
 class IComponent
 {
   public:
+    virtual ~IComponent() = default;
+
     // Core Interface Methods
     virtual void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) = 0;
     virtual void Refresh(const Reading &reading) {};

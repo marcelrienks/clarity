@@ -1,8 +1,8 @@
 #pragma once
 
+#include "definitions/types.h"
 #include "interfaces/i_component.h"
 #include "interfaces/i_style_manager.h"
-#include "definitions/types.h"
 
 #include <lvgl.h>
 
@@ -30,16 +30,16 @@ class LockComponent : public IComponent
 {
   public:
     // ========== Constructors and Destructor ==========
-    explicit LockComponent(IStyleManager *styleManager);
-    virtual ~LockComponent();
+    explicit LockComponent(IStyleManager *style_manager);
+    ~LockComponent() override;
 
     // ========== Public Interface Methods ==========
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;
 
   protected:
     // ========== Protected Data Members ==========
-    lv_obj_t *lockIcon_;
-    IStyleManager *styleManager_;
+    lv_obj_t *lock_icon_;
+    IStyleManager *style_manager_;
 
   private:
     // ========== Private Methods ==========

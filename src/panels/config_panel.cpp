@@ -1,15 +1,15 @@
 #include "panels/config_panel.h"
-#include "managers/error_manager.h"
-#include "managers/style_manager.h"
-#include "definitions/types.h"
-#include "utilities/logging.h"
 #include "definitions/constants.h"
 #include "definitions/styles.h"
+#include "definitions/types.h"
+#include "managers/error_manager.h"
+#include "managers/style_manager.h"
+#include "utilities/logging.h"
 #include <Arduino.h>
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <sstream>
-#include <cctype>
 #include <unordered_map>
 
 /**
@@ -22,11 +22,10 @@
  * Initializes menu system for automotive settings management including
  * theme selection, calibration, and system configuration options.
  */
-ConfigPanel::ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *styleManager,
-                         IPanelManager *panelManager, IConfigurationManager *configurationManager)
-    : gpioProvider_(gpio), displayProvider_(display), styleManager_(styleManager), panelManager_(panelManager),
-      configurationManager_(configurationManager),
-      currentMenuIndex_(0), configComponent_(), componentInitialized_(false)
+ConfigPanel::ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
+                         IPanelManager *panel_manager, IConfigurationManager *configuration_manager)
+    : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager), panel_manager_(panel_manager),
+      configuration_manager_(configuration_manager), component_initialized_(false), current_menu_index_(0)
 {
     log_v("ConfigPanel constructor called");
 }
@@ -42,8 +41,7 @@ ConfigPanel::~ConfigPanel()
 {
     log_v("~ConfigPanel() destructor called");
 
-    // Component is now stack-allocated and will be automatically destroyed
-
+    // Components delete no LVGL objects, so destroying them after the screen is safe
     if (screen_)
     {
         lv_obj_delete(screen_);
@@ -63,21 +61,23 @@ ConfigPanel::~ConfigPanel()
 void ConfigPanel::Init()
 {
     log_v("Init() called");
-    
-    if (!displayProvider_)
+
+    if (!display_provider_)
     {
         log_e("ConfigPanel requires display provider");
-        ErrorManager::Instance().ReportCriticalError(PanelNames::CONFIG, "Missing required display provider");
+        ErrorManager::Instance().ReportCriticalError(panel_names::CONFIG, "Missing required display provider");
         return;
     }
 
-    screen_ = displayProvider_->CreateScreen();
+    screen_ = display_provider_->CreateScreen();
 
-    if (!styleManager_)
+    if (!style_manager_)
+    {
         return;
+    }
 
-    styleManager_->ApplyThemeToScreen(screen_);
-    
+    style_manager_->ApplyThemeToScreen(screen_);
+
     log_i("ConfigPanel initialization completed");
 }
 
@@ -91,44 +91,46 @@ void ConfigPanel::Init()
 void ConfigPanel::Load()
 {
     log_v("Load() called");
-    
 
     // Reset menu to first item
-    currentMenuIndex_ = 0;
+    current_menu_index_ = 0;
 
     // Apply current theme to config panel (don't change the theme, just apply existing)
-    if (styleManager_)
+    if (style_manager_)
     {
-        styleManager_->ApplyThemeToScreen(screen_);
-        
+        style_manager_->ApplyThemeToScreen(screen_);
+
         // For night theme, override the screen background to use dark red instead of black
-        const std::string& theme = styleManager_->GetCurrentTheme();
-        if (theme == Themes::NIGHT) {
-            lv_obj_set_style_bg_color(screen_, lv_color_hex(Colors::NIGHT_BACKGROUND), LV_PART_MAIN); // Very dark red
+        const std::string &theme = style_manager_->GetCurrentTheme();
+        if (theme == themes::NIGHT)
+        {
+            lv_obj_set_style_bg_color(screen_, lv_color_hex(colors::NIGHT_BACKGROUND), LV_PART_MAIN); // Very dark red
             lv_obj_set_style_bg_opa(screen_, LV_OPA_COVER, LV_PART_MAIN);
         }
     }
 
     // Initialize the config component with the screen
     if (!screen_)
+    {
         return;
+    }
 
     // Mark component as initialized
-    componentInitialized_ = true;
+    component_initialized_ = true;
 
-    configComponent_.Init(screen_);
-    configComponent_.SetStyleService(styleManager_);
+    config_component_.Init(screen_);
+    config_component_.SetStyleService(style_manager_);
 
     // Build dynamic menu from registered configuration sections
     BuildDynamicMenus();
-    configComponent_.SetMenuItems(menuItems_);
-    configComponent_.SetCurrentIndex(currentMenuIndex_);
+    config_component_.SetMenuItems(menu_items_);
+    config_component_.SetCurrentIndex(current_menu_index_);
 
     // Register the screen loaded event callback
     lv_obj_add_event_cb(screen_, ConfigPanel::ShowPanelCompletionCallback, LV_EVENT_SCREEN_LOADED, this);
-    
+
     lv_screen_load(screen_);
-    
+
     log_t("ConfigPanel loaded successfully");
 }
 
@@ -144,8 +146,9 @@ void ConfigPanel::Update()
     log_v("Update() called");
 
     // Config panel is static - no updates needed, but must reset UI state to IDLE
-    if (panelManager_) {
-        panelManager_->SetUiState(UIState::IDLE);
+    if (panel_manager_)
+    {
+        panel_manager_->SetUiState(UIState::IDLE);
     }
 }
 
@@ -160,8 +163,9 @@ void ConfigPanel::ShowPanelCompletionCallback(lv_event_t *event)
     log_v("ShowPanelCompletionCallback() called");
     // Get the panel pointer from event user data
     auto *panel = static_cast<ConfigPanel *>(lv_event_get_user_data(event));
-    if (panel && panel->panelManager_) {
-        panel->panelManager_->SetUiState(UIState::IDLE);
+    if (panel && panel->panel_manager_)
+    {
+        panel->panel_manager_->SetUiState(UIState::IDLE);
     }
 }
 
@@ -178,17 +182,21 @@ void ConfigPanel::HandleShortPress()
 {
     log_v("HandleShortPress() called");
 
-    if (menuItems_.empty()) {
+    if (menu_items_.empty())
+    {
         log_w("No menu items available");
         return;
     }
 
     // Cycle to next menu item
-    currentMenuIndex_ = (currentMenuIndex_ + 1) % menuItems_.size();
+    current_menu_index_ = (current_menu_index_ + 1) % menu_items_.size();
 
-    if (componentInitialized_) {
-        configComponent_.SetCurrentIndex(currentMenuIndex_);
+    if (component_initialized_)
+    {
+        config_component_.SetCurrentIndex(current_menu_index_);
     }
+
+    log_t("ConfigPanel: %s option highlighted", menu_items_[current_menu_index_].label.c_str());
 }
 
 /**
@@ -201,12 +209,13 @@ void ConfigPanel::HandleShortPress()
 void ConfigPanel::HandleLongPress()
 {
 
-    if (!ValidateMenuState()) {
+    if (!ValidateMenuState())
+    {
         log_e("ConfigPanel::HandleLongPress() - ValidateMenuState failed");
         return;
     }
 
-    const auto& item = menuItems_[currentMenuIndex_];
+    const auto &item = menu_items_[current_menu_index_];
 
     ExecuteMenuAction(item);
 }
@@ -222,13 +231,15 @@ void ConfigPanel::HandleLongPress()
  */
 bool ConfigPanel::ValidateMenuState() const
 {
-    if (menuItems_.empty()) {
+    if (menu_items_.empty())
+    {
         log_w("No menu items available");
         return false;
     }
 
-    if (currentMenuIndex_ >= menuItems_.size()) {
-        log_w("Invalid menu index: %zu", currentMenuIndex_);
+    if (current_menu_index_ >= menu_items_.size())
+    {
+        log_w("Invalid menu index: %zu", current_menu_index_);
         return false;
     }
 
@@ -242,12 +253,13 @@ bool ConfigPanel::ValidateMenuState() const
  * Parses the action type and delegates to appropriate handler method.
  * Supports section navigation, value toggling, options display, and panel exit.
  */
-void ConfigPanel::ExecuteMenuAction(const ConfigComponent::MenuItem& item)
+void ConfigPanel::ExecuteMenuAction(const ConfigComponent::MenuItem &item)
 {
 
-    MenuActionType actionType = ParseActionType(item.actionType);
+    MenuActionType action_type = ParseActionType(item.actionType);
 
-    switch (actionType) {
+    switch (action_type)
+    {
         case MenuActionType::ENTER_SECTION:
             HandleEnterSection(item.actionParam);
             break;
@@ -270,7 +282,8 @@ void ConfigPanel::ExecuteMenuAction(const ConfigComponent::MenuItem& item)
             break;
         case MenuActionType::UNKNOWN:
         default:
-            log_w("ExecuteMenuAction - Unknown action type: %s (enum: %d)", item.actionType.c_str(), static_cast<int>(actionType));
+            log_w("ExecuteMenuAction - Unknown action type: %s (enum: %d)", item.actionType.c_str(),
+                  static_cast<int>(action_type));
             break;
     }
 }
@@ -283,49 +296,53 @@ void ConfigPanel::ExecuteMenuAction(const ConfigComponent::MenuItem& item)
  * Maps string action types from menu items to strongly-typed enum values.
  * Returns UNKNOWN for unrecognized action types.
  */
-ConfigPanel::MenuActionType ConfigPanel::ParseActionType(const std::string& actionTypeStr) const
+ConfigPanel::MenuActionType ConfigPanel::ParseActionType(const std::string &action_type_str) const
 {
-    static const std::unordered_map<std::string, MenuActionType> actionTypeMap = {
-        {UIStrings::ActionTypes::ENTER_SECTION, MenuActionType::ENTER_SECTION},
-        {UIStrings::ActionTypes::TOGGLE_BOOLEAN, MenuActionType::TOGGLE_BOOLEAN},
-        {UIStrings::ActionTypes::SHOW_OPTIONS, MenuActionType::SHOW_OPTIONS},
-        {UIStrings::ActionTypes::SET_CONFIG_VALUE, MenuActionType::SET_CONFIG_VALUE},
-        {UIStrings::ActionTypes::BACK, MenuActionType::BACK},
-        {UIStrings::ActionTypes::NONE, MenuActionType::NONE},
-        {UIStrings::ActionTypes::PANEL_EXIT, MenuActionType::PANEL_EXIT}
-    };
+    static const std::unordered_map<std::string, MenuActionType> ACTION_TYPE_MAP = {
+        {ui_strings::action_types::ENTER_SECTION, MenuActionType::ENTER_SECTION},
+        {ui_strings::action_types::TOGGLE_BOOLEAN, MenuActionType::TOGGLE_BOOLEAN},
+        {ui_strings::action_types::SHOW_OPTIONS, MenuActionType::SHOW_OPTIONS},
+        {ui_strings::action_types::SET_CONFIG_VALUE, MenuActionType::SET_CONFIG_VALUE},
+        {ui_strings::action_types::BACK, MenuActionType::BACK},
+        {ui_strings::action_types::NONE, MenuActionType::NONE},
+        {ui_strings::action_types::PANEL_EXIT, MenuActionType::PANEL_EXIT}};
 
-    auto it = actionTypeMap.find(actionTypeStr);
-    return (it != actionTypeMap.end()) ? it->second : MenuActionType::UNKNOWN;
+    auto it = ACTION_TYPE_MAP.find(action_type_str);
+    return (it != ACTION_TYPE_MAP.end()) ? it->second : MenuActionType::UNKNOWN;
 }
 
 /**
  * @brief Handles entering a configuration section
- * @param sectionName Name of the section to enter
+ * @param section_name Name of the section to enter
  *
  * Stores the current section name and builds the section-specific menu.
  * Used when user selects a configuration category from main menu.
  */
-void ConfigPanel::HandleEnterSection(const std::string& sectionName)
+void ConfigPanel::HandleEnterSection(const std::string &section_name)
 {
-    currentSectionName_ = sectionName;
-    BuildSectionMenu(currentSectionName_);
+    log_t("ConfigPanel: Entering section %s", section_name.c_str());
+    current_section_name_ = section_name;
+    BuildSectionMenu(current_section_name_);
+    log_t("ConfigPanel: Section %s menu loaded", current_section_name_.c_str());
 }
 
 /**
  * @brief Handles toggling of boolean configuration values
- * @param fullKey Full configuration key (section.item format)
+ * @param full_key Full configuration key (section.item format)
  *
  * Retrieves the configuration item, toggles its boolean value,
  * and refreshes the menu to show the updated state.
  */
-void ConfigPanel::HandleToggleBoolean(const std::string& fullKey)
+void ConfigPanel::HandleToggleBoolean(const std::string &full_key)
 {
-    auto [sectionName, itemKey] = ParseConfigKey(fullKey);
-    if (auto section = configurationManager_->GetConfigSection(sectionName)) {
-        for (const auto& configItem : section->items) {
-            if (configItem.key == itemKey) {
-                ShowBooleanToggle(fullKey, configItem);
+    auto [section_name, item_key] = ParseConfigKey(full_key);
+    if (auto section = configuration_manager_->GetConfigSection(section_name))
+    {
+        for (const auto &config_item : section->items)
+        {
+            if (config_item.key == item_key)
+            {
+                ShowBooleanToggle(full_key, config_item);
                 break;
             }
         }
@@ -334,18 +351,21 @@ void ConfigPanel::HandleToggleBoolean(const std::string& fullKey)
 
 /**
  * @brief Displays options menu for a configuration item
- * @param fullKey Full configuration key (section.item format)
+ * @param full_key Full configuration key (section.item format)
  *
  * Retrieves the configuration item and displays appropriate options
  * based on its type (enum, numeric, or string).
  */
-void ConfigPanel::HandleShowOptions(const std::string& fullKey)
+void ConfigPanel::HandleShowOptions(const std::string &full_key)
 {
-    auto [sectionName, itemKey] = ParseConfigKey(fullKey);
-    if (auto section = configurationManager_->GetConfigSection(sectionName)) {
-        for (const auto& configItem : section->items) {
-            if (configItem.key == itemKey) {
-                ShowOptionsMenu(fullKey, configItem);
+    auto [section_name, item_key] = ParseConfigKey(full_key);
+    if (auto section = configuration_manager_->GetConfigSection(section_name))
+    {
+        for (const auto &config_item : section->items)
+        {
+            if (config_item.key == item_key)
+            {
+                ShowOptionsMenu(full_key, config_item);
                 break;
             }
         }
@@ -360,42 +380,45 @@ void ConfigPanel::HandleShowOptions(const std::string& fullKey)
  * configuration based on item type, and returns to section menu.
  * Handles string, integer, float, boolean, and enum types.
  */
-void ConfigPanel::HandleSetConfigValue(const std::string& actionParam)
+void ConfigPanel::HandleSetConfigValue(const std::string &action_param)
 {
 
-    size_t colonPos = actionParam.find(':');
-    if (colonPos == std::string::npos) {
-        log_e("HandleSetConfigValue - Invalid set_config_value format: %s", actionParam.c_str());
+    size_t colon_pos = action_param.find(':');
+    if (colon_pos == std::string::npos)
+    {
+        log_e("HandleSetConfigValue - Invalid set_config_value format: %s", action_param.c_str());
         return;
     }
 
-    std::string fullKey = actionParam.substr(0, colonPos);
-    std::string value = actionParam.substr(colonPos + 1);
+    std::string full_key = action_param.substr(0, colon_pos);
+    std::string value = action_param.substr(colon_pos + 1);
 
-    auto [sectionName, itemKey] = ParseConfigKey(fullKey);
+    auto [section_name, item_key] = ParseConfigKey(full_key);
 
-    if (auto section = configurationManager_->GetConfigSection(sectionName)) {
-        for (const auto& configItem : section->items) {
-            if (configItem.key == itemKey) {
+    if (auto section = configuration_manager_->GetConfigSection(section_name))
+    {
+        for (const auto &config_item : section->items)
+        {
+            if (config_item.key == item_key)
+            {
                 // Parse the string value into the correct type based on existing value
-                Config::ConfigValue newValue = configurationManager_->FromString(value, configItem.value);
+                config::ConfigValue new_value = configuration_manager_->FromString(value, config_item.value);
+                log_t("ConfigPanel: Applying %s setting %s", full_key.c_str(), value.c_str());
 
                 // Update the configuration
-                configurationManager_->UpdateConfig(fullKey, newValue);
-
-                // If this was a theme change, update the config component colors
-                if (fullKey == UIStrings::ConfigKeys::STYLE_MANAGER_THEME) {
-                    configComponent_.UpdateThemeColors();
-                }
+                configuration_manager_->UpdateConfig(full_key, new_value);
 
                 // Go back to section menu
-                BuildSectionMenu(sectionName);
+                BuildSectionMenu(section_name);
+                log_t("ConfigPanel: Returned to section %s menu", section_name.c_str());
                 return;
             }
         }
-        log_e("HandleSetConfigValue - Config item not found for key: %s", itemKey.c_str());
-    } else {
-        log_e("HandleSetConfigValue - Section not found: %s", sectionName.c_str());
+        log_e("HandleSetConfigValue - Config item not found for key: %s", item_key.c_str());
+    }
+    else
+    {
+        log_e("HandleSetConfigValue - Section not found: %s", section_name.c_str());
     }
 }
 
@@ -406,14 +429,17 @@ void ConfigPanel::HandleSetConfigValue(const std::string& actionParam)
  * Navigates back from submenu to section menu or from section to main menu.
  * Uses stored section name to determine appropriate navigation target.
  */
-void ConfigPanel::HandleBackAction(const std::string& actionParam)
+void ConfigPanel::HandleBackAction(const std::string & /*action_param*/)
 {
 
     // If we're in a section menu, go back to main menu
-    if (!currentSectionName_.empty()) {
-        currentSectionName_.clear(); // Clear the current section
+    if (!current_section_name_.empty())
+    {
+        current_section_name_.clear(); // Clear the current section
         BuildDynamicMenus();
-    } else {
+    }
+    else
+    {
         // Already at main menu, go back to main menu anyway
         BuildDynamicMenus();
     }
@@ -427,9 +453,11 @@ void ConfigPanel::HandleBackAction(const std::string& actionParam)
  */
 void ConfigPanel::HandlePanelExit()
 {
-    if (panelManager_) {
-        const char *restorationPanel = panelManager_->GetRestorationPanel();
-        panelManager_->CreateAndLoadPanel(restorationPanel, true);
+    log_t("ConfigPanel: Executing exit function");
+    if (panel_manager_)
+    {
+        const char *restoration_panel = panel_manager_->GetRestorationPanel();
+        panel_manager_->CreateAndLoadPanel(restoration_panel, true);
     }
 }
 
@@ -446,91 +474,101 @@ void ConfigPanel::BuildDynamicMenus()
 {
     log_v("BuildDynamicMenus() called");
 
-    if (!configurationManager_) {
+    if (!configuration_manager_)
+    {
         log_e("Cannot build dynamic menus - preference service not available");
         return;
     }
 
     // Get all registered sections
-    auto sectionNames = configurationManager_->GetRegisteredSectionNames();
+    auto section_names = configuration_manager_->GetRegisteredSectionNames();
 
     // Build main menu dynamically
-    menuItems_.clear();
+    menu_items_.clear();
 
     // Add sections as menu items
-    for (const auto& sectionName : sectionNames) {
-        if (auto section = configurationManager_->GetConfigSection(sectionName)) {
+    for (const auto &section_name : section_names)
+    {
+        if (auto section = configuration_manager_->GetConfigSection(section_name))
+        {
             ConfigComponent::MenuItem item;
             item.label = section->displayName;
-            item.actionType = UIStrings::ActionTypes::ENTER_SECTION;
-            item.actionParam = sectionName;
-            menuItems_.push_back(item);
+            item.actionType = ui_strings::action_types::ENTER_SECTION;
+            item.actionParam = section_name;
+            menu_items_.push_back(item);
         }
     }
 
     // Add exit option
-    menuItems_.push_back({UIStrings::MenuLabels::EXIT, UIStrings::ActionTypes::PANEL_EXIT, ""});
+    menu_items_.push_back({ui_strings::menu_labels::EXIT, ui_strings::action_types::PANEL_EXIT, ""});
 
     // Update component
-    if (componentInitialized_) {
-        configComponent_.SetTitle(UIStrings::MenuLabels::CONFIGURATION);
-        configComponent_.SetMenuItems(menuItems_);
-        configComponent_.SetCurrentIndex(0);
+    if (component_initialized_)
+    {
+        config_component_.SetTitle(ui_strings::menu_labels::CONFIGURATION);
+        config_component_.SetMenuItems(menu_items_);
+        config_component_.SetCurrentIndex(0);
     }
 
-    currentMenuIndex_ = 0;
-    log_i("Built dynamic menu with %zu sections", sectionNames.size());
+    current_menu_index_ = 0;
+    log_i("Built dynamic menu with %zu sections", section_names.size());
 }
 
 /**
  * @brief Builds menu for a specific configuration section
- * @param sectionName Name of the section to build menu for
+ * @param section_name Name of the section to build menu for
  *
  * Creates menu items for each configuration item in the section.
  * Boolean items use toggle action, others show options menu.
  * Adds back option to return to main menu.
  */
-void ConfigPanel::BuildSectionMenu(const std::string& sectionName)
+void ConfigPanel::BuildSectionMenu(const std::string &section_name)
 {
-    log_v("BuildSectionMenu() called for section: %s", sectionName.c_str());
+    log_v("BuildSectionMenu() called for section: %s", section_name.c_str());
 
-    auto section = configurationManager_->GetConfigSection(sectionName);
-    if (!section) {
-        log_e("Section not found: %s", sectionName.c_str());
+    auto section = configuration_manager_->GetConfigSection(section_name);
+    if (!section)
+    {
+        log_e("Section not found: %s", section_name.c_str());
         return;
     }
 
-    menuItems_.clear();
+    menu_items_.clear();
 
     // Add items from the section
-    for (const auto& item : section->items) {
-        ConfigComponent::MenuItem menuItem;
-        menuItem.label = FormatItemLabel(item);
+    for (const auto &item : section->items)
+    {
+        ConfigComponent::MenuItem menu_item;
+        menu_item.label = FormatItemLabel(item);
 
         // Create action based on item type
-        std::string fullKey = sectionName + "." + item.key;
+        std::string full_key = section_name + "." + item.key;
 
         // For booleans, use direct toggle. For everything else, show options
-        if (std::holds_alternative<bool>(item.value)) {
-            menuItem.actionType = UIStrings::ActionTypes::TOGGLE_BOOLEAN;
-        } else {
-            menuItem.actionType = UIStrings::ActionTypes::SHOW_OPTIONS;
+        if (std::holds_alternative<bool>(item.value))
+        {
+            menu_item.actionType = ui_strings::action_types::TOGGLE_BOOLEAN;
         }
-        menuItem.actionParam = fullKey;
-        menuItems_.push_back(menuItem);
+        else
+        {
+            menu_item.actionType = ui_strings::action_types::SHOW_OPTIONS;
+        }
+        menu_item.actionParam = full_key;
+        menu_items_.push_back(menu_item);
     }
 
     // Add back option
-    menuItems_.push_back({UIStrings::MenuLabels::BACK, UIStrings::ActionTypes::BACK, ""});
+    menu_items_.push_back({ui_strings::menu_labels::BACK, ui_strings::action_types::BACK, ""});
 
     // Update component
-    if (componentInitialized_) {
-        configComponent_.SetTitle(section->displayName);
-        configComponent_.SetMenuItems(menuItems_);
-        configComponent_.SetCurrentIndex(0);
+    if (component_initialized_)
+    {
+        config_component_.SetTitle(section->displayName);
+        config_component_.SetMenuItems(menu_items_);
+        config_component_.SetCurrentIndex(0);
     }
 
-    currentMenuIndex_ = 0;
+    current_menu_index_ = 0;
 }
 
 /**
@@ -541,77 +579,87 @@ void ConfigPanel::BuildSectionMenu(const std::string& sectionName)
  * Creates user-friendly label showing both item name and current value.
  * Used in section menus to display configuration state.
  */
-std::string ConfigPanel::FormatItemLabel(const Config::ConfigItem& item) const
+std::string ConfigPanel::FormatItemLabel(const config::ConfigItem &item) const
 {
-    std::string valueStr = configurationManager_->ToString(item.value);
-    return item.displayName + ": " + valueStr;
+    std::string value_str = configuration_manager_->ToString(item.value);
+    return item.displayName + ": " + value_str;
 }
 
 /**
  * @brief Displays options menu for configuration item selection
- * @param fullKey Full configuration key (section.item format)
+ * @param full_key Full configuration key (section.item format)
  * @param item Configuration item to show options for
  *
  * Main coordinator that delegates to specialized handlers based on item type.
  * Handles enum options, numeric ranges, and string values appropriately.
  * Updates UI with generated options and back navigation.
  */
-void ConfigPanel::ShowOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item)
+void ConfigPanel::ShowOptionsMenu(const std::string &full_key, const config::ConfigItem &item)
 {
-    log_i("ShowOptionsMenu() for key: %s", fullKey.c_str());
+    log_i("ShowOptionsMenu() for key: %s", full_key.c_str());
 
-    // Make a copy of fullKey to avoid reference invalidation when menuItems_ is cleared
-    std::string keyStr = fullKey;
+    // Make a copy of full_key to avoid reference invalidation when menu_items_ is cleared: callers pass a
+    // reference into menu_items_, so a reference here would dangle after clear()
+    // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
+    const std::string key_str = full_key;
 
-    menuItems_.clear();
+    menu_items_.clear();
 
     // Parse constraints to get available options
     auto options = ParseOptions(item.metadata.constraints);
 
     // Delegate to appropriate specialized method based on data type and available options
-    if (!options.empty()) {
-        ShowEnumOptionsMenu(keyStr, item, options);
-    } else if (configurationManager_->IsNumeric(item.value)) {
-        ShowNumericOptionsMenu(keyStr, item);
-    } else {
-        ShowStringOptionsMenu(keyStr, item);
+    if (!options.empty())
+    {
+        ShowEnumOptionsMenu(key_str, item, options);
+    }
+    else if (configuration_manager_->IsNumeric(item.value))
+    {
+        ShowNumericOptionsMenu(key_str, item);
+    }
+    else
+    {
+        ShowStringOptionsMenu(key_str, item);
     }
 
     // Add back option
-    menuItems_.push_back({UIStrings::MenuLabels::BACK, UIStrings::ActionTypes::BACK, ""});
+    menu_items_.push_back({ui_strings::menu_labels::BACK, ui_strings::action_types::BACK, ""});
 
     // Update component
-    if (componentInitialized_) {
-        configComponent_.SetTitle(item.displayName);
-        configComponent_.SetMenuItems(menuItems_);
-        configComponent_.SetCurrentIndex(0);
+    if (component_initialized_)
+    {
+        config_component_.SetTitle(item.displayName);
+        config_component_.SetMenuItems(menu_items_);
+        config_component_.SetCurrentIndex(0);
     }
 
-    currentMenuIndex_ = 0;
+    current_menu_index_ = 0;
+    log_t("ConfigPanel: Options menu for %s loaded", key_str.c_str());
 }
 
 /**
  * @brief Toggles boolean configuration value immediately
- * @param fullKey Full configuration key (section.item format)
+ * @param full_key Full configuration key (section.item format)
  * @param item Boolean configuration item to toggle
  *
  * Directly toggles boolean value without showing options menu.
  * Updates configuration and refreshes section menu to show new state.
  */
-void ConfigPanel::ShowBooleanToggle(const std::string& fullKey, const Config::ConfigItem& item)
+void ConfigPanel::ShowBooleanToggle(const std::string &full_key, const config::ConfigItem &item)
 {
-    log_i("ShowBooleanToggle() for key: %s", fullKey.c_str());
+    log_i("ShowBooleanToggle() for key: %s", full_key.c_str());
 
-    if (auto currentValue = configurationManager_->GetValue<bool>(item.value)) {
-        bool newValue = !(*currentValue);
-        configurationManager_->UpdateConfig(fullKey, newValue);
+    if (auto current_value = configuration_manager_->GetValue<bool>(item.value))
+    {
+        bool new_value = !(*current_value);
+        configuration_manager_->UpdateConfig(full_key, new_value);
 
         // Refresh the section menu to show updated value
-        auto [sectionName, itemKey] = ParseConfigKey(fullKey);
-        BuildSectionMenu(sectionName);
+        auto [section_name, item_key] = ParseConfigKey(full_key);
+        BuildSectionMenu(section_name);
 
-        log_i("Toggled %s from %s to %s", fullKey.c_str(),
-              *currentValue ? "true" : "false", newValue ? "true" : "false");
+        log_i("Toggled %s from %s to %s", full_key.c_str(), *current_value ? "true" : "false",
+              new_value ? "true" : "false");
     }
 }
 
@@ -623,19 +671,24 @@ void ConfigPanel::ShowBooleanToggle(const std::string& fullKey, const Config::Co
  * Splits constraint string by commas and trims whitespace.
  * Used for enum-type configuration items with discrete choices.
  */
-std::vector<std::string> ConfigPanel::ParseOptions(const std::string& constraints) const
+std::vector<std::string> ConfigPanel::ParseOptions(const std::string &constraints) const
 {
     std::vector<std::string> options;
-    if (constraints.empty()) return options;
+    if (constraints.empty())
+    {
+        return options;
+    }
 
     std::stringstream ss(constraints);
     std::string option;
 
-    while (std::getline(ss, option, ',')) {
+    while (std::getline(ss, option, ','))
+    {
         // Trim whitespace
         option.erase(0, option.find_first_not_of(" \t"));
         option.erase(option.find_last_not_of(" \t") + 1);
-        if (!option.empty()) {
+        if (!option.empty())
+        {
             options.push_back(option);
         }
     }
@@ -645,53 +698,56 @@ std::vector<std::string> ConfigPanel::ParseOptions(const std::string& constraint
 
 /**
  * @brief Splits configuration key into section and item components
- * @param fullKey Full configuration key in "section.item" format
+ * @param full_key Full configuration key in "section.item" format
  * @return Pair of (section, item) strings
  *
  * Separates section name from item key at the dot delimiter.
  * Returns empty section if no dot is found.
  */
-std::pair<std::string, std::string> ConfigPanel::ParseConfigKey(const std::string& fullKey) const
+std::pair<std::string, std::string> ConfigPanel::ParseConfigKey(const std::string &full_key) const
 {
-    size_t dotPos = fullKey.find('.');
-    if (dotPos == std::string::npos) {
-        return {"", fullKey};
+    size_t dot_pos = full_key.find('.');
+    if (dot_pos == std::string::npos)
+    {
+        return {"", full_key};
     }
-    return {fullKey.substr(0, dotPos), fullKey.substr(dotPos + 1)};
+    return {full_key.substr(0, dot_pos), full_key.substr(dot_pos + 1)};
 }
 
 // ========== Extracted ShowOptionsMenu Helper Methods ==========
 
 /**
  * @brief Shows menu for enum-type configuration with discrete options
- * @param fullKey Full configuration key for action handling
+ * @param full_key Full configuration key for action handling
  * @param item Configuration item being configured
  * @param options Vector of valid option strings
  *
  * Creates menu items for each option with selection indicator.
  * Current value is marked with arrow prefix for visual feedback.
  */
-void ConfigPanel::ShowEnumOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item, const std::vector<std::string>& options)
+void ConfigPanel::ShowEnumOptionsMenu(const std::string &full_key, const config::ConfigItem &item,
+                                      const std::vector<std::string> &options)
 {
-    std::string currentValue = configurationManager_->ToString(item.value);
+    std::string current_value = configuration_manager_->ToString(item.value);
 
-    for (const auto& option : options) {
-        bool isSelected = (option == currentValue);
-        ConfigComponent::MenuItem menuItem = CreateMenuItemWithSelection(option, fullKey, option, isSelected);
-        menuItems_.push_back(menuItem);
+    for (const auto &option : options)
+    {
+        bool is_selected = (option == current_value);
+        ConfigComponent::MenuItem menu_item = CreateMenuItemWithSelection(option, full_key, option, is_selected);
+        menu_items_.push_back(menu_item);
     }
 }
 
 /**
  * @brief Shows menu for numeric configuration with generated values
- * @param fullKey Full configuration key for action handling
+ * @param full_key Full configuration key for action handling
  * @param item Numeric configuration item (integer or float)
  *
  * Parses numeric range, generates appropriate step values, and creates
  * menu items with formatted values and units. Includes current value,
  * min/max bounds, and calculated increment options.
  */
-void ConfigPanel::ShowNumericOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item)
+void ConfigPanel::ShowNumericOptionsMenu(const std::string &full_key, const config::ConfigItem &item)
 {
     // Parse range constraints and get current value
     NumericRange range = ParseNumericRange(item);
@@ -700,36 +756,38 @@ void ConfigPanel::ShowNumericOptionsMenu(const std::string& fullKey, const Confi
     std::vector<float> values = GenerateNumericValues(range, item);
 
     // Create menu items for each value
-    for (float value : values) {
-        std::string valueStr = FormatNumericValue(value, item);
-        bool isSelected = (value == range.currentValue);
-        ConfigComponent::MenuItem menuItem = CreateMenuItemWithSelection(valueStr, fullKey, std::to_string(value), isSelected);
-        menuItems_.push_back(menuItem);
+    for (float value : values)
+    {
+        std::string value_str = FormatNumericValue(value, item);
+        bool is_selected = (value == range.currentValue);
+        ConfigComponent::MenuItem menu_item =
+            CreateMenuItemWithSelection(value_str, full_key, std::to_string(value), is_selected);
+        menu_items_.push_back(menu_item);
     }
 }
 
 /**
  * @brief Shows display-only menu for string configuration
- * @param fullKey Full configuration key (unused for strings)
+ * @param full_key Full configuration key (unused for strings)
  * @param item String configuration item
  *
  * Displays current string value in read-only format.
  * String editing not supported through menu interface.
  */
-void ConfigPanel::ShowStringOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item)
+void ConfigPanel::ShowStringOptionsMenu(const std::string & /*full_key*/, const config::ConfigItem &item)
 {
     // For string types without options, just show current value
-    ConfigComponent::MenuItem currentItem;
-    currentItem.label = UIStrings::ConfigUI::CURRENT_LABEL_PREFIX + configurationManager_->ToString(item.value);
-    currentItem.actionType = UIStrings::ConfigUI::ACTION_TYPE_NONE;
-    currentItem.actionParam = UIStrings::ConfigUI::EMPTY_PARAM;
-    menuItems_.push_back(currentItem);
+    ConfigComponent::MenuItem current_item;
+    current_item.label = ui_strings::config_ui::CURRENT_LABEL_PREFIX + configuration_manager_->ToString(item.value);
+    current_item.actionType = ui_strings::config_ui::ACTION_TYPE_NONE;
+    current_item.actionParam = ui_strings::config_ui::EMPTY_PARAM;
+    menu_items_.push_back(current_item);
 }
 
 /**
  * @brief Creates menu item with selection indicator
  * @param label Display text for the menu item
- * @param fullKey Configuration key for action parameter
+ * @param full_key Configuration key for action parameter
  * @param value Value to set when item is selected
  * @param isSelected Whether this item represents current value
  * @return Configured MenuItem struct
@@ -737,21 +795,26 @@ void ConfigPanel::ShowStringOptionsMenu(const std::string& fullKey, const Config
  * Centralizes menu item creation with consistent selection marking.
  * Selected items are prefixed with arrow indicator.
  */
-ConfigComponent::MenuItem ConfigPanel::CreateMenuItemWithSelection(const std::string& label, const std::string& fullKey, const std::string& value, bool isSelected) const
+ConfigComponent::MenuItem ConfigPanel::CreateMenuItemWithSelection(const std::string &label,
+                                                                   const std::string &full_key,
+                                                                   const std::string &value, bool is_selected) const
 {
-    ConfigComponent::MenuItem menuItem;
+    ConfigComponent::MenuItem menu_item;
 
     // Show marker for current selection
-    if (isSelected) {
-        menuItem.label = UIStrings::ConfigUI::SELECTED_MENU_PREFIX + label;
-    } else {
-        menuItem.label = UIStrings::ConfigUI::UNSELECTED_MENU_PREFIX + label;
+    if (is_selected)
+    {
+        menu_item.label = ui_strings::config_ui::SELECTED_MENU_PREFIX + label;
+    }
+    else
+    {
+        menu_item.label = ui_strings::config_ui::UNSELECTED_MENU_PREFIX + label;
     }
 
-    menuItem.actionType = UIStrings::ActionTypes::SET_CONFIG_VALUE;
-    menuItem.actionParam = fullKey + ":" + value;
+    menu_item.actionType = ui_strings::action_types::SET_CONFIG_VALUE;
+    menu_item.actionParam = full_key + ":" + value;
 
-    return menuItem;
+    return menu_item;
 }
 
 // ========== Extracted ShowNumericOptionsMenu Helper Methods ==========
@@ -765,21 +828,23 @@ ConfigComponent::MenuItem ConfigPanel::CreateMenuItemWithSelection(const std::st
  * Defaults to 0-100 range if constraints are not specified.
  * Includes current value from configuration item.
  */
-ConfigPanel::NumericRange ConfigPanel::ParseNumericRange(const Config::ConfigItem& item) const
+ConfigPanel::NumericRange ConfigPanel::ParseNumericRange(const config::ConfigItem &item) const
 {
-    NumericRange range;
+    NumericRange range{};
     range.minValue = 0;
     range.maxValue = 100;
-    range.currentValue = std::stof(configurationManager_->ToString(item.value));
+    range.currentValue = std::stof(configuration_manager_->ToString(item.value));
 
-    if (!item.metadata.constraints.empty()) {
+    if (!item.metadata.constraints.empty())
+    {
         std::string constraints = item.metadata.constraints;
         // Replace comma with dash for consistent parsing
         std::replace(constraints.begin(), constraints.end(), ',', '-');
-        size_t dashPos = constraints.find('-');
-        if (dashPos != std::string::npos) {
-            range.minValue = std::stof(constraints.substr(0, dashPos));
-            range.maxValue = std::stof(constraints.substr(dashPos + 1));
+        size_t dash_pos = constraints.find('-');
+        if (dash_pos != std::string::npos)
+        {
+            range.minValue = std::stof(constraints.substr(0, dash_pos));
+            range.maxValue = std::stof(constraints.substr(dash_pos + 1));
         }
     }
 
@@ -796,42 +861,49 @@ ConfigPanel::NumericRange ConfigPanel::ParseNumericRange(const Config::ConfigIte
  * and calculated small/large steps. Integer types use rounded steps.
  * Ensures all generated values stay within specified range.
  */
-std::vector<float> ConfigPanel::GenerateNumericValues(const NumericRange& range, const Config::ConfigItem& item) const
+std::vector<float> ConfigPanel::GenerateNumericValues(const NumericRange &range, const config::ConfigItem &item) const
 {
     // Generate reasonable step options
-    float rangeSize = range.maxValue - range.minValue;
-    float smallStep = rangeSize / 20.0f;  // 5% of range
-    float largeStep = rangeSize / 4.0f;   // 25% of range
+    float range_size = range.maxValue - range.minValue;
+    float small_step = range_size / 20.0f; // 5% of range
+    float large_step = range_size / 4.0f;  // 25% of range
 
     // For integers, round steps
-    if (std::holds_alternative<int>(item.value)) {
-        smallStep = std::max(1.0f, std::round(smallStep));
-        largeStep = std::max(5.0f, std::round(largeStep));
+    if (std::holds_alternative<int>(item.value))
+    {
+        small_step = std::max(1.0f, std::round(small_step));
+        large_step = std::max(5.0f, std::round(large_step));
     }
 
     // Generate option values
     std::vector<float> values;
 
     // Add preset values
-    if (range.currentValue - largeStep >= range.minValue) {
-        values.push_back(range.currentValue - largeStep);
+    if (range.currentValue - large_step >= range.minValue)
+    {
+        values.push_back(range.currentValue - large_step);
     }
-    if (range.currentValue - smallStep >= range.minValue) {
-        values.push_back(range.currentValue - smallStep);
+    if (range.currentValue - small_step >= range.minValue)
+    {
+        values.push_back(range.currentValue - small_step);
     }
-    values.push_back(range.currentValue);  // Current value
-    if (range.currentValue + smallStep <= range.maxValue) {
-        values.push_back(range.currentValue + smallStep);
+    values.push_back(range.currentValue); // Current value
+    if (range.currentValue + small_step <= range.maxValue)
+    {
+        values.push_back(range.currentValue + small_step);
     }
-    if (range.currentValue + largeStep <= range.maxValue) {
-        values.push_back(range.currentValue + largeStep);
+    if (range.currentValue + large_step <= range.maxValue)
+    {
+        values.push_back(range.currentValue + large_step);
     }
 
     // Also add min and max if not already included
-    if (std::find(values.begin(), values.end(), range.minValue) == values.end()) {
+    if (std::find(values.begin(), values.end(), range.minValue) == values.end())
+    {
         values.insert(values.begin(), range.minValue);
     }
-    if (std::find(values.begin(), values.end(), range.maxValue) == values.end()) {
+    if (std::find(values.begin(), values.end(), range.maxValue) == values.end())
+    {
         values.push_back(range.maxValue);
     }
 
@@ -847,23 +919,27 @@ std::vector<float> ConfigPanel::GenerateNumericValues(const NumericRange& range,
  * Integers displayed without decimals, floats with one decimal place.
  * Appends unit suffix from metadata if specified.
  */
-std::string ConfigPanel::FormatNumericValue(float value, const Config::ConfigItem& item) const
+std::string ConfigPanel::FormatNumericValue(float value, const config::ConfigItem &item) const
 {
-    std::string valueStr;
+    std::string value_str;
 
-    if (std::holds_alternative<int>(item.value)) {
-        valueStr = std::to_string(static_cast<int>(value));
-    } else {
+    if (std::holds_alternative<int>(item.value))
+    {
+        value_str = std::to_string(static_cast<int>(value));
+    }
+    else
+    {
         // Format float with 1 decimal place
         char buffer[32];
-        snprintf(buffer, sizeof(buffer), "%.1f", value);
-        valueStr = buffer;
+        snprintf(buffer, sizeof(buffer), "%.1f", static_cast<double>(value));
+        value_str = buffer;
     }
 
     // Add units if specified
-    if (!item.metadata.unit.empty()) {
-        valueStr += UIStrings::ConfigUI::UNIT_SEPARATOR + item.metadata.unit;
+    if (!item.metadata.unit.empty())
+    {
+        value_str += ui_strings::config_ui::UNIT_SEPARATOR + item.metadata.unit;
     }
 
-    return valueStr;
+    return value_str;
 }

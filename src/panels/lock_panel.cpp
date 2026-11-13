@@ -17,14 +17,14 @@
  * lock engaged state since panel is only loaded when lock state changes.
  * Uses stack-allocated component for efficient memory management.
  */
-LockPanel::LockPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *styleManager,
-                     IPanelManager *panelManager)
-    : BasePanel(gpio, display, styleManager, panelManager),
-      lockComponent_(styleManager), componentInitialized_(false)
+LockPanel::LockPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
+                     IPanelManager *panel_manager)
+    : BasePanel(gpio, display, style_manager, panel_manager), lock_component_(style_manager),
+      component_initialized_(false)
 {
     // Note: LockPanel is display-only, state comes from interrupt system
     // Since this panel is only loaded when lock state changes, assume engaged
-    isLockEngaged_ = true;
+    is_lock_engaged_ = true;
 }
 
 // ========== Protected Methods ==========
@@ -39,10 +39,10 @@ LockPanel::LockPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManag
 void LockPanel::CreateContent()
 {
     // Component is now stack-allocated and initialized in constructor
-    componentInitialized_ = true;
+    component_initialized_ = true;
 
     // Create the lock component centered on screen - always shows red (engaged) state
-    lockComponent_.Render(screen_, centerLocation_, displayProvider_);
+    lock_component_.Render(screen_, center_location_, display_provider_);
 }
 
 /**
@@ -67,10 +67,10 @@ void LockPanel::UpdateContent()
  */
 void LockPanel::HandleLongPress()
 {
-    if (panelManager_)
+    if (panel_manager_)
     {
         log_i("LockPanel long press - loading config panel");
-        panelManager_->CreateAndLoadPanel(PanelNames::CONFIG, true);
+        panel_manager_->CreateAndLoadPanel(panel_names::CONFIG, true);
     }
     else
     {
