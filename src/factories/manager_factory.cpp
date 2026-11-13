@@ -3,7 +3,6 @@
 #include "factories/provider_factory.h"
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
-#include "managers/interrupt_manager.h"
 #include "managers/panel_manager.h"
 #include "managers/style_manager.h"
 #include "providers/device_provider.h"
@@ -98,7 +97,6 @@ bool ManagerFactory::InitializeProviders()
  * @param gpio GPIO provider for hardware interaction
  * @param styleManager Style service for theme management
  * @param preferenceService Preference service for configuration
- * @param interruptManager Interrupt manager for event handling
  * @return Unique pointer to PanelManager or nullptr on failure
  *
  * Validates all dependencies, creates PanelManager with dependency injection,
@@ -106,8 +104,7 @@ bool ManagerFactory::InitializeProviders()
  */
 std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManagerImpl(IDisplayProvider *display, IGpioProvider *gpio,
                                                                      IStyleManager *style_manager,
-                                                                     IConfigurationManager *configuration_manager,
-                                                                     InterruptManager *interrupt_manager)
+                                                                     IConfigurationManager *configuration_manager)
 {
 
     // Validate required providers
@@ -141,8 +138,7 @@ std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManagerImpl(IDisplayPro
         return nullptr;
     }
 
-    auto panel_manager =
-        std::make_unique<PanelManager>(display, gpio, style_manager, configuration_manager, interrupt_manager);
+    auto panel_manager = std::make_unique<PanelManager>(display, gpio, style_manager, configuration_manager);
     if (!panel_manager)
     {
         log_e("ManagerFactory: Failed to create PanelManager - allocation failed");
@@ -209,40 +205,6 @@ std::unique_ptr<IConfigurationManager> ManagerFactory::CreateConfigurationManage
 }
 
 /**
- * @brief Internal implementation for creating InterruptManager
- * @param gpioProvider GPIO provider for hardware interrupts
- * @return Pointer to InterruptManager singleton or nullptr on failure
- *
- * Gets singleton instance of InterruptManager and initializes it with GPIO provider.
- * Initialization creates handlers that own sensors for interrupt processing.
- */
-InterruptManager *ManagerFactory::CreateInterruptManagerImpl(IGpioProvider *gpio_provider)
-{
-
-    if (!gpio_provider)
-    {
-        log_e("ManagerFactory: Cannot create InterruptManager - GPIO provider is null");
-        ErrorManager::Instance().ReportCriticalError(
-            "ManagerFactory", "Cannot create InterruptManager - GpioProvider dependency is null");
-        return nullptr;
-    }
-
-    InterruptManager *manager = &InterruptManager::Instance();
-    if (!manager)
-    {
-        log_e("ManagerFactory: Failed to get InterruptManager singleton instance");
-        return nullptr;
-    }
-
-    manager->Init(gpio_provider);
-
-    // IMPORTANT: InterruptManager::Init() creates handlers which own the sensors
-    // We must register interrupts AFTER Init() completes so contexts are available
-
-    return manager;
-}
-
-/**
  * @brief Internal implementation for creating ErrorManager
  * @return Pointer to ErrorManager singleton or nullptr on failure
  *
@@ -268,7 +230,6 @@ ErrorManager *ManagerFactory::CreateErrorManagerImpl()
  * @param gpio GPIO provider (optional, created if null)
  * @param styleManager Style service for theme management
  * @param preferenceService Preference service for configuration
- * @param interruptManager Interrupt manager for event handling
  * @return Unique pointer to PanelManager or nullptr on failure
  *
  * Public interface method that uses provided providers or creates them
@@ -276,8 +237,7 @@ ErrorManager *ManagerFactory::CreateErrorManagerImpl()
  */
 std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManager(IDisplayProvider *display, IGpioProvider *gpio,
                                                                  IStyleManager *style_manager,
-                                                                 IConfigurationManager *configuration_manager,
-                                                                 InterruptManager *interrupt_manager)
+                                                                 IConfigurationManager *configuration_manager)
 {
 
     // When using the dual factory pattern, get providers from provider factory
@@ -296,7 +256,7 @@ std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManager(IDisplayProvide
         gpio_to_use = gpio ? gpio : gpio_provider_.get();
     }
 
-    return CreatePanelManagerImpl(display_to_use, gpio_to_use, style_manager, configuration_manager, interrupt_manager);
+    return CreatePanelManagerImpl(display_to_use, gpio_to_use, style_manager, configuration_manager);
 }
 
 /**
@@ -320,32 +280,6 @@ std::unique_ptr<StyleManager> ManagerFactory::CreateStyleManager(const char *the
 std::unique_ptr<IConfigurationManager> ManagerFactory::CreateConfigurationManager()
 {
     return CreateConfigurationManagerImpl();
-}
-
-/**
- * @brief Creates InterruptManager with provided or factory-created GPIO provider
- * @param gpioProvider GPIO provider (optional, created if null)
- * @return Pointer to InterruptManager singleton
- *
- * Public interface method that uses provided GPIO provider or creates one
- * through provider factory if not supplied.
- */
-InterruptManager *ManagerFactory::CreateInterruptManager(IGpioProvider *gpio_provider)
-{
-
-    // If no GPIO provider passed, get from provider factory
-    IGpioProvider *gpio_to_use = gpio_provider;
-    if (!gpio_to_use)
-    {
-        if (!InitializeProviders())
-        {
-            log_e("Failed to initialize providers from factory");
-            return nullptr;
-        }
-        gpio_to_use = gpio_provider_.get();
-    }
-
-    return CreateInterruptManagerImpl(gpio_to_use);
 }
 
 /**

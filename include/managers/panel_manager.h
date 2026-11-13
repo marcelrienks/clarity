@@ -54,14 +54,13 @@
 
 // Forward declarations
 class StyleManager;
-class InterruptManager;
+class DisplayController;
 
 class PanelManager : public IPanelManager, public IActionHandler
 {
   public:
     // ========== Constructors/Destructor ==========
-    PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *style, IConfigurationManager *config,
-                 InterruptManager *interrupts = nullptr);
+    PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *style, IConfigurationManager *config);
     PanelManager(const PanelManager &) = delete;
     PanelManager &operator=(const PanelManager &) = delete;
     ~PanelManager() override;
@@ -86,6 +85,7 @@ class PanelManager : public IPanelManager, public IActionHandler
     const char *GetRestorationPanel() const override;
     bool IsCurrentPanelTriggerDriven() const override;
     void TriggerPanelSwitchCallback(const char *trigger_id) override;
+    KeyState GetKeyState() const override;
 
     // ========== Panel Notification Methods ==========
     void OnPanelLoadComplete(IPanel *panel);
@@ -103,7 +103,15 @@ class PanelManager : public IPanelManager, public IActionHandler
     void CheckRestoration();
 
     // ========== Other Public Methods ==========
-    void UpdatePanelButtonFunctions(IPanel *panel);
+    /// The display controller answers restoration (which override is still active) and sets the key state
+    void SetDisplayController(DisplayController *controller)
+    {
+        display_controller_ = controller;
+    }
+    void SetKeyState(KeyState state)
+    {
+        key_state_ = state;
+    }
 
   private:
     // ========== Private Methods ==========
@@ -124,6 +132,7 @@ class PanelManager : public IPanelManager, public IActionHandler
     std::shared_ptr<IPanel> panel_ = nullptr;
     UIState ui_state_ = UIState::IDLE;             ///< Current UI processing state
     bool current_panel_is_trigger_driven_ = false; ///< Track if current panel is trigger-driven
+    KeyState key_state_ = KeyState::Inactive;      ///< What the key panel shows, set each loop pass
 
     // ========== Deferred Transition State ==========
     enum class PendingKind : uint8_t
@@ -149,7 +158,7 @@ class PanelManager : public IPanelManager, public IActionHandler
     IGpioProvider *gpio_provider_ = nullptr;                 ///< GPIO provider for hardware access
     IDisplayProvider *display_provider_ = nullptr;           ///< Display provider for UI operations
     IStyleManager *style_manager_ = nullptr;                 ///< Style service for UI theming
-    InterruptManager *interrupt_manager_ = nullptr;          ///< Interrupt manager for button function injection
+    DisplayController *display_controller_ = nullptr;        ///< Answers restoration with the active override
     IConfigurationManager *configuration_manager_ = nullptr; ///< Preference service for configuration settings
 
     // ========== Cached Service References ==========

@@ -13,7 +13,6 @@ class PanelManager;
 class StyleManager;
 class DeviceProvider;
 class ConfigurationManager;
-class InterruptManager;
 class ErrorManager;
 class ProviderFactory;
 
@@ -45,14 +44,11 @@ class ManagerFactory
     // Factory methods
     std::unique_ptr<PanelManager> CreatePanelManager(IDisplayProvider *display, IGpioProvider *gpio,
                                                      IStyleManager *style_manager,
-                                                     IConfigurationManager *configuration_manager,
-                                                     InterruptManager *interrupt_manager);
+                                                     IConfigurationManager *configuration_manager);
 
     std::unique_ptr<StyleManager> CreateStyleManager(const char *theme = nullptr);
 
     std::unique_ptr<IConfigurationManager> CreateConfigurationManager();
-
-    InterruptManager *CreateInterruptManager(IGpioProvider *gpio_provider);
 
     ErrorManager *CreateErrorManager();
 
@@ -63,14 +59,11 @@ class ManagerFactory
     // ========== Static Methods ==========
     static std::unique_ptr<PanelManager> CreatePanelManagerImpl(IDisplayProvider *display, IGpioProvider *gpio,
                                                                 IStyleManager *style_manager,
-                                                                IConfigurationManager *configuration_manager,
-                                                                InterruptManager *interrupt_manager);
+                                                                IConfigurationManager *configuration_manager);
 
     static std::unique_ptr<StyleManager> CreateStyleManagerImpl(const char *theme = nullptr);
 
     static std::unique_ptr<IConfigurationManager> CreateConfigurationManagerImpl();
-
-    static InterruptManager *CreateInterruptManagerImpl(IGpioProvider *gpio_provider);
 
     static ErrorManager *CreateErrorManagerImpl();
 

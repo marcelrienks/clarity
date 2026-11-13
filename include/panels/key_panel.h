@@ -49,9 +49,6 @@ class KeyPanel : public BasePanel
     void HandleLongPress() override;
 
   private:
-    // ========== Private Methods ==========
-    KeyState DetermineCurrentKeyState();
-
     // ========== Private Data Members ==========
     KeyComponent key_component_;
     bool component_initialized_ = false;

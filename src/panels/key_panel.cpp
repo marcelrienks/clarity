@@ -3,7 +3,6 @@
 #include "definitions/constants.h"
 #include "handlers/trigger_handler.h"
 #include "managers/error_manager.h"
-#include "managers/interrupt_manager.h"
 #include "sensors/gpio_sensor.h"
 #include "utilities/logging.h"
 #include <Arduino.h>
@@ -27,7 +26,7 @@ KeyPanel::KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager
       component_initialized_(false)
 {
     // Determine current key state by checking which sensor is currently active
-    current_key_state_ = DetermineCurrentKeyState();
+    current_key_state_ = panel_manager_->GetKeyState();
 }
 
 // ========== Protected Methods ==========
@@ -83,45 +82,4 @@ void KeyPanel::HandleLongPress()
     {
         log_w("KeyPanel: Cannot load config panel - panelManager not available");
     }
-}
-
-/**
- * @brief Determines the current key state by reading sensor inputs
- * @return Current key state (Present, NotPresent, or Inactive)
- *
- * Queries the key presence sensors through the trigger handler to determine
- * the current physical state of the ignition key. Checks both key present
- * and key not present sensors to provide accurate state detection. Returns
- * Inactive if neither sensor is active or if the trigger handler is unavailable.
- */
-KeyState KeyPanel::DetermineCurrentKeyState()
-{
-    log_v("DetermineCurrentKeyState() called");
-
-    // Access the sensors through InterruptManager to check their current states
-    InterruptManager &interrupt_manager = InterruptManager::Instance();
-    auto trigger_handler = interrupt_manager.GetTriggerHandler();
-
-    if (!trigger_handler)
-    {
-        log_w("DetermineCurrentKeyState: TriggerHandler not available, defaulting to Inactive");
-        return KeyState::Inactive;
-    }
-
-    // Check key present sensor (now using generic GetState method)
-    auto key_present_sensor = trigger_handler->GetKeyPresentSensor();
-    if (key_present_sensor && key_present_sensor->GetState())
-    {
-        return KeyState::Present;
-    }
-
-    // Check key not present sensor (now using generic GetState method)
-    auto key_not_present_sensor = trigger_handler->GetKeyNotPresentSensor();
-    if (key_not_present_sensor && key_not_present_sensor->GetState())
-    {
-        return KeyState::NotPresent;
-    }
-
-    // If neither sensor is active, default to inactive
-    return KeyState::Inactive;
 }

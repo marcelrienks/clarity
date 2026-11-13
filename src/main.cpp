@@ -1,4 +1,6 @@
 #include "main.h"
+#include "app/display_controller.h"
+#include "app/inputs.h"
 #include "definitions/configs.h"
 #include "definitions/constants.h"
 #include "definitions/types.h"
@@ -9,7 +11,6 @@
 #include "interfaces/i_gpio_provider.h"
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
-#include "managers/interrupt_manager.h"
 #include "managers/panel_manager.h"
 #include "managers/style_manager.h"
 #include "providers/device_provider.h"
@@ -36,7 +37,8 @@ std::unique_ptr<IDisplayProvider> display_provider;
 std::unique_ptr<StyleManager> style_manager;
 std::unique_ptr<IConfigurationManager> configuration_manager;
 std::unique_ptr<PanelManager> panel_manager;
-InterruptManager *interrupt_manager;
+std::unique_ptr<Inputs> inputs;
+std::unique_ptr<DisplayController> display_controller;
 ErrorManager *error_manager;
 
 // Set when initializeServices() fails; loop() then does nothing but wait for the restart
@@ -172,22 +174,11 @@ bool InitializeServices()
 
     style_manager->SetConfigurationManager(configuration_manager.get());
 
-    // Create InterruptManager with GPIO provider dependency
-    interrupt_manager = manager_factory->CreateInterruptManager(gpio_provider.get());
-    if (!interrupt_manager)
-    {
-        log_e("Failed to create InterruptManager via factory");
-        ErrorManager::Instance().ReportCriticalError("main", "InterruptManager creation failed");
-        return false;
-    }
-
-    // Set preference service for button configuration
-    interrupt_manager->SetConfigurationManager(configuration_manager.get());
+    inputs = std::make_unique<Inputs>(*gpio_provider);
 
     // Create PanelManager with all dependencies
-    panel_manager =
-        manager_factory->CreatePanelManager(display_provider.get(), gpio_provider.get(), style_manager.get(),
-                                            configuration_manager.get(), interrupt_manager);
+    panel_manager = manager_factory->CreatePanelManager(display_provider.get(), gpio_provider.get(),
+                                                        style_manager.get(), configuration_manager.get());
 
     if (!panel_manager)
     {
@@ -196,8 +187,8 @@ bool InitializeServices()
         return false;
     }
 
-    // Set panel manager reference for UI state checking in interrupt processing
-    interrupt_manager->SetPanelManager(panel_manager.get());
+    display_controller = std::make_unique<DisplayController>(*panel_manager, *style_manager);
+    panel_manager->SetDisplayController(display_controller.get());
 
     error_manager = manager_factory->CreateErrorManager();
     if (!error_manager)
@@ -209,6 +200,18 @@ bool InitializeServices()
 
     log_t("System ready");
     return true;
+}
+
+/// Long press threshold from the configuration; read every pass so a change applies to the press in progress
+static void UpdateButtonThresholds()
+{
+    int long_press_ms = config_constants::defaults::DEFAULT_LONG_PRESS_MS;
+    if (auto value = configuration_manager->QueryConfig<int>(config_constants::keys::BUTTON_LONG_PRESS_MS))
+    {
+        long_press_ms = *value;
+    }
+    inputs->SetButtonThresholds(clarity::core::InputSampler::DEFAULT_MIN_SHORT_MS,
+                                static_cast<uint32_t>(long_press_ms));
 }
 
 // ========== Arduino Functions ==========
@@ -243,14 +246,13 @@ void setup()
 
     test_inject::Begin(gpio_provider.get());
 
-    // Process initial trigger states to ensure correct system state at startup
-    // This must happen after initialization but before loading the first panel
-    // If a PANEL trigger is active, it will load its panel and we should skip default panel load
-    interrupt_manager->ProcessInitialTriggerStates();
+    // Seed every input from its first read, then decide the first panel from the inputs: a key or lock
+    // that is active at boot shows its panel directly and skips the default panel and its splash
+    UpdateButtonThresholds();
+    inputs->Begin(millis());
+    const bool override_requested = display_controller->Begin(*inputs);
 
-    // Only load default panel if no panel triggers are currently active
-    // If a trigger was active at startup, it has already loaded its panel
-    if (!interrupt_manager->HasActivePanelTriggers())
+    if (!override_requested)
     {
         // Determine the default panel from configuration
         std::string default_panel_name = panel_names::OIL; // Default
@@ -260,10 +262,6 @@ void setup()
             default_panel_name = *name_value;
         }
         panel_manager->CreateAndLoadPanel(default_panel_name.c_str());
-    }
-    else
-    {
-        log_i("Panel trigger active at startup - skipping default panel load");
     }
 
     // Initial triggers and the default panel only recorded a request: apply it before the first loop
@@ -294,8 +292,9 @@ void loop()
         return;
     }
 
-    // Always process - ActionHandler runs always, TriggerHandler only on IDLE
-    interrupt_manager->Process();
+    UpdateButtonThresholds();
+    inputs->Sample(millis());
+    display_controller->Update(*inputs, panel_manager->GetUiState() == UIState::IDLE);
     test_inject::Poll();
 
     // Check for error panel trigger - must be processed when UI is IDLE to avoid conflicts

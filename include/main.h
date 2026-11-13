@@ -48,7 +48,8 @@ class IDisplayProvider;
 class StyleManager;
 class IConfigurationManager;
 class PanelManager;
-class InterruptManager;
+class Inputs;
+class DisplayController;
 class ErrorManager;
 class ConfigurationManager;
 
@@ -66,7 +67,8 @@ extern std::unique_ptr<IDisplayProvider> display_provider;
 extern std::unique_ptr<StyleManager> style_manager;
 extern std::unique_ptr<IConfigurationManager> preference_manager;
 extern std::unique_ptr<PanelManager> panel_manager;
-extern InterruptManager *interrupt_manager;
+extern std::unique_ptr<Inputs> inputs;
+extern std::unique_ptr<DisplayController> display_controller;
 extern ErrorManager *error_manager;
 extern std::unique_ptr<IConfigurationManager> configuration_manager;
 

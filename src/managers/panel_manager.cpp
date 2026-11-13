@@ -1,4 +1,5 @@
 #include "managers/panel_manager.h"
+#include "app/display_controller.h"
 #include "definitions/constants.h"
 #include "utilities/logging.h"
 
@@ -15,7 +16,6 @@ static PanelManager *instance_ptr = nullptr;
 // ActionManager include removed - button handling moved to handler-based system
 #include "definitions/constants.h"
 #include "managers/error_manager.h"
-#include "managers/interrupt_manager.h"
 #include "utilities/ticker.h"
 #include <cstring>
 #include <esp32-hal-log.h>
@@ -35,10 +35,9 @@ static PanelManager *instance_ptr = nullptr;
  * Establishes singleton instance for global access by interrupt system.
  */
 PanelManager::PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *style_manager,
-                           IConfigurationManager *configuration_manager, InterruptManager *interrupt_manager)
+                           IConfigurationManager *configuration_manager)
     : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager),
-      interrupt_manager_(interrupt_manager), configuration_manager_(configuration_manager),
-      error_manager_(ErrorManager::Instance())
+      configuration_manager_(configuration_manager), error_manager_(ErrorManager::Instance())
 {
     log_v("PanelManager() constructor called");
     if (!display || !gpio || !style_manager || !configuration_manager)
@@ -287,6 +286,11 @@ const char *PanelManager::GetCurrentPanel() const
     return current_panel_.c_str();
 }
 
+KeyState PanelManager::GetKeyState() const
+{
+    return key_state_;
+}
+
 /**
  * @brief Gets the restoration panel name (panel to restore when triggers are inactive)
  * @return Name of the panel to restore to when no triggers are active
@@ -465,19 +469,12 @@ void PanelManager::RestoreNow()
 {
     // First check if any PANEL triggers are active that should take priority
     // This ensures we don't restore to oil panel if a trigger is still active
-    if (interrupt_manager_)
+    // If a key or lock override is still active the display controller requests its panel and we do not
+    // restore; it also applies the theme the lights signal asks for before the restoration panel loads
+    if (display_controller_ && display_controller_->ApplyOverride())
     {
-        // Ask the interrupt manager to evaluate and execute any active triggers
-        // If a trigger is active, it will load its panel and we should not restore
-        if (interrupt_manager_->CheckAndExecuteHighestPriorityTrigger())
-        {
-            log_t("Active trigger found and executed - skipping restoration");
-            return;
-        }
-
-        // Check for active STYLE triggers and apply them BEFORE loading restoration panel
-        // This ensures theme triggers like lights are applied to the oil panel
-        interrupt_manager_->CheckAndExecuteActiveStyleTriggers();
+        log_t("Active trigger found and executed - skipping restoration");
+        return;
     }
 
     // No active panel triggers, proceed with restoration
@@ -534,47 +531,6 @@ void PanelManager::HandlePanelCreationError(const char *panel_name)
     char error_msg[128];
     snprintf(error_msg, sizeof(error_msg), "Panel creation failed for: %s", panel_name);
     error_manager_.ReportError(ErrorLevel::ERROR, "PanelManager", error_msg);
-}
-
-// ========== Other Public Methods ==========
-
-/**
- * @brief Updates universal button interrupts with current panel's functions
- * @param panel Pointer to the panel whose button functions should be registered
- *
- * Extracts button functions from panels that implement IActionHandler and
- * registers them with the interrupt manager. This enables dynamic button
- * behavior that changes based on the current panel. Validates all function
- * pointers before registration to ensure system stability.
- */
-void PanelManager::UpdatePanelButtonFunctions(IPanel *panel)
-{
-    log_v("UpdatePanelButtonFunctions() called");
-
-    if (!panel || !interrupt_manager_)
-    {
-        log_e("Cannot update button functions - panel=%p, interrupt_manager=%p", (void *)panel,
-              (void *)interrupt_manager_);
-        ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "PanelManager",
-                                             "Cannot update button functions - invalid panel or interrupt manager");
-        return;
-    }
-
-    IActionHandler *action_service = dynamic_cast<IActionHandler *>(panel);
-    if (!action_service)
-    {
-        log_e("UpdatePanelButtonFunctions: Panel does not implement IActionHandler");
-        ErrorManager::Instance().ReportError(ErrorLevel::ERROR, "PanelManager",
-                                             "Panel does not implement IActionHandler");
-        return;
-    }
-
-    log_i("UpdatePanelButtonFunctions: Setting current panel - panel=%p", (void *)action_service);
-
-    // Set the current panel for direct method calls
-    interrupt_manager_->SetCurrentPanel(action_service);
-
-    log_i("UpdatePanelButtonFunctions: Successfully updated universal button interrupts with panel functions");
 }
 
 // ========== Private Methods ==========
@@ -679,9 +635,6 @@ void PanelManager::CreateAndLoadPanelDirect(const char *panel_name, bool is_trig
 
     // Update current panel directly (PanelNames are static constants)
     current_panel_ = panel_name;
-
-    // Update universal button interrupts with this panel's functions
-    UpdatePanelButtonFunctions(panel_.get());
 
     // Set BUSY before loading panel
     SetUiState(UIState::BUSY);
