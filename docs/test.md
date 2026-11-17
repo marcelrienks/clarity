@@ -66,6 +66,7 @@ test/wokwi/
 
 - `pio test -e native` runs the Unity tests in `test/native/` against `lib/core` on the host (no Arduino, no LVGL). `lib/core` must not include platform headers; `tools/check_layering.sh` enforces it.
 - `tools/check_format.sh` fails if a project source is not clang-format clean (`.clang-format`; `include/icons` and `lv_conf.h` are skipped).
+- `tools/check_test_events.py` fails if a `[T]` string a Wokwi scenario waits for has no `log_t` format in `src/` or `include/` that can print it (printf conversions match any text; Wokwi matches the start of a line). `--ignore <file>` leaves a source out, to check that code about to be deleted is not the only emitter.
 - `pio check -e release` runs cppcheck on project sources (CI passes `--fail-on-defect=low`). clang-tidy (`.clang-tidy`) runs through `tools/run_clang_tidy.sh [env...]`, which needs `clang-tidy` on `PATH`, builds a clang-friendly compile database per env and fails on any finding. PlatformIO's own clang-tidy run is not used: it cannot parse the xtensa headers.
 - All three run in CI (`lint`, `check`, `native-test` jobs).
 

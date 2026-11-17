@@ -37,6 +37,9 @@ jobs:
       - name: Layering (lib/core has no platform includes)
         run: tools/check_layering.sh
 
+      - name: Test events (every scenario wait-serial has a log_t)
+        run: tools/check_test_events.py
+
   check:
     name: Static analysis
     runs-on: ubuntu-latest

@@ -4,7 +4,7 @@ One workflow: [`ci.yml`](ci.yml).
 
 | Job | Runs on | What it does |
 |---|---|---|
-| `lint` | every push and pull request | `tools/check_format.sh` (clang-format 23.1.5 against `.clang-format`) and `tools/check_layering.sh` (`lib/core` must not include Arduino, LVGL, FreeRTOS or ESP-IDF headers) |
+| `lint` | every push and pull request | `tools/check_format.sh` (clang-format 23.1.5 against `.clang-format`) `tools/check_layering.sh` (`lib/core` must not include Arduino, LVGL, FreeRTOS or ESP-IDF headers) and `tools/check_test_events.py` (every `[T]` string a Wokwi scenario waits for has a `log_t` that can print it) |
 | `check` | every push and pull request | `pio check -e release --fail-on-defect=low` (cppcheck), then `tools/run_clang_tidy.sh` (clang-tidy 23.1.4 with `.clang-tidy` over `release`, `test-wokwi`, `test-wokwi-release`, `test-wokwi-splash` and `test-wokwi-failinit`, so the `#ifdef` test code is checked too) |
 | `native-test` | every push and pull request | `pio test -e native`: the host unit tests for `lib/core` |
 | `build` (matrix: `release`, `debug-upload`, `debug-local`, `test-wokwi`, `test-wokwi-release`, `test-wokwi-splash`, `test-wokwi-failinit`) | every push and pull request | `pio run`, then `pio run -t size` (written to the job summary), uploads `firmware.bin`, `firmware.elf` and `firmware.map` as the `firmware-<env>` artifact (14 days) |
