@@ -18,10 +18,11 @@ class IStyleManager;
  * and records a transition with the PanelManager when they differ. The transition is applied later by
  * PanelManager::ApplyPendingTransition(), never from here (D-13).
  *
- * While the UI is busy (an animation or a load in progress) nothing is acted on and the button event and
- * debug error edge are kept, latest wins, until the UI is idle again. Removing that wait is Q-07 (4.5).
- * While the error panel is shown, key and lock requests are suppressed but tracked, and are applied by
- * PanelManager::RestoreNow() through ApplyOverride() once the errors are gone (restructure.md 2.2).
+ * Button events, the debug error edge and the lights theme are acted on in the pass they arrive, even while a
+ * panel animates (Q-07). Key and lock requests wait while the splash runs (Q-06) and are acted on once its
+ * target panel is loaded. While the error panel is shown, key and lock requests are suppressed but tracked,
+ * and are applied by PanelManager::RestoreNow() through ApplyOverride() once the errors are gone
+ * (restructure.md 2.2).
  */
 class DisplayController
 {
@@ -34,8 +35,8 @@ class DisplayController
     /// override was requested, in which case the default panel (and its splash) must be skipped.
     bool Begin(const Inputs &inputs);
 
-    /// Call once per loop pass after Inputs::Sample(). `ui_idle` is the old UIState gate.
-    void Update(const Inputs &inputs, bool ui_idle);
+    /// Call once per loop pass after Inputs::Sample().
+    void Update(const Inputs &inputs);
 
     /// Called by PanelManager::RestoreNow(): request the key or lock override that is still active, and
     /// apply the theme the lights signal asks for. Returns true if an override panel was requested.
@@ -53,6 +54,4 @@ class DisplayController
     clarity::core::VehicleInputs vehicle_{};
     clarity::core::DisplayRequest applied_{clarity::core::OverridePanel::None, clarity::core::KeyState::Inactive};
     bool applied_lights_ = false; ///< Lights state the theme was last set for (the style manager starts on Day)
-    clarity::core::ButtonEvent pending_button_ = clarity::core::ButtonEvent::None;
-    bool pending_debug_error_ = false;
 };

@@ -78,38 +78,22 @@ bool DisplayController::Begin(const Inputs &inputs)
     return true;
 }
 
-void DisplayController::Update(const Inputs &inputs, bool ui_idle)
+void DisplayController::Update(const Inputs &inputs)
 {
-    // Keep the latest event until the UI can act on it (latest wins, as the old pending action did)
-    if (inputs.Button() != clarity::core::ButtonEvent::None)
+    // Button first, then the vehicle lines, as InterruptManager::Process() did. Both act at once (Q-07): the
+    // transitions they request are applied later in the pass, outside any panel or LVGL callback
+    const clarity::core::ButtonEvent button = inputs.Button();
+    if (button == clarity::core::ButtonEvent::Long)
     {
-        pending_button_ = inputs.Button();
-        if (pending_button_ == clarity::core::ButtonEvent::Long)
-        {
-            log_t("Long press triggered during hold");
-        }
+        log_t("Long press triggered during hold");
     }
+    if (button != clarity::core::ButtonEvent::None)
+    {
+        ExecuteButton(button);
+    }
+
     if (inputs.DebugErrorEdge())
     {
-        pending_debug_error_ = true;
-    }
-
-    if (!ui_idle)
-    {
-        return;
-    }
-
-    // Button first, then the vehicle lines, as InterruptManager::Process() did
-    if (pending_button_ != clarity::core::ButtonEvent::None)
-    {
-        const clarity::core::ButtonEvent event = pending_button_;
-        pending_button_ = clarity::core::ButtonEvent::None;
-        ExecuteButton(event);
-    }
-
-    if (pending_debug_error_)
-    {
-        pending_debug_error_ = false;
         ReportDebugErrors();
     }
 
@@ -126,6 +110,13 @@ void DisplayController::Update(const Inputs &inputs, bool ui_idle)
     if (now.lights != applied_lights_)
     {
         ApplyLightsTheme(now.lights);
+    }
+
+    // The splash finishes before an override replaces it (Q-06): keep the last acted-on lines, so the
+    // difference is acted on once the target panel is loaded
+    if (panels_.IsSplashRunning())
+    {
+        return;
     }
 
     const DisplayRequest request = clarity::core::ResolveDisplay(now, false);

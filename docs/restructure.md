@@ -129,7 +129,7 @@ This is the behavioural contract, derived from the code. Where the code and the 
 
 | Panel | Content | Short press | Long press |
 |---|---|---|---|
-| Splash | "Clarity" label with fade in/out | none | open Config |
+| Splash | "Clarity" label with fade in/out | skip to the target panel (Q-08) | open Config |
 | Oil | Pressure gauge (left, rotation 210°, 120° sweep, scale 0–60, danger zone ≤5) and temperature gauge (right, rotation 30°, reversed, scale 0–120, danger zone ≥100). 750 ms needle animation, 3% dead-band, danger colouring for needle and icon (in Night mode the icon is always red), pivot styled per theme, L/H labels. | none | open Config |
 | Key | Key icon: green when present, red when not present | none | open Config |
 | Lock | Lock icon, red | none | open Config |
@@ -144,7 +144,7 @@ Selecting a value persists it to NVS immediately. The Config menu is coloured by
 - 50 ms software debounce.
 - A **short press** is a release after ≥50 ms and before the long-press threshold.
 - A **long press** fires *while the button is held*, as soon as the threshold is reached. The threshold is `button_sensor.long_press_ms`, default 1500, with options 1000/1500/2000/3000.
-- Only one action is pending at a time; the latest one wins. Today an action waits until the UI is idle, which can be up to ~750 ms during a needle animation (see Q-07).
+- A button action is executed in the loop pass it completes in, even while a panel animates (Q-07). Before Q-07 it waited until the UI was idle, up to ~750 ms during a needle animation.
 
 ### 2.5 Settings and NVS layout
 
@@ -172,7 +172,7 @@ NVS namespaces are `"cfg_" + section`, truncated to 15 characters. **Existing de
 
 - The queue holds at most 10 entries. When full, it keeps the highest severity, then the newest.
 - Warnings auto-dismiss after 10 s.
-- Any pending error, including a warning, brings up the error panel. This happens from the main loop when the UI is idle and the error panel isn't already shown. It loads without splash.
+- Any pending error, including a warning, brings up the error panel. This happens from the main loop once the splash has finished (Q-06), when the error panel isn't already shown. It loads without splash.
 - Each entry stores a level, a source (`const char*`), a message (up to 127 chars), a timestamp, and an acknowledged flag.
 
 ### 2.7 Themes
@@ -200,7 +200,7 @@ There are three palettes: Day, Night and Error.
 
 | Docs say | Code does | Decision |
 |---|---|---|
-| Splash short press skips the animation and loads the default panel (`hardware.md`) | No action (`splash_panel.cpp:358-362`) | Q-08 |
+| Splash short press skips the animation and loads the default panel (`hardware.md`) | No action (`splash_panel.cpp:358-362`) | **Resolved** (Q-08): skip, the code now follows the docs |
 | Short press 50–2000 ms, long press 2000–5000 ms, auto-release at 5 s (`hardware.md`, `action_handler.h:21-24`, `i_action_handler.h:19`) | Long press is configurable (default 1500 ms); no 5 s cap | Fix docs |
 | Error short press "cycles" through errors and never exits | Short press removes the viewed error; the last one clears all | Q-12 |
 | Config option lists in `config.md` (brightness 10/25/50/75/100; pressure offset −1.0…1.0) | `constants.h:320-331` differ | Fix docs |
@@ -1126,8 +1126,8 @@ Phase 3 can run in parallel with Phase 4 once Phase 2 lands. Phases 4 and 5 both
 | Q-04 | What should `debounce_ms` (200/400/600 ms) mean? These values are long for contact debounce. | (a) contact debounce with options 20/50/100 ms; (b) a "minimum short press" guard; (c) remove it | (a), migrating the stored value by clamping |
 | Q-05 | Which theme should apply when lights turn off? | Force Day (today); or restore the user's preference | **Resolved**: Day. The signal is the car's dash lighting, so the theme follows it only (see `decisions.md`) |
 | Q-06 | Can overrides interrupt the splash? | Defer until the splash finishes (today); or preempt | Defer (keeps today's behaviour) |
-| Q-07 | Today button actions and overrides wait up to ~750 ms during needle animations. | Keep the wait; or act immediately | Act immediately (no BUSY gate) |
-| Q-08 | What should a short press on the splash do? | Nothing (code); or skip to the target panel (docs) | Skip; it's cheap and documented |
+| Q-07 | Today button actions and overrides wait up to ~750 ms during needle animations. | Keep the wait; or act immediately | **Resolved**: act immediately (see `decisions.md`) |
+| Q-08 | What should a short press on the splash do? | Nothing (code); or skip to the target panel (docs) | **Resolved**: skip (see `decisions.md`) |
 | Q-09 | Where should Back go from an option list? | Main menu (today); or one level up | One level up |
 | Q-10 | What about `DiagnosticPanel`? | Remove the option; or implement the panel | Remove now |
 | Q-11 | Which toolchain? | Official `espressif32` 6.x (Arduino 2.x, older GCC, C++17); or pioarduino (Arduino 3.x / IDF 5, newer GCC, C++20) | pioarduino, pinned, if LovyanGFX and LVGL are verified on it. That gives C++20 (`std::span`, designated initialisers) and sdkconfig control (H-04). |

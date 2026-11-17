@@ -395,15 +395,22 @@ int SplashPanel::GetAnimationTime() const
 // ========== Action Handler Methods ==========
 
 /**
- * @brief Handles short button press during splash screen display
+ * @brief Handles short button press by skipping the rest of the splash (Q-08)
  *
- * Currently provides no-op functionality during splash screen.
- * The splash screen is intended to display branding without interruption.
+ * Completes the splash as the fade-out timer would, so the target panel loads on the next
+ * ApplyPendingTransition(). The pending timer and any running screen animation are cleaned up when
+ * the splash is destroyed.
  */
 void SplashPanel::HandleShortPress()
 {
-    // No action on short press - let splash screen complete normally
-    log_v("SplashPanel short press - no action");
+    if (!panel_manager_)
+    {
+        log_w("SplashPanel short press - no panel manager, cannot skip");
+        return;
+    }
+
+    log_t("SplashPanel short press - skipping to target panel");
+    static_cast<PanelManager *>(panel_manager_)->OnPanelLoadComplete(this);
 }
 /**
  * @brief Handles long press action by loading configuration panel

@@ -294,12 +294,13 @@ void loop()
 
     UpdateButtonThresholds();
     inputs->Sample(millis());
-    display_controller->Update(*inputs, panel_manager->GetUiState() == UIState::IDLE);
+    display_controller->Update(*inputs);
     test_inject::Poll();
 
-    // Check for error panel trigger - must be processed when UI is IDLE to avoid conflicts
+    // Check for error panel trigger. It only records a request (applied below), so it does not wait for an
+    // animation (Q-07); like the other overrides it waits for the splash to finish (Q-06)
     static bool error_panel_triggered = false; // Track if error panel was already triggered
-    if (panel_manager->GetUiState() == UIState::IDLE)
+    if (!panel_manager->IsSplashRunning())
     {
         bool should_trigger_error = error_manager->ShouldTriggerErrorPanel();
         const char *current_panel = panel_manager->GetCurrentPanel();

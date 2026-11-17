@@ -219,6 +219,12 @@ void PanelManager::ApplyPendingTransition()
     }
 }
 
+bool PanelManager::IsSplashRunning() const
+{
+    // The target is cleared when the splash completes, so a target that failed to load does not hold overrides back
+    return current_panel_ == panel_names::SPLASH && !splash_target_panel_.empty();
+}
+
 /**
  * @brief Loads a requested panel, with the splash first when enabled for user-initiated loads
  */

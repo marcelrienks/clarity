@@ -94,6 +94,9 @@ class PanelManager : public IPanelManager, public IActionHandler
     /// Applies the request recorded by CreateAndLoadPanel/LoadPanel/CheckRestoration. Call once per loop.
     void ApplyPendingTransition();
 
+    /// True while the splash is shown and its target panel has not been loaded yet. Overrides wait for it (Q-06).
+    bool IsSplashRunning() const;
+
     // ========== IActionHandler Implementation ==========
     void HandleShortPress() override;
     void HandleLongPress() override;
