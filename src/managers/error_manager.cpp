@@ -109,12 +109,11 @@ void ErrorManager::AcknowledgeError(size_t error_index)
 }
 
 /**
- * @brief Force clear all errors and reset error panel state
+ * @brief Force clear all errors
  */
 void ErrorManager::ClearAllErrors()
 {
     error_queue_.clear();
-    error_panel_active_ = false;
 }
 
 /**
@@ -127,25 +126,8 @@ bool ErrorManager::ShouldTriggerErrorPanel() const
     // Process auto-dismiss first (const_cast for this internal operation)
     const_cast<ErrorManager *>(this)->AutoDismissOldWarnings();
 
-    // Always trigger if we have pending errors - let the trigger system handle the logic
-    // of whether to actually switch panels
+    // Always trigger if we have pending errors - the main loop decides whether to switch panels
     return HasPendingErrors();
-}
-
-/**
- * @brief Update error panel activation state
- */
-void ErrorManager::SetErrorPanelActive(bool active)
-{
-    error_panel_active_ = active;
-}
-
-/**
- * @brief Check current error panel activation state
- */
-bool ErrorManager::IsErrorPanelActive() const
-{
-    return error_panel_active_;
 }
 
 // ========== Private Methods ==========

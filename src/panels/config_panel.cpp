@@ -126,9 +126,6 @@ void ConfigPanel::Load()
     config_component_.SetMenuItems(menu_items_);
     config_component_.SetCurrentIndex(current_menu_index_);
 
-    // Register the screen loaded event callback
-    lv_obj_add_event_cb(screen_, ConfigPanel::ShowPanelCompletionCallback, LV_EVENT_SCREEN_LOADED, this);
-
     lv_screen_load(screen_);
 
     log_t("ConfigPanel loaded successfully");
@@ -145,29 +142,10 @@ void ConfigPanel::Update()
 {
     log_v("Update() called");
 
-    // Config panel is static - no updates needed, but must reset UI state to IDLE
-    if (panel_manager_)
-    {
-        panel_manager_->SetUiState(UIState::IDLE);
-    }
+    // Config panel is static - updates are driven by button presses
 }
 
 // SetManagers and SetConfigurationManager removed - using constructor injection
-
-/**
- * @brief Static callback for screen loaded event
- * @param event LVGL event containing panel context
- */
-void ConfigPanel::ShowPanelCompletionCallback(lv_event_t *event)
-{
-    log_v("ShowPanelCompletionCallback() called");
-    // Get the panel pointer from event user data
-    auto *panel = static_cast<ConfigPanel *>(lv_event_get_user_data(event));
-    if (panel && panel->panel_manager_)
-    {
-        panel->panel_manager_->SetUiState(UIState::IDLE);
-    }
-}
 
 // ========== Public Action Handlers ==========
 

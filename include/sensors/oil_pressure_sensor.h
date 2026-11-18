@@ -12,7 +12,6 @@
 #include "interfaces/i_config.h"
 #include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_gpio_provider.h"
-#include "sensors/base_sensor.h"
 
 /**
  * @class OilPressureSensor
@@ -20,7 +19,7 @@
  *
  * @details This sensor monitors engine oil pressure levels and provides
  * readings in the unit requested by the consuming panel/component.
- * It inherits delta-based updates and time-based sampling from UnitAwareSensor.
+ * It samples the ADC at a configurable interval and keeps the last converted reading.
  *
  * @model_role Provides oil pressure data to OemOilPressureComponent
  * @supported_units: Bar, PSI, kPa
@@ -41,7 +40,7 @@
  * @context This sensor provides pressure readings in the unit requested
  * by the panel, removing unit conversion logic from display components.
  */
-class OilPressureSensor : public BaseSensor, public IConfig
+class OilPressureSensor : public IConfig
 {
   public:
     // ========== Constructors and Destructor ==========
@@ -50,14 +49,12 @@ class OilPressureSensor : public BaseSensor, public IConfig
                       int update_rate_ms = 500);
 
     // ========== Public Interface Methods ==========
-    // BaseSensor interface implementation
-    void Init() override;
-    Reading GetReading() override;
-    bool HasStateChanged() override;
+    void Init();
+    Reading GetReading();
 
-    // ISensor optional methods
-    void SetTargetUnit(const std::string &unit) override;
-    std::vector<std::string> GetSupportedUnits() const override;
+    // Unit support
+    void SetTargetUnit(const std::string &unit);
+    std::vector<std::string> GetSupportedUnits() const;
 
     void SetUpdateRate(int update_rate_ms);
 
@@ -106,6 +103,9 @@ class OilPressureSensor : public BaseSensor, public IConfig
         3, // Default 3%
         config::ConfigMetadata{"1,3,5", config::ConfigItemType::Selection}};
 
+    // ========== Private Constants ==========
+    static constexpr int32_t ADC_MAX_VALUE = 4095; ///< 12-bit ADC
+
     // ========== Private Data Members ==========
     IGpioProvider *gpio_provider_;
     IConfigurationManager *configuration_manager_ = nullptr;
@@ -113,8 +113,6 @@ class OilPressureSensor : public BaseSensor, public IConfig
     float calibration_scale_ = 1.0f;
     std::string target_unit_ = "Bar";
     int32_t current_reading_ = 0;
-    int32_t previous_reading_ = 0;        // For GetReading() change tracking
-    int32_t previous_change_reading_ = 0; // For HasStateChanged() separate tracking
     unsigned long last_update_time_ = 0;
     unsigned long update_interval_ms_;
 };

@@ -119,9 +119,6 @@ class ConfigPanel : public IPanel
     void HandleBackAction(const std::string &action_param);
     void HandlePanelExit();
 
-    // ========== Static Methods ==========
-    static void ShowPanelCompletionCallback(lv_event_t *event);
-
     // ========== Private Data Members ==========
 
     // Instance Data Members

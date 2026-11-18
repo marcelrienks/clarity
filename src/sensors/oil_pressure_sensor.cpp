@@ -64,7 +64,7 @@ OilPressureSensor::OilPressureSensor(IGpioProvider *gpio_provider, IConfiguratio
  * Configures the ADC for 12-bit resolution with 11dB attenuation for 0-3.3V range.
  * Loads configuration from preference service if available and registers for
  * dynamic configuration updates. Takes an initial reading to establish baseline
- * values. This is part of the ISensor interface implementation.
+ * values.
  */
 void OilPressureSensor::Init()
 {
@@ -141,13 +141,16 @@ void OilPressureSensor::SetTargetUnit(const std::string &unit)
 Reading OilPressureSensor::GetReading()
 {
     // Check if enough time has passed for update
-    if (ShouldUpdate(last_update_time_, update_interval_ms_))
+    const unsigned long now = millis();
+    if (now - last_update_time_ >= update_interval_ms_)
     {
+        last_update_time_ = now;
+
         // Read raw value from ADC
         int32_t raw_value = ReadRawValue();
 
         // Validate ADC reading
-        if (!IsValidAdcReading(raw_value))
+        if (raw_value < 0 || raw_value > ADC_MAX_VALUE)
         {
             // Use char buffer to avoid std::to_string allocation in error path
             static char error_buffer[64];
@@ -158,9 +161,6 @@ Reading OilPressureSensor::GetReading()
 
         // Convert to target unit
         int32_t new_value = ConvertReading(raw_value);
-
-        // Update change tracking
-        DetectChange(new_value, previous_reading_);
 
         // Only update current reading if value actually changed
         if (new_value != current_reading_)
@@ -236,23 +236,6 @@ int32_t OilPressureSensor::ConvertReading(int32_t raw_value)
         // Already in Bar
         return static_cast<int32_t>(bar_value);
     }
-}
-
-/**
- * @brief Checks if sensor state has changed since last evaluation
- * @return true if pressure reading has changed significantly
- *
- * Uses the cached reading to avoid double ADC reads, as this method is called
- * during interrupt evaluation while GetReading() is called during the main loop.
- * Implements change detection for the interrupt system to trigger appropriate
- * responses to pressure changes.
- */
-bool OilPressureSensor::HasStateChanged()
-{
-    // Use cached reading to avoid double ADC reads - GetReading() updates current_reading_
-    // This method is called during interrupt evaluation, GetReading() during main loop
-    int32_t cached_reading = static_cast<int32_t>(std::get<int32_t>(GetReading()));
-    return DetectChange(cached_reading, previous_change_reading_);
 }
 
 /**

@@ -69,7 +69,7 @@ Components declare their configuration items as inline static members in their h
 
 ```cpp
 // include/sensors/oil_pressure_sensor.h
-class OilPressureSensor : public BaseSensor, public IConfig {
+class OilPressureSensor : public IConfig {
 private:
     // Configuration items declared in header as inline static
     inline static Config::ConfigItem unitConfig_{

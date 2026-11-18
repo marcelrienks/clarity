@@ -79,7 +79,6 @@ Wokwi caps a session at 5 minutes of wall-clock time and the simulator runs slow
 Timing notes from the repair (0.3):
 - Leave at least 1000 ms after anything that rebuilds a panel or menu before the next button press. 200-300 ms there stalled the simulator until the 5 minute cap.
 - `wait-serial` only sees output printed after its step starts, so put the waits right after the action that produces the line. Long presses fire while the button is still held, so wait before releasing.
-- Poll logs from `gpio_sensor.cpp` are off by default (about 96% of serial output). Define `GPIO_POLL_LOGS` to see them.
 
 ### Build Environments
 - **`test-wokwi`**: Clean integration testing (CORE_DEBUG_LEVEL=0 + TEST_LOGS)

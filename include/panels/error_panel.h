@@ -57,9 +57,6 @@ class ErrorPanel : public IPanel
     void HandleLongPress() override;
 
   private:
-    // ========== Static Methods ==========
-    static void ShowPanelCompletionCallback(lv_event_t *event);
-
     // ========== Private Methods ==========
     void SortErrorsBySeverity(); // Sort errors by severity (CRITICAL first, WARNING last)
     void AdvanceToNextError();   // Move to next error and update component

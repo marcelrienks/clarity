@@ -131,9 +131,9 @@ void OemOilPanel::Init()
     // Calculate deadbands from configuration percentiles
     CalculateDeadbands();
 
-    // Cache sensor references to avoid repeated static_pointer_cast operations
-    cached_pressure_sensor_ = std::static_pointer_cast<OilPressureSensor>(oem_oil_pressure_sensor_);
-    cached_temperature_sensor_ = std::static_pointer_cast<OilTemperatureSensor>(oem_oil_temperature_sensor_);
+    // Settings are applied to the sensors only once they are initialised (ApplyCurrentSensorSettings)
+    cached_pressure_sensor_ = oem_oil_pressure_sensor_;
+    cached_temperature_sensor_ = oem_oil_temperature_sensor_;
 
     log_i("OemOilPanel initialization completed");
 }
@@ -189,8 +189,6 @@ void OemOilPanel::Load()
 
     // Check if 'this' pointer is still valid
 
-    lv_obj_add_event_cb(screen_, OemOilPanel::ShowPanelCompletionCallback, LV_EVENT_SCREEN_LOADED, this);
-
     // Final validation before the critical call
 
     lv_screen_load(screen_);
@@ -239,15 +237,6 @@ void OemOilPanel::Update()
     // Update sensor readings and components (pass theme change flag)
     UpdateOilPressure(theme_changed);
     UpdateOilTemperature(theme_changed);
-
-    // If no animations were started, updates complete immediately
-    if (animation_state_ == AnimationState::IDLE)
-    {
-        if (panel_manager_)
-        {
-            panel_manager_->SetUiState(UIState::IDLE);
-        }
-    }
 }
 
 // ========== Private Methods ==========
@@ -369,11 +358,6 @@ void OemOilPanel::UpdateOilPressure(bool force_refresh)
     else
     {
         animation_state_ = AnimationState::PRESSURE_RUNNING;
-    }
-    // Set ANIMATING state before starting animation
-    if (panel_manager_)
-    {
-        panel_manager_->SetUiState(UIState::BUSY);
     }
     // Start pressure gauge animation
     lv_anim_start(&pressure_animation_);
@@ -514,47 +498,9 @@ void OemOilPanel::UpdateOilTemperature(bool force_refresh)
     {
         animation_state_ = AnimationState::TEMPERATURE_RUNNING;
     }
-    // Set ANIMATING state before starting animation
-    if (panel_manager_)
-    {
-        panel_manager_->SetUiState(UIState::BUSY);
-    }
     // Start temperature gauge animation
     lv_anim_start(&temperature_animation_);
 }
-
-// Legacy Action interface methods (retained for reference)
-/*
-/// @brief Get action for short button press
-/// @return NoAction - oil panel doesn't respond to short presses
-Action OemOilPanel::GetShortPressAction()
-{
-    log_v("GetShortPressAction() called");
-
-    // Short press: No action for oil panel
-    return Action(nullptr);
-}
-
-/// @brief Get action for long button press
-/// @return Action to switch to CONFIG panel
-Action OemOilPanel::GetLongPressAction()
-{
-    log_v("GetLongPressAction() called");
-
-    // Return an action that directly calls PanelService interface
-    if (!panel_manager_)
-    {
-        log_w("OemOilPanel: PanelService not available, returning no action");
-        return Action(nullptr);
-    }
-
-    return Action(
-        [this]()
-        {
-            panel_manager_->CreateAndLoadPanel(panel_names::CONFIG, true);
-        });
-}
-*/
 
 // ========== Configuration Methods ==========
 
@@ -631,34 +577,6 @@ void OemOilPanel::ApplyCurrentSensorSettings()
 // ========== Static Callback Methods ==========
 
 /**
- * @brief The callback to be run once show panel has completed
- * @param event LVGL event that was used to call this
- */
-void OemOilPanel::ShowPanelCompletionCallback(lv_event_t *event)
-{
-    log_v("ShowPanelCompletionCallback() called");
-
-    if (!event)
-    {
-        return;
-    }
-
-    auto this_instance = static_cast<OemOilPanel *>(lv_event_get_user_data(event));
-    if (!this_instance)
-    {
-        return;
-    }
-
-    // Set UI state to IDLE so main loop can start calling Update()
-    if (this_instance->panel_manager_)
-    {
-        this_instance->panel_manager_->SetUiState(UIState::IDLE);
-    }
-
-    // Animation completed - no callback needed for interface-based approach
-}
-
-/**
  * @brief Callback when animation has completed. aka update complete
  * @param animation the object that was animated
  */
@@ -699,16 +617,6 @@ void OemOilPanel::UpdatePanelCompletionCallback(lv_anim_t *animation)
         else if (this_instance->animation_state_ == AnimationState::BOTH_RUNNING)
         {
             this_instance->animation_state_ = AnimationState::PRESSURE_RUNNING;
-        }
-    }
-
-    // Only set UI state to idle when all animations are complete
-    if (this_instance->animation_state_ == AnimationState::IDLE)
-    {
-        // Set IDLE state when all animations are complete
-        if (this_instance->panel_manager_)
-        {
-            this_instance->panel_manager_->SetUiState(UIState::IDLE);
         }
     }
 }

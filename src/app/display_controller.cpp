@@ -1,6 +1,7 @@
 #include "app/display_controller.h"
 
 #include <Arduino.h>
+#include <cstring>
 #include <string>
 
 #include "definitions/constants.h"
@@ -80,7 +81,7 @@ bool DisplayController::Begin(const Inputs &inputs)
 
 void DisplayController::Update(const Inputs &inputs)
 {
-    // Button first, then the vehicle lines, as InterruptManager::Process() did. Both act at once (Q-07): the
+    // Button first, then the vehicle lines, the order the old interrupt manager used. Both act at once (Q-07): the
     // transitions they request are applied later in the pass, outside any panel or LVGL callback
     const clarity::core::ButtonEvent button = inputs.Button();
     if (button == clarity::core::ButtonEvent::Long)
@@ -101,7 +102,7 @@ void DisplayController::Update(const Inputs &inputs)
     panels_.SetKeyState(ToPanelKeyState(clarity::core::ResolveDisplay(now, false).key));
 
     // The error panel owns the screen and the Error palette: remember the lines, act on them at restoration
-    if (ErrorManager::Instance().IsErrorPanelActive())
+    if (std::strcmp(panels_.GetCurrentPanel(), panel_names::ERROR) == 0)
     {
         vehicle_ = now;
         return;

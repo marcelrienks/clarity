@@ -6,8 +6,6 @@
 #include "managers/panel_manager.h"
 #include "managers/style_manager.h"
 #include "providers/device_provider.h"
-#include "sensors/button_sensor.h"
-#include "sensors/gpio_sensor.h"
 #include <esp32-hal-log.h>
 
 // ========== Constructors and Destructor ==========

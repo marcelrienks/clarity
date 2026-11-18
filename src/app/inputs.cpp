@@ -3,7 +3,39 @@
 #include <Arduino.h>
 
 #include "hardware/gpio_pins.h"
+#include "managers/configuration_manager.h"
+#include "managers/error_manager.h"
 #include "utilities/logging.h"
+
+// Self-registration at program startup (the Button section was registered by the old ActionHandler)
+static bool inputs_config_registered = []()
+{
+    ConfigurationManager::AddSchema(Inputs::RegisterConfigSchema);
+    return true;
+}();
+
+void Inputs::RegisterConfigSchema(IConfigurationManager *configuration_manager)
+{
+    if (!configuration_manager)
+    {
+        log_e("Inputs::RegisterConfigSchema: ConfigurationManager is null - button config registration failed!");
+        ErrorManager::Instance().ReportCriticalError("Inputs", "ConfigManager null - button config failed");
+        return;
+    }
+
+    if (configuration_manager->IsSchemaRegistered(config_constants::sections::BUTTON_SENSOR))
+    {
+        return;
+    }
+
+    config::ConfigSection section(config_constants::sections::BUTTON_SENSOR, config_constants::sections::BUTTON_SENSOR,
+                                  config_constants::section_names::BUTTON_SENSOR);
+    section.AddItem(debounce_config);
+    section.AddItem(long_press_config);
+
+    configuration_manager->RegisterConfigSection(section);
+    log_i("Inputs configuration schema registered (static)");
+}
 
 void Inputs::Begin(uint32_t now)
 {

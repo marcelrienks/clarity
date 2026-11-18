@@ -5,7 +5,6 @@
 
 // Static instance for singleton pattern
 static PanelManager *instance_ptr = nullptr;
-#include "interfaces/i_action_handler.h"
 // Direct panel includes (factory pattern eliminated)
 #include "panels/config_panel.h"
 #include "panels/error_panel.h"
@@ -28,11 +27,10 @@ static PanelManager *instance_ptr = nullptr;
  * @param gpio GPIO provider interface for hardware interaction
  * @param styleManager Style service interface for theme management
  * @param preferenceService Preference service interface for configuration persistence
- * @param interruptManager Interrupt manager for button and trigger handling
  *
  * Initializes the panel manager with dependency injection pattern. Validates all
  * required dependencies and sets up the default oil panel as the initial panel.
- * Establishes singleton instance for global access by interrupt system.
+ * Establishes the singleton instance used by panels that request restoration.
  */
 PanelManager::PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *style_manager,
                            IConfigurationManager *configuration_manager)
@@ -98,7 +96,7 @@ PanelManager::~PanelManager()
  * @brief Provides singleton access to the PanelManager instance
  * @return Reference to the singleton PanelManager instance
  *
- * Used by the interrupt system to access panel management functionality.
+ * Used by panels that request restoration.
  * Must be called after PanelManager has been initialized through the
  * ManagerFactory. This provides global access while maintaining the
  * dependency injection pattern for the main initialization.
@@ -131,33 +129,6 @@ void PanelManager::Init()
 
     Ticker::HandleLvTasks();
     log_i("PanelManager initialization completed");
-}
-
-/**
- * @brief Sets current UI state for synchronization with interrupt system
- * @param state New UI state (BUSY or IDLE)
- *
- * Updates the UI state to coordinate with the interrupt manager. BUSY state
- * prevents triggers from interrupting panel animations, while IDLE state
- * allows triggers to be processed. Used for performance optimization.
- */
-void PanelManager::SetUiState(UIState state)
-{
-    log_v("SetUiState() called with state: %s", UIStateToString(state));
-    ui_state_ = state;
-}
-
-/**
- * @brief Gets the current UI state
- * @return Current UI state (BUSY or IDLE)
- *
- * Returns the current UI state for use by the interrupt manager to determine
- * when it's safe to process triggers. BUSY state indicates panel transitions
- * or animations are in progress.
- */
-UIState PanelManager::GetUiState() const
-{
-    return ui_state_;
 }
 
 /**
@@ -261,19 +232,14 @@ void PanelManager::LoadRequested(const char *panel_name, bool is_trigger_driven)
 /**
  * @brief Updates the currently active panel (called from main loop)
  *
- * Calls the Update method on the current panel and handles LVGL tasks.
- * Sets UI state to BUSY during update to prevent interrupt interference
- * with panel animations and updates. This is the main panel lifecycle
- * method called continuously from the main loop.
+ * Calls the Update method on the current panel and handles LVGL tasks. Called every loop pass,
+ * also while a panel animates: a panel that animates skips its own updates until the animation ends.
  */
 void PanelManager::UpdatePanel()
 {
     log_v("UpdatePanel() called");
     if (panel_)
     {
-        // Set BUSY before updating panel
-        SetUiState(UIState::BUSY);
-
         panel_->Update();
         Ticker::HandleLvTasks();
     }
@@ -284,7 +250,7 @@ void PanelManager::UpdatePanel()
  * @return Name of the currently active panel
  *
  * Returns the name of the panel that is currently loaded and active.
- * Used by the interrupt system and other managers to determine the
+ * Used by the display controller and the main loop to determine the
  * current system state.
  */
 const char *PanelManager::GetCurrentPanel() const
@@ -325,30 +291,14 @@ bool PanelManager::IsCurrentPanelTriggerDriven() const
     return current_panel_is_trigger_driven_;
 }
 
-/**
- * @brief Callback executed when trigger-driven panel loading is complete
- * @param triggerId Identifier of the trigger that initiated the panel switch
- *
- * Called when a trigger-driven panel has finished loading. Sets the UI state
- * to IDLE to allow other triggers to be processed. This callback ensures
- * proper coordination between the trigger system and panel lifecycle.
- */
-void PanelManager::TriggerPanelSwitchCallback([[maybe_unused]] const char *trigger_id)
-{
-    log_v("TriggerPanelSwitchCallback() called for trigger: %s", trigger_id);
-    SetUiState(UIState::IDLE);
-}
-
-// ========== IPanelNotificationService Implementation ==========
+// ========== Panel Notification Methods ==========
 
 /**
  * @brief Handles panel load completion notifications
  * @param panel Pointer to the panel that completed loading
  *
- * Part of the IPanelNotificationService interface. Handles special logic
- * for splash screen completion by transitioning to the target panel, or
- * normal panel completion by setting the UI state to IDLE. This enables
- * proper panel lifecycle management and transition coordination.
+ * Called by the splash when it finishes (fade-out timer or a short press). Records the transition
+ * to the splash target; ApplyPendingTransition() applies it. Ignored for any other panel.
  */
 void PanelManager::OnPanelLoadComplete(IPanel *panel)
 {
@@ -368,12 +318,6 @@ void PanelManager::OnPanelLoadComplete(IPanel *panel)
         // Called from the splash's LVGL timer: the splash is deleted later, by ApplyPendingTransition()
         log_i("Splash panel completed - target panel: %s", splash_target_panel_.c_str());
         pending_.kind = PendingKind::SplashDone;
-    }
-    else
-    {
-        // Normal panel completion
-        // Normal panel completion processing
-        PanelCompletionCallback();
     }
 }
 
@@ -606,7 +550,7 @@ std::shared_ptr<IPanel> PanelManager::CreatePanel(const char *panel_name)
  *
  * Core panel creation and loading logic. Handles restoration panel tracking,
  * dependency injection for specific panel types, theme application, and button
- * function registration. Sets UI state appropriately during the loading process.
+ * function registration.
  */
 void PanelManager::CreateAndLoadPanelDirect(const char *panel_name, bool is_trigger_driven)
 {
@@ -642,9 +586,6 @@ void PanelManager::CreateAndLoadPanelDirect(const char *panel_name, bool is_trig
     // Update current panel directly (PanelNames are static constants)
     current_panel_ = panel_name;
 
-    // Set BUSY before loading panel
-    SetUiState(UIState::BUSY);
-
     panel_->Load();
     old_panel.reset();
     Ticker::HandleLvTasks();
@@ -675,19 +616,4 @@ void PanelManager::CreateAndLoadPanelWithSplash(const char *panel_name, bool is_
     // Splash panel itself is neutral - doesn't affect restoration logic
     // Use false for splash since it's just a transitional UI element
     CreateAndLoadPanelDirect(panel_names::SPLASH, false);
-}
-
-/**
- * @brief Callback executed when normal panel loading is complete
- *
- * Sets the UI state to IDLE when panel loading completes, allowing the
- * interrupt system to process triggers. This completes the panel loading
- * lifecycle and signals that the system is ready for user interaction.
- */
-void PanelManager::PanelCompletionCallback()
-{
-    log_v("PanelCompletionCallback() called");
-
-    // Set IDLE when panel operation completes
-    SetUiState(UIState::IDLE);
 }

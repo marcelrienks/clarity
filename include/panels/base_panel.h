@@ -177,12 +177,6 @@ class BasePanel : public IPanel
   private:
     // ========== Static Methods ==========
     /**
-     * @brief LVGL callback for screen load completion
-     * @param event LVGL event object containing panel context
-     */
-    static void ShowPanelCompletionCallback(lv_event_t *event);
-
-    /**
      * @brief Static wrapper for short button press handling
      * @param panelContext Pointer to BasePanel instance
      */

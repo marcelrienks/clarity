@@ -8,7 +8,6 @@
 #include "interfaces/i_action_handler.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
-#include "interfaces/i_sensor.h"
 
 // Forward declarations
 class IPanelManager;
@@ -25,13 +24,12 @@ class IConfigurationManager;
  * All panels implement IActionService for consistent button input handling.
  *
  * @design_pattern Presenter in MVP - coordinates models and views
- * @universal_button_system All panels inherit IActionService to provide
- * static button function pointers for universal button interrupt injection
+ * @button_handling All panels inherit IActionHandler; button events reach the current panel through PanelManager
  *
  * @lifecycle:
  * 1. init(): Initialize panel and create components
  * 2. load(): Setup UI and start async operations with callback
- * 3. update(): Periodic refresh of sensor data and UI
+ * 3. update(): Called every loop pass, also while the panel animates
  * 4. show(): Make panel visible on screen
  *
  * @async_handling:
@@ -42,11 +40,11 @@ class IConfigurationManager;
  * @sensor_integration:
  * - Display-only panels (Key, Lock): Create only components, no sensors
  * - Data panels (Oil): Create own data sensors and components
- * - Trigger panels receive state from interrupt system via GPIO reads
+ * - Override panels (Key, Lock) get their state from the display controller
  *
  * @button_integration:
  * - All panels must implement IActionService methods
- * - Panel functions injected into universal button interrupts when panel loads
+ * - The display controller sends button events to the current panel through PanelManager
  * - Button events execute current panel's functions with panel context
  *
  * @implementations:

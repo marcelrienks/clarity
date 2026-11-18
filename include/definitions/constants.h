@@ -38,20 +38,6 @@ static constexpr const char *LOCK = "LockPanel";
 static constexpr const char *SPLASH = "SplashPanel";
 } // namespace panel_names
 
-/**
- * @brief Trigger IDs for the interrupt system
- */
-namespace trigger_ids
-{
-static constexpr const char *KEY_PRESENT = "key_present";
-static constexpr const char *KEY_NOT_PRESENT = "key_not_present";
-static constexpr const char *LOCK = "lock";
-static constexpr const char *LIGHTS = "lights";
-static constexpr const char *ERROR = "error";
-static constexpr const char *SHORT_PRESS = "short_press";
-static constexpr const char *LONG_PRESS = "long_press";
-} // namespace trigger_ids
-
 /*============================================================================*/
 /*                            DATA CONSTANTS                                 */
 /*============================================================================*/
@@ -418,10 +404,4 @@ static constexpr int RST_PIN = 4;
 static constexpr int BL_PIN = 3;
 static constexpr int BUZZER_PIN = -1;
 } // namespace spi
-
-// ========== Trigger IDs for logic comparisons ==========
-namespace trigger_ids
-{
-static constexpr const char *KEY_PRESENT = "key_present";
-}
 } // namespace hardware_constants

@@ -28,11 +28,9 @@ ErrorPanel::ErrorPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleMan
 }
 
 /**
- * @brief Destructor cleans up error panel resources and resets error state
+ * @brief Destructor cleans up error panel resources
  *
- * Safely deletes LVGL screen objects and resets ErrorManager error panel
- * active flag. Allows trigger system to resume normal operation after
- * error panel cleanup. Stack-allocated component is automatically destroyed.
+ * Safely deletes LVGL screen objects. Stack-allocated component is automatically destroyed.
  */
 ErrorPanel::~ErrorPanel()
 {
@@ -45,9 +43,6 @@ ErrorPanel::~ErrorPanel()
     }
 
     // Components delete no LVGL objects, so destroying them after the screen is safe
-
-    // Reset error panel active flag when panel is destroyed
-    ErrorManager::Instance().SetErrorPanelActive(false);
 
     // Don't restore theme here - let the trigger system manage themes
     // The CheckRestoration() method will apply the correct theme based on active triggers
@@ -78,8 +73,6 @@ void ErrorPanel::Init()
 
     center_location_ = ComponentLocation(LV_ALIGN_CENTER, 0, 0);
 
-    // Set error panel as active in ErrorManager
-    ErrorManager::Instance().SetErrorPanelActive(true);
     log_i("Error panel activated - switching to error display mode");
 
     log_i("ErrorPanel initialization completed");
@@ -121,8 +114,6 @@ void ErrorPanel::Load()
         error_component_.UpdateErrorDisplay(current_errors_, current_error_index_);
         log_i("Initialized error panel with %zu unviewed errors", current_errors_.size());
     }
-
-    lv_obj_add_event_cb(screen_, ErrorPanel::ShowPanelCompletionCallback, LV_EVENT_SCREEN_LOADED, this);
 
     // Add safety check before screen load
     if (!screen_)
@@ -216,79 +207,10 @@ void ErrorPanel::Update()
     // If no errors remain, trigger auto-restoration to previous panel
     if (current_errors_.empty() && panel_loaded_)
     {
-        log_i("ErrorPanel: No errors remaining - triggering auto-restoration");
-        ErrorManager::Instance().SetErrorPanelActive(false);
-
-        // Auto-restore using CheckRestoration to handle active triggers. This must run in
-        // release builds too: Update() runs with the UI BUSY, and nothing else sets it IDLE
-        if (panel_manager_)
-        {
-            log_i("ErrorPanel: No errors remaining - checking for active triggers before restoration");
-
-            // CheckRestoration may replace this panel, so keep the manager pointer and do not touch members afterwards
-            IPanelManager *panel_manager = panel_manager_;
-            PanelManager::Instance().CheckRestoration();
-
-            // Nothing replaced this panel (no restoration target): still leave the UI in a defined state
-            if (strcmp(panel_manager->GetCurrentPanel(), panel_names::ERROR) == 0)
-            {
-                panel_manager->SetUiState(UIState::IDLE);
-            }
-
-            return; // Exit early to prevent callback execution on replaced panel
-        }
-    }
-
-    // Reset UI state to IDLE to allow interrupt processing (similar to ConfigPanel pattern)
-    if (panel_manager_)
-    {
-        panel_manager_->SetUiState(UIState::IDLE);
-    }
-    // Error panel updates are handled internally - no notification needed
-}
-
-/**
- * @brief Static callback function for LVGL screen load completion
- * @param event LVGL event containing panel instance data
- *
- * Critical callback that registers button action handlers when error panel
- * screen loading is complete. Ensures UI is ready before enabling user
- * interactions. Essential for proper error panel navigation functionality.
- */
-void ErrorPanel::ShowPanelCompletionCallback(lv_event_t *event)
-{
-    log_i("ErrorPanel::ShowPanelCompletionCallback() called - CRITICAL for UI state");
-
-    if (!event)
-    {
-        log_e("ShowPanelCompletionCallback: event is null!");
-        ErrorManager::Instance().ReportError(ErrorLevel::ERROR, panel_names::ERROR,
-                                             "ShowPanelCompletionCallback received null event");
-        return;
-    }
-
-    auto this_instance = static_cast<ErrorPanel *>(lv_event_get_user_data(event));
-    if (this_instance)
-    {
-        // Set UI state to IDLE after static panel loads so triggers can be evaluated again
-        if (this_instance->panel_manager_)
-        {
-            log_i("ErrorPanel: Setting UI state to IDLE - this unblocks main loop processing");
-            this_instance->panel_manager_->SetUiState(UIState::IDLE);
-            log_i("ErrorPanel: UI state set to IDLE successfully");
-        }
-        else
-        {
-            log_e("ErrorPanel::ShowPanelCompletionCallback: panelManager_ is null!");
-            ErrorManager::Instance().ReportError(ErrorLevel::ERROR, panel_names::ERROR,
-                                                 "PanelService is null in completion callback");
-        }
-    }
-    else
-    {
-        log_e("ErrorPanel::ShowPanelCompletionCallback: thisInstance is null!");
-        ErrorManager::Instance().ReportError(ErrorLevel::ERROR, panel_names::ERROR,
-                                             "Instance is null in completion callback");
+        // Restoration only records a request (applied later in the loop pass), and it requests a key or
+        // lock override instead if one is still active
+        log_i("ErrorPanel: No errors remaining - checking for active triggers before restoration");
+        PanelManager::Instance().CheckRestoration();
     }
 }
 
@@ -349,9 +271,6 @@ void ErrorPanel::HandleLongPress()
 
     // Clear all errors from the error manager
     ErrorManager::Instance().ClearAllErrors();
-
-    // Set error panel as inactive
-    ErrorManager::Instance().SetErrorPanelActive(false);
 
     // Use standard restoration logic for all builds
     // This will check for other active triggers and restore appropriately

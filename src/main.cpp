@@ -274,10 +274,10 @@ void setup()
 /**
  * @brief Arduino main loop - processes system events and updates UI
  *
- * Continuously processes interrupt events, monitors error conditions,
- * and updates the active panel. Handles error panel triggering when
- * UI is idle to avoid conflicts with other operations. Maintains
- * responsive system behavior through dynamic delay management.
+ * Samples the inputs, acts on them through the display controller, monitors
+ * error conditions, applies the pending panel transition and updates the
+ * active panel. Maintains responsive system behavior through dynamic delay
+ * management.
  */
 void loop()
 {
@@ -311,13 +311,11 @@ void loop()
         {
             log_t("ErrorOccurredActivate() - Loading ERROR panel");
             panel_manager->CreateAndLoadPanel(panel_names::ERROR, true); // Mark as trigger-driven
-            error_manager->SetErrorPanelActive(true);
             error_panel_triggered = true;
         }
         // Reset trigger state when no longer needed
         else if (!should_trigger_error && error_panel_triggered)
         {
-            error_manager->SetErrorPanelActive(false);
             error_panel_triggered = false;
         }
     }
@@ -325,11 +323,8 @@ void loop()
     // Apply the transition requested above or by a panel during the previous iteration
     panel_manager->ApplyPendingTransition();
 
-    // Update panel state only when IDLE - allows loading and animations to complete
-    if (panel_manager->GetUiState() == UIState::IDLE)
-    {
-        panel_manager->UpdatePanel();
-    }
+    // Every pass: a panel that animates skips its own updates until the animation ends
+    panel_manager->UpdatePanel();
 
     Ticker::HandleLvTasks();
     Ticker::HandleDynamicDelay(millis());

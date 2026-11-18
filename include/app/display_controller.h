@@ -13,10 +13,10 @@ class IStyleManager;
  * @class DisplayController
  * @brief Turns the sampled inputs into panel requests, theme changes and button dispatch (A-02)
  *
- * @details Replaces InterruptManager::Process(). It holds no input state of its own beyond what it needs
- * to see an edge: every pass it compares clarity::core::ResolveDisplay() with the request it last acted on
- * and records a transition with the PanelManager when they differ. The transition is applied later by
- * PanelManager::ApplyPendingTransition(), never from here (D-13).
+ * @details It holds no input state of its own beyond what it needs to see an edge: every pass it compares
+ * clarity::core::ResolveDisplay() with the request it last acted on and records a transition with the
+ * PanelManager when they differ. The transition is applied later by PanelManager::ApplyPendingTransition(),
+ * never from here (D-13).
  *
  * Button events, the debug error edge and the lights theme are acted on in the pass they arrive, even while a
  * panel animates (Q-07). Key and lock requests wait while the splash runs (Q-06) and are acted on once its

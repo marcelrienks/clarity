@@ -38,7 +38,6 @@
  * - Future panels: Easy extensibility via registration
  *
  * @state_management:
- * - _ui_state: Controls UI processing state and prevents concurrent operations
  * - _panel: Current active panel instance
  * - Callback-based completion handling
  *
@@ -66,25 +65,16 @@ class PanelManager : public IPanelManager, public IActionHandler
     ~PanelManager() override;
 
     // ========== Static Methods ==========
-    // Singleton access for new interrupt architecture
+    // Singleton access for panels that request restoration
     static PanelManager &Instance();
-
-    // Interface accessors for dependency injection (CRITICAL for testability)
-    static IActionHandler &ActionService()
-    {
-        return Instance();
-    }
 
     // ========== IPanelManager Implementation ==========
     void Init() override;
-    void SetUiState(UIState state) override;
-    UIState GetUiState() const override;
     void CreateAndLoadPanel(const char *panel_name, bool is_trigger_driven = false) override;
     void UpdatePanel() override;
     const char *GetCurrentPanel() const override;
     const char *GetRestorationPanel() const override;
     bool IsCurrentPanelTriggerDriven() const override;
-    void TriggerPanelSwitchCallback(const char *trigger_id) override;
     KeyState GetKeyState() const override;
 
     // ========== Panel Notification Methods ==========
@@ -123,7 +113,6 @@ class PanelManager : public IPanelManager, public IActionHandler
     void CreateAndLoadPanelWithSplash(const char *panel_name, bool is_trigger_driven);
     void LoadRequested(const char *panel_name, bool is_trigger_driven);
     void RestoreNow();
-    void PanelCompletionCallback();
 
     // Helper methods for CreateAndLoadPanelDirect
     void UpdateRestorationTracking(const char *panel_name, bool is_trigger_driven);
@@ -133,7 +122,6 @@ class PanelManager : public IPanelManager, public IActionHandler
     std::string current_panel_ = panel_names::OIL;     ///< Current panel state
     std::string restoration_panel_ = panel_names::OIL; ///< Panel to restore when all triggers are inactive
     std::shared_ptr<IPanel> panel_ = nullptr;
-    UIState ui_state_ = UIState::IDLE;             ///< Current UI processing state
     bool current_panel_is_trigger_driven_ = false; ///< Track if current panel is trigger-driven
     KeyState key_state_ = KeyState::Inactive;      ///< What the key panel shows, set each loop pass
 

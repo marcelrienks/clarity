@@ -12,7 +12,7 @@ _Partially vibe coded with claude a learning excercise._
 ## 🌟 **System Highlights**
 
 - **Professional Architecture**: MVP pattern with factory-based dependency injection, optimized for embedded systems
-- **Advanced Interrupt System**: TriggerHandler/ActionHandler separation with priority-based execution
+- **Sampled Inputs**: debounced inputs and a pure display policy decide which panel and theme to show
 - **Production Optimized**: 30.7KB flash reduction, 40-60% performance improvement across critical paths
 - **Modern UI**: LVGL-based interface designed for 240x240 round displays
 - **Comprehensive Testing**: Automated CI/CD with Wokwi simulation and integration testing
@@ -22,8 +22,8 @@ _Partially vibe coded with claude a learning excercise._
 
 ### **Core Architecture**
 - **[Architecture Overview](docs/architecture.md)** - High-level MVP pattern and system design
-- **[Interrupt Architecture](docs/interrupts.md)** - Advanced TriggerHandler/ActionHandler system with priority-based execution
-- **[Sensor Architecture](docs/sensor.md)** - Single ownership model with BaseSensor change detection pattern
+- **[Interrupt Architecture](docs/interrupts.md)** - The old trigger system, replaced by `Inputs` and `DisplayController` (rewrite pending, todo 9)
+- **[Sensor Architecture](docs/sensor.md)** - Single ownership model for the oil sensors (rewrite pending, todo 9)
 - **[Development Patterns](docs/patterns.md)** - Design patterns, string memory management, and coding practices
 
 ### **Implementation Details**
@@ -72,20 +72,19 @@ cd test/wokwi && ./wokwi_test_automation.sh
 ## 🎯 **System Architecture**
 
 ### **MVP Pattern Implementation**
-- **Models**: Sensors (GPIO/ADC data acquisition with change detection)
+- **Models**: Sensors (ADC data acquisition for oil pressure and temperature)
 - **Views**: Components (LVGL UI rendering - display-only for interrupt-driven panels)
 - **Presenters**: Panels (business logic orchestration and lifecycle management)
 
-### **Advanced Interrupt Architecture**
-- **TriggerHandler**: GPIO state monitoring (Key, Lock, Lights sensors) - processes during UI IDLE only
-- **ActionHandler**: Button event processing (short 50ms-2000ms, long 2000ms-5000ms) - evaluates every loop
-- **Priority Override**: Sophisticated blocking logic prevents unnecessary panel switches
-- **Smart Restoration**: Automatic return to last user-driven panel when triggers deactivate
+### **Input and Display Policy**
+- **Inputs**: samples the key, lock, lights and button lines every loop pass, with debouncing and a short/long press state machine
+- **DisplayController**: resolves the panel to show (errors, then key, then lock) and the theme (lights on gives Night) with the pure functions in `lib/core`
+- **Deferred Transitions**: panel changes are recorded and applied once per loop pass, never from inside a panel or an LVGL callback
+- **Restoration**: automatic return to the last user-driven panel when the overrides clear
 
 ### **Key Features**
-- **Priority-Based Execution**: CRITICAL > IMPORTANT > NORMAL with blocking logic
-- **Type-Based Restoration**: Panel/Style trigger restoration on deactivation
-- **LVGL Compatibility**: UI operations only during IDLE state
+- **Immediate Response**: buttons and overrides act in the pass they arrive, also while a panel animates
+- **Host-Tested Core**: input filtering, button timing and display policy run under `pio test -e native`
 - **Memory Optimized**: Static arrays, zero hot path allocations
 
 ### **Panel System**

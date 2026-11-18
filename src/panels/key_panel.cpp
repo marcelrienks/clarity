@@ -1,9 +1,7 @@
 #include "panels/key_panel.h"
 #include "components/key_component.h"
 #include "definitions/constants.h"
-#include "handlers/trigger_handler.h"
 #include "managers/error_manager.h"
-#include "sensors/gpio_sensor.h"
 #include "utilities/logging.h"
 #include <Arduino.h>
 #include <variant>
@@ -54,13 +52,13 @@ void KeyPanel::CreateContent()
  * @brief Updates key panel content (static panel - no updates needed)
  *
  * Key panel displays static state determined at construction time.
- * State changes trigger panel transitions through the interrupt system
+ * State changes reload the panel through the display controller
  * rather than content updates within the same panel instance.
  */
 void KeyPanel::UpdateContent()
 {
     // Key panel is static - no updates needed
-    // State changes are handled by the interrupt system loading different panels
+    // State changes are handled by the display controller reloading the panel
 }
 
 // Panel-specific button handling

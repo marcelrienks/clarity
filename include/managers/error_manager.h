@@ -9,13 +9,12 @@
  * @brief Global error management service for application-level error handling
  *
  * @details Singleton service that collects, manages, and coordinates error
- * reporting across the Clarity application. Integrates with the trigger system
- * to automatically display error panels when critical issues occur.
+ * reporting across the Clarity application. The main loop shows the error
+ * panel while errors are pending.
  *
  * @design_constraints:
  * - Memory efficient with bounded error queue
  * - Non-intrusive - preserves Arduino crash reporting
- * - Priority-aware error handling via trigger system
  * - Automatic cleanup of old errors when queue is full
  */
 class ErrorManager
@@ -39,8 +38,6 @@ class ErrorManager
     void AcknowledgeError(size_t error_index);
     void ClearAllErrors();
     bool ShouldTriggerErrorPanel() const;
-    void SetErrorPanelActive(bool active);
-    bool IsErrorPanelActive() const;
 
   private:
     // ========== Constructors and Destructor ==========
@@ -54,5 +51,4 @@ class ErrorManager
     static constexpr unsigned long WARNING_AUTO_DISMISS_TIME = 10000; ///< 10 seconds for warnings
 
     std::vector<ErrorInfo> error_queue_;
-    bool error_panel_active_ = false;
 };

@@ -22,7 +22,7 @@ LockPanel::LockPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManag
     : BasePanel(gpio, display, style_manager, panel_manager), lock_component_(style_manager),
       component_initialized_(false)
 {
-    // Note: LockPanel is display-only, state comes from interrupt system
+    // Note: LockPanel is display-only, the display controller loads it while the lock input is active
     // Since this panel is only loaded when lock state changes, assume engaged
     is_lock_engaged_ = true;
 }
@@ -50,12 +50,12 @@ void LockPanel::CreateContent()
  *
  * Lock panel displays static state determined by trigger system.
  * State changes result in panel transitions rather than content updates
- * within the same panel instance. Interrupt system manages state changes.
+ * within the same panel instance. The display controller manages state changes.
  */
 void LockPanel::UpdateContent()
 {
     // Lock panel is static - no updates needed
-    // State changes are handled by the interrupt system loading different panels
+    // State changes are handled by the display controller loading different panels
 }
 
 /**

@@ -35,13 +35,8 @@ class IPanelManager
     virtual void UpdatePanel() = 0;
 
     // State Management Methods
-    virtual void SetUiState(UIState state) = 0;
-    virtual UIState GetUiState() const = 0;
     virtual const char *GetCurrentPanel() const = 0;
     virtual const char *GetRestorationPanel() const = 0;
     virtual bool IsCurrentPanelTriggerDriven() const = 0;
     virtual KeyState GetKeyState() const = 0;
-
-    // Trigger Integration Methods
-    virtual void TriggerPanelSwitchCallback(const char *trigger_id) = 0;
 };

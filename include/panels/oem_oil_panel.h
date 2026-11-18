@@ -93,7 +93,6 @@ class OemOilPanel : public IPanel
     int32_t MapTemperatureValue(int32_t sensor_value);
 
     // ========== Static Methods ==========
-    static void ShowPanelCompletionCallback(lv_event_t *event);
     static void UpdatePanelCompletionCallback(lv_anim_t *animation);
     static void ExecutePressureAnimationCallback(void *target, int32_t value);
     static void ExecuteTemperatureAnimationCallback(void *target, int32_t value);
@@ -110,8 +109,8 @@ class OemOilPanel : public IPanel
     // Instance Data Members - Components and Sensors (static allocation)
     OemOilPressureComponent oem_oil_pressure_component_;
     OemOilTemperatureComponent oem_oil_temperature_component_;
-    std::shared_ptr<ISensor> oem_oil_pressure_sensor_;
-    std::shared_ptr<ISensor> oem_oil_temperature_sensor_;
+    std::shared_ptr<OilPressureSensor> oem_oil_pressure_sensor_;
+    std::shared_ptr<OilTemperatureSensor> oem_oil_temperature_sensor_;
     bool components_initialized_ = false;
 
     // Instance Data Members - State Variables
@@ -146,7 +145,7 @@ class OemOilPanel : public IPanel
     String last_pressure_unit_; // Track last applied pressure unit
     String last_temp_unit_;     // Track last applied temperature unit
 
-    // Cached sensor references to avoid repeated static_pointer_cast
+    // Set once the sensors are initialised; ApplyCurrentSensorSettings() does nothing until then
     std::shared_ptr<OilPressureSensor> cached_pressure_sensor_;
     std::shared_ptr<OilTemperatureSensor> cached_temperature_sensor_;
 

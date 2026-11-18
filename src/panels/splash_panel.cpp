@@ -2,7 +2,6 @@
 #include "definitions/constants.h"
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
-#include "managers/interrupt_manager.h"
 #include "managers/panel_manager.h"
 #include "managers/style_manager.h"
 #include "utilities/logging.h"
@@ -161,8 +160,7 @@ void SplashPanel::Update()
  * @brief Callback function for fade-in animation completion
  * @param fadeInTimer The LVGL timer that has completed
  *
- * Called when the fade-in animation finishes. Sets UI state to IDLE during
- * the display period to allow button actions, then schedules the display
+ * Called when the fade-in animation finishes. Schedules the display
  * timer for the next phase. Cleans up the completed fade-in timer.
  */
 void SplashPanel::FadeInTimerCallback(lv_timer_t *fade_in_timer)
@@ -183,12 +181,6 @@ void SplashPanel::FadeInTimerCallback(lv_timer_t *fade_in_timer)
     // This callback now owns the firing timer, so the destructor must not delete it
     panel->timer_ = nullptr;
 
-    // During display period, no animations are running - set IDLE to allow actions
-    if (panel->panel_manager_)
-    {
-        panel->panel_manager_->SetUiState(UIState::IDLE);
-    }
-
     // Create a timer for the callback
     panel->timer_ =
         lv_timer_create(SplashPanel::DisplayTimerCallback, timing_constants::splash::DISPLAY_TIME_MS, panel);
@@ -201,8 +193,7 @@ void SplashPanel::FadeInTimerCallback(lv_timer_t *fade_in_timer)
  * @brief Callback for display timer completion after splash screen display period
  * @param fadeOutTimer The LVGL timer that has completed
  *
- * Called when the display period expires. Sets UI state to BUSY for fade-out
- * animation, loads the blank screen with fade-out effect, and schedules the
+ * Called when the display period expires. Loads the blank screen with fade-out effect, and schedules the
  * final fade-out timer. Includes essential delay time for LVGL cleanup.
  */
 void SplashPanel::DisplayTimerCallback(lv_timer_t *fade_out_timer)
@@ -222,12 +213,6 @@ void SplashPanel::DisplayTimerCallback(lv_timer_t *fade_out_timer)
 
     // This callback now owns the firing timer, so the destructor must not delete it
     panel->timer_ = nullptr;
-
-    // About to start fade-out animation - set BUSY
-    if (panel->panel_manager_)
-    {
-        panel->panel_manager_->SetUiState(UIState::BUSY);
-    }
 
     lv_screen_load_anim(panel->blank_screen_, LV_SCR_LOAD_ANIM_FADE_OUT, panel->GetAnimationTime(), 0, false);
 

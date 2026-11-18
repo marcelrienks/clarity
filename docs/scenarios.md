@@ -60,7 +60,7 @@ This scenario demonstrates the complete system functionality following a realist
 ### 10. Error Navigation and Interaction
 - **Short Press Action Button** → Navigate through error interface
 - **Error Panel**: Handles short press action for error cycling
-- **Button Timing**: 800ms press duration within ActionHandler's SHORT_PRESS range (500-1500ms)
+- **Button Timing**: 800ms press duration, a short press (50 ms minimum, below the 1500 ms long press)
 - **Error Navigation**: Demonstrates error panel interaction capabilities
 
 ### 11. Error Resolution and Priority Restoration
