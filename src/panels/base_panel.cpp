@@ -9,9 +9,8 @@
 /**
  * @brief Initialize BasePanel with dependency injection of required services
  */
-BasePanel::BasePanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-                     IPanelManager *panel_manager)
-    : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager), panel_manager_(panel_manager)
+BasePanel::BasePanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager)
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme), panel_manager_(panel_manager)
 {
     log_v("BasePanel constructor called");
 }
@@ -87,7 +86,7 @@ void BasePanel::Update()
 
 /**
  * @brief Inject manager service dependencies
- * @details Updates panel and style service references for runtime services
+ * @details Updates panel and theme references for runtime services
  */
 
 /**
@@ -147,9 +146,9 @@ void BasePanel::SetupScreen()
     screen_ = display_provider_->CreateScreen();
 
     // Apply current theme immediately after screen creation
-    if (style_manager_)
+    if (theme_)
     {
-        style_manager_->ApplyThemeToScreen(screen_);
+        theme_->ApplyBackground(screen_);
     }
 }
 
@@ -162,8 +161,8 @@ void BasePanel::ApplyThemeAndLoadScreen()
     lv_screen_load(screen_);
 
     // Always apply current theme to the screen when loading (ensures theme is current)
-    if (style_manager_)
+    if (theme_)
     {
-        style_manager_->ApplyThemeToScreen(screen_);
+        theme_->ApplyBackground(screen_);
     }
 }

@@ -6,7 +6,7 @@
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_style_manager.h"
+#include "ui/theme.h"
 
 #include <functional>
 #include <memory>
@@ -52,14 +52,13 @@
  */
 
 // Forward declarations
-class StyleManager;
 class DisplayController;
 
 class PanelManager : public IPanelManager, public IActionHandler
 {
   public:
     // ========== Constructors/Destructor ==========
-    PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *style, IConfigurationManager *config);
+    PanelManager(IDisplayProvider *display, IGpioProvider *gpio, Theme *theme, IConfigurationManager *config);
     PanelManager(const PanelManager &) = delete;
     PanelManager &operator=(const PanelManager &) = delete;
     ~PanelManager() override;
@@ -148,7 +147,7 @@ class PanelManager : public IPanelManager, public IActionHandler
     // ========== Service Dependencies ==========
     IGpioProvider *gpio_provider_ = nullptr;                 ///< GPIO provider for hardware access
     IDisplayProvider *display_provider_ = nullptr;           ///< Display provider for UI operations
-    IStyleManager *style_manager_ = nullptr;                 ///< Style service for UI theming
+    Theme *theme_ = nullptr;                                 ///< Theme handed to the panels
     DisplayController *display_controller_ = nullptr;        ///< Answers restoration with the active override
     IConfigurationManager *configuration_manager_ = nullptr; ///< Preference service for configuration settings
 

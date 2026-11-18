@@ -9,7 +9,7 @@
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_style_manager.h"
+#include "ui/theme.h"
 
 #include <memory>
 #include <string>
@@ -49,8 +49,8 @@ class ConfigPanel : public IPanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-                IPanelManager *panel_manager, IConfigurationManager *configuration_manager);
+    ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+                IConfigurationManager *configuration_manager);
     ~ConfigPanel() override;
 
     // ========== Public Interface Methods ==========
@@ -81,6 +81,7 @@ class ConfigPanel : public IPanel
 
     // Dynamic configuration methods
     void BuildDynamicMenus();
+    void ApplyMenuBackground();
     void BuildSectionMenu(const std::string &section_name);
     std::string FormatItemLabel(const config::ConfigItem &item) const;
     void ShowOptionsMenu(const std::string &full_key, const config::ConfigItem &item);
@@ -124,7 +125,7 @@ class ConfigPanel : public IPanel
     // Instance Data Members
     IGpioProvider *gpio_provider_;
     IDisplayProvider *display_provider_;
-    IStyleManager *style_manager_;
+    Theme *theme_;
     IPanelManager *panel_manager_;
     IConfigurationManager *configuration_manager_ = nullptr;
     lv_obj_t *screen_ = nullptr;
@@ -132,6 +133,7 @@ class ConfigPanel : public IPanel
     // Component (View) - static allocation
     ConfigComponent config_component_;
     bool component_initialized_ = false;
+    clarity::core::ThemeId styled_theme_ = clarity::core::ThemeId::Day; ///< Theme the menu was coloured for
 
     // Dynamic menu state
     std::vector<ConfigComponent::MenuItem> menu_items_;

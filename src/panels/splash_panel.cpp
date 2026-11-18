@@ -3,7 +3,7 @@
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
 #include "managers/panel_manager.h"
-#include "managers/style_manager.h"
+#include "ui/theme.h"
 #include "utilities/logging.h"
 #include <algorithm>
 #include <charconv>
@@ -22,17 +22,17 @@ static bool splash_panel_registered = []()
  * @brief Constructs a splash panel with required dependencies
  * @param gpio GPIO provider interface for hardware interaction
  * @param display Display provider interface for screen creation
- * @param styleManager Style service interface for theming
+ * @param theme Theme for the shared styles and the palette
  * @param notificationService Notification service for panel lifecycle events
  *
  * Initializes the splash panel with dependency injection pattern. Creates the
  * splash component and sets up notification service with fallback to default.
  * The component is stack-allocated for better memory management.
  */
-SplashPanel::SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-                         IPanelManager *panel_manager, IConfigurationManager *configuration_manager)
-    : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager), panel_manager_(panel_manager),
-      configuration_manager_(configuration_manager), component_(style_manager), component_initialized_(false)
+SplashPanel::SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+                         IConfigurationManager *configuration_manager)
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme), panel_manager_(panel_manager),
+      configuration_manager_(configuration_manager), component_(theme), component_initialized_(false)
 {
     log_v("SplashPanel constructor called");
 }

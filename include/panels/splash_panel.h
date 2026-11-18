@@ -9,7 +9,7 @@
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_style_manager.h"
+#include "ui/theme.h"
 #include <memory>
 /**
  * @class SplashPanel
@@ -40,8 +40,8 @@ class SplashPanel : public IPanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-                IPanelManager *panel_manager, IConfigurationManager *configuration_manager = nullptr);
+    SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+                IConfigurationManager *configuration_manager = nullptr);
     ~SplashPanel() override;
 
     // ========== Public Interface Methods ==========
@@ -88,7 +88,7 @@ class SplashPanel : public IPanel
     // Dependencies
     IGpioProvider *gpio_provider_;
     IDisplayProvider *display_provider_;
-    IStyleManager *style_manager_;
+    Theme *theme_;
     IPanelManager *panel_manager_;
     IConfigurationManager *configuration_manager_ = nullptr;
 

@@ -1,7 +1,7 @@
 #include "components/config_component.h"
 #include "definitions/constants.h"
-#include "definitions/styles.h"
 #include "managers/error_manager.h"
+#include "ui/theme.h"
 #include <Arduino.h>
 #include <cmath>
 #include <cstring>
@@ -11,13 +11,13 @@
 /**
  * @brief Constructs a configuration menu component with service dependencies
  * @param panelManager Panel service for navigation control
- * @param styleManager Style service for theme management
+ * @param theme Theme for the menu colours
  *
  * Initializes the configuration component with dependencies for panel navigation
  * and theme styling. These services enable menu interactions and visual theming.
  */
-ConfigComponent::ConfigComponent(IPanelManager *panel_manager, IStyleManager *style_manager)
-    : panel_manager_(panel_manager), style_manager_(style_manager)
+ConfigComponent::ConfigComponent(IPanelManager *panel_manager, Theme *theme)
+    : panel_manager_(panel_manager), theme_(theme)
 {
     log_v("ConfigComponent constructor called");
 }
@@ -125,7 +125,7 @@ void ConfigComponent::Init(lv_obj_t *screen)
     // Apply circular styling to container, not screen
     lv_obj_set_style_radius(container_, 120, LV_PART_MAIN); // Make it circular (half of 240)
 
-    // Default transparent background (will be updated by UpdateThemeColors if styleManager is set)
+    // Default transparent background (UpdateThemeColors() sets the theme's menu background)
     lv_obj_set_style_bg_opa(container_, LV_OPA_TRANSP, LV_PART_MAIN);
 
     CreateUI();
@@ -196,16 +196,16 @@ void ConfigComponent::SetHintText(const std::string &hint)
 }
 
 /**
- * @brief Sets the style service for theme management
- * @param styleManager Pointer to style service
+ * @brief Sets the theme for the menu colours
+ * @param theme Pointer to the theme
  *
- * Updates the style service reference and immediately applies
+ * Updates the theme reference and immediately applies
  * the current theme colors to all UI elements.
  */
-void ConfigComponent::SetStyleService(IStyleManager *style_manager)
+void ConfigComponent::SetTheme(Theme *theme)
 {
-    log_v("SetStyleService() called");
-    style_manager_ = style_manager;
+    log_v("ConfigComponent::SetTheme() called");
+    theme_ = theme;
     UpdateThemeColors();
 }
 
@@ -220,59 +220,28 @@ void ConfigComponent::UpdateThemeColors()
 {
     log_v("UpdateThemeColors() called");
 
-    if (!style_manager_)
+    if (!theme_)
     {
-        log_w("No style service available for theme update");
+        log_w("No theme available for theme update");
         return;
     }
 
-    const std::string &theme = style_manager_->GetCurrentTheme();
-    bool is_night_theme = (theme == themes::NIGHT);
+    const Palette &colours = theme_->Colors();
 
-    // Update container background
     if (container_)
     {
-        if (is_night_theme)
-        {
-            // Use very dark red background for night theme
-            lv_obj_set_style_bg_color(container_, lv_color_hex(colors::NIGHT_BACKGROUND), LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(container_, LV_OPA_COVER, LV_PART_MAIN);
-        }
-        else
-        {
-            // Transparent to use panel's theme background
-            lv_obj_set_style_bg_opa(container_, LV_OPA_TRANSP, LV_PART_MAIN);
-        }
+        lv_obj_set_style_bg_color(container_, colours.menuBackground, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(container_, LV_OPA_COVER, LV_PART_MAIN);
     }
 
-    // Update title color
     if (title_label_)
     {
-        if (is_night_theme)
-        {
-            lv_obj_set_style_text_color(title_label_, lv_color_hex(colors::NIGHT_TITLE_TEXT),
-                                        LV_PART_MAIN); // Light red for night theme
-        }
-        else
-        {
-            lv_obj_set_style_text_color(title_label_, lv_color_hex(colors::DAY_TITLE_TEXT),
-                                        LV_PART_MAIN); // Light gray for day theme
-        }
+        lv_obj_set_style_text_color(title_label_, colours.menuTitle, LV_PART_MAIN);
     }
 
-    // Update hint text color
     if (hint_label_)
     {
-        if (is_night_theme)
-        {
-            lv_obj_set_style_text_color(hint_label_, lv_color_hex(colors::NIGHT_HINT_TEXT),
-                                        LV_PART_MAIN); // Darker red for night theme
-        }
-        else
-        {
-            lv_obj_set_style_text_color(hint_label_, lv_color_hex(colors::DAY_HINT_TEXT),
-                                        LV_PART_MAIN); // Gray for day theme
-        }
+        lv_obj_set_style_text_color(hint_label_, colours.menuHint, LV_PART_MAIN);
     }
 
     // Update menu display to refresh all menu item colors
@@ -290,68 +259,24 @@ void ConfigComponent::UpdateThemeColors()
  */
 lv_color_t ConfigComponent::GetThemeGradientColor(int distance_from_center, bool is_selected) const
 {
-    if (!style_manager_)
-    {
-        // Fallback to default colors if no style service
-        return is_selected ? lv_color_hex(colors::WHITE) : lv_color_hex(colors::DAY_FALLBACK);
-    }
-
-    const std::string &theme = style_manager_->GetCurrentTheme();
-
+    // Fallback to the Day colours if no theme is set
+    const Palette &colours = theme_ ? theme_->Colors() : PaletteFor(clarity::core::ThemeId::Day);
     if (is_selected)
     {
-        // Selected item color based on theme
-        if (theme == themes::NIGHT)
-        {
-            return lv_color_hex(colors::NIGHT_SELECTED_ITEM); // Bright red for selected item in night theme
-        }
-        else
-        {
-            return lv_color_hex(colors::DAY_SELECTED_ITEM); // White for selected item in day theme
-        }
+        return colours.menuSelectedItem;
     }
 
-    // Create gradient based on theme
-    if (theme == themes::NIGHT)
+    // Reduce intensity based on distance (further = darker)
+    float intensity = 1.0f - (static_cast<float>(distance_from_center) * 0.3f);
+    if (intensity < 0.2f)
     {
-        // Night theme - shades of red based on distance
-        uint32_t base_color = colors::NIGHT_BASE_COLOR; // Deep red from night theme
-        uint8_t red = (base_color >> 16) & 0xFF;
-        uint8_t green = (base_color >> 8) & 0xFF;
-        uint8_t blue = base_color & 0xFF;
-
-        // Reduce intensity based on distance (further = darker)
-        float intensity = 1.0f - (static_cast<float>(distance_from_center) * 0.3f);
-        if (intensity < 0.2f)
-        {
-            intensity = 0.2f; // Minimum visibility
-        }
-
-        red = static_cast<uint8_t>(static_cast<float>(red) * intensity);
-        green = static_cast<uint8_t>(static_cast<float>(green) * intensity);
-        blue = static_cast<uint8_t>(static_cast<float>(blue) * intensity);
-
-        // Gradient color calculation completed
-
-        return lv_color_hex((red << 16) | (green << 8) | blue);
+        intensity = 0.2f; // Minimum visibility
     }
-    else
-    {
-        // Day theme - shades of gray based on distance
-        uint32_t base_color = colors::DAY_BASE_COLOR; // Light gray from day theme
-        uint8_t gray = (base_color >> 16) & 0xFF;
 
-        // Reduce intensity based on distance (further = darker)
-        float intensity = 1.0f - (static_cast<float>(distance_from_center) * 0.3f);
-        if (intensity < 0.2f)
-        {
-            intensity = 0.2f; // Minimum visibility
-        }
-
-        gray = static_cast<uint8_t>(static_cast<float>(gray) * intensity);
-        // Grayscale color calculation completed
-        return lv_color_hex((gray << 16) | (gray << 8) | gray);
-    }
+    const lv_color_t base = colours.menuItem;
+    return lv_color_make(static_cast<uint8_t>(static_cast<float>(base.red) * intensity),
+                         static_cast<uint8_t>(static_cast<float>(base.green) * intensity),
+                         static_cast<uint8_t>(static_cast<float>(base.blue) * intensity));
 }
 
 // ========== Helper Methods ==========
@@ -372,7 +297,8 @@ void ConfigComponent::CreateUI()
     // Create title label (child of container, not screen)
     title_label_ = lv_label_create(container_);
     lv_label_set_text(title_label_, current_title_.c_str());
-    lv_obj_set_style_text_color(title_label_, lv_color_hex(colors::DAY_TITLE_TEXT), LV_PART_MAIN); // Default color
+    lv_obj_set_style_text_color(title_label_, PaletteFor(clarity::core::ThemeId::Day).menuTitle,
+                                LV_PART_MAIN); // Default
     lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_18, LV_PART_MAIN);
     lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 15);
 
@@ -406,7 +332,7 @@ void ConfigComponent::CreateUI()
     // Create hint label (child of container, not screen)
     hint_label_ = lv_label_create(container_);
     lv_label_set_text(hint_label_, ui_strings::hint_text::SHORT_LONG_PRESS);
-    lv_obj_set_style_text_color(hint_label_, lv_color_hex(colors::DAY_HINT_TEXT), LV_PART_MAIN); // Default color
+    lv_obj_set_style_text_color(hint_label_, PaletteFor(clarity::core::ThemeId::Day).menuHint, LV_PART_MAIN); // Default
     lv_obj_set_style_text_font(hint_label_, &lv_font_montserrat_10, LV_PART_MAIN);
     lv_obj_align(hint_label_, LV_ALIGN_BOTTOM_MID, 0, -15);
 
@@ -550,34 +476,27 @@ void ConfigComponent::ApplyCenterItemStyle(lv_obj_t *label)
  */
 void ConfigComponent::ApplyCenterItemBackground(lv_obj_t *label)
 {
-    if (!style_manager_)
+    if (!theme_)
     {
         ApplyDefaultCenterBackground(label);
         return;
     }
 
-    const std::string &theme = style_manager_->GetCurrentTheme();
-    if (theme == themes::NIGHT)
-    {
-        lv_obj_set_style_bg_color(label, lv_color_hex(colors::NIGHT_SELECTED_BG), LV_PART_MAIN);
-        lv_obj_set_style_border_color(label, lv_color_hex(colors::NIGHT_SELECTED_BORDER), LV_PART_MAIN);
-        return;
-    }
-
-    // Default day theme
-    lv_obj_set_style_bg_color(label, lv_color_hex(colors::DAY_SELECTED_BG), LV_PART_MAIN);
-    lv_obj_set_style_border_color(label, lv_color_hex(colors::DAY_SELECTED_BORDER), LV_PART_MAIN);
+    const Palette &colours = theme_->Colors();
+    lv_obj_set_style_bg_color(label, colours.menuSelectedBackground, LV_PART_MAIN);
+    lv_obj_set_style_border_color(label, colours.menuSelectedBorder, LV_PART_MAIN);
 }
 
 /**
- * @brief Applies default background when no style service available
+ * @brief Applies default background when no theme is set
  * @param label LVGL label object to style
  *
- * Fallback styling for selected item when style service is not set.
+ * Fallback styling for selected item when no theme is set.
  * Uses default gray color scheme.
  */
 void ConfigComponent::ApplyDefaultCenterBackground(lv_obj_t *label)
 {
-    lv_obj_set_style_bg_color(label, lv_color_hex(colors::DAY_SELECTED_BG), LV_PART_MAIN);
-    lv_obj_set_style_border_color(label, lv_color_hex(colors::DAY_SELECTED_BORDER), LV_PART_MAIN);
+    const Palette &day = PaletteFor(clarity::core::ThemeId::Day);
+    lv_obj_set_style_bg_color(label, day.menuSelectedBackground, LV_PART_MAIN);
+    lv_obj_set_style_border_color(label, day.menuSelectedBorder, LV_PART_MAIN);
 }

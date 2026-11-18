@@ -3,7 +3,7 @@
 #include "definitions/types.h"
 #include "interfaces/i_component.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_style_manager.h"
+#include "ui/theme.h"
 #include <functional>
 #include <string>
 #include <vector>
@@ -45,7 +45,7 @@ class ConfigComponent : public IComponent
     };
 
     // ========== Constructors and Destructor ==========
-    ConfigComponent(IPanelManager *panel_manager = nullptr, IStyleManager *style_manager = nullptr);
+    ConfigComponent(IPanelManager *panel_manager = nullptr, Theme *theme = nullptr);
     ~ConfigComponent() override = default;
 
     // ========== Public Interface Methods ==========
@@ -58,8 +58,8 @@ class ConfigComponent : public IComponent
     // ConfigComponent specific initialization
     void Init(lv_obj_t *screen);
 
-    // Set style service for theme-aware colors
-    void SetStyleService(IStyleManager *style_manager);
+    // Set theme for theme-aware colors
+    void SetTheme(Theme *theme);
 
     // Update colors based on current theme
     void UpdateThemeColors();
@@ -98,7 +98,7 @@ class ConfigComponent : public IComponent
 
     // Dependency-injected interfaces for direct calls
     IPanelManager *panel_manager_ = nullptr;
-    IStyleManager *style_manager_ = nullptr;
+    Theme *theme_ = nullptr;
 
     // Constants
     static constexpr int VISIBLE_ITEMS = 5;

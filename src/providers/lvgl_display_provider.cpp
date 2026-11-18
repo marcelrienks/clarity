@@ -1,5 +1,5 @@
 #include "providers/lvgl_display_provider.h"
-#include "managers/style_manager.h"
+#include "ui/theme.h"
 #include <esp32-hal-log.h>
 
 // ========== Constructors and Destructor ==========

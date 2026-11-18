@@ -5,7 +5,7 @@
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_style_manager.h"
+#include "ui/theme.h"
 /**
  * @class BasePanel
  * @brief Base class providing common panel functionality and lifecycle management
@@ -40,7 +40,7 @@
  * class KeyPanel : public BasePanel {
  * protected:
  *     void CreateContent() override {
- *         key_component_ = componentFactory_->CreateKeyComponent(style_manager_);
+ *         key_component_ = componentFactory_->CreateKeyComponent(theme_);
  *         key_component_->Render(screen_, center_location_, display_provider_);
  *     }
  *
@@ -60,10 +60,9 @@ class BasePanel : public IPanel
      * @brief Construct BasePanel with required service dependencies
      * @param gpio GPIO provider for hardware access
      * @param display Display provider for screen management
-     * @param styleManager Style service for theming
+     * @param theme Theme for the shared styles and the palette
      */
-    BasePanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-              IPanelManager *panel_manager = nullptr);
+    BasePanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager = nullptr);
     BasePanel(const BasePanel &) = delete;
     BasePanel &operator=(const BasePanel &) = delete;
     /**
@@ -91,9 +90,9 @@ class BasePanel : public IPanel
     void Update() override final;
 
     /**
-     * @brief Inject panel and style service dependencies
+     * @brief Inject panel and theme dependencies
      * @param panelManager Panel management service
-     * @param styleManager Style service for theming
+     * @param theme Theme for the shared styles and the palette
      */
 
     /**
@@ -169,7 +168,7 @@ class BasePanel : public IPanel
     // ========== Protected Data Members ==========
     IGpioProvider *gpio_provider_;
     IDisplayProvider *display_provider_;
-    IStyleManager *style_manager_;
+    Theme *theme_;
     IPanelManager *panel_manager_;
     ComponentLocation center_location_;
     lv_obj_t *screen_ = nullptr;

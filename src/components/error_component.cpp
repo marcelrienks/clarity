@@ -7,16 +7,16 @@
 // ========== Constructors and Destructor ==========
 
 /**
- * @brief Constructs an error display component with style service dependency
- * @param styleManager Style service for theme management
+ * @brief Constructs an error display component with theme dependency
+ * @param theme Theme for the shared styles and the palette
  *
- * Initializes the error component with style service for theming.
+ * Initializes the error component with theme for theming.
  * Sets all UI element pointers to nullptr and initializes counters to zero.
  */
-ErrorComponent::ErrorComponent(IStyleManager *style_manager)
-    : style_manager_(style_manager), error_container_(nullptr), error_content_area_(nullptr),
-      error_count_label_(nullptr), error_level_label_(nullptr), error_source_label_(nullptr),
-      error_message_label_(nullptr), navigation_indicator_(nullptr), current_error_index_(0)
+ErrorComponent::ErrorComponent(Theme *theme)
+    : theme_(theme), error_container_(nullptr), error_content_area_(nullptr), error_count_label_(nullptr),
+      error_level_label_(nullptr), error_source_label_(nullptr), error_message_label_(nullptr),
+      navigation_indicator_(nullptr), current_error_index_(0)
 {
     log_v("ErrorComponent() constructor called");
 }
@@ -144,7 +144,7 @@ void ErrorComponent::UpdateErrorDisplay(const std::vector<ErrorInfo> &errors)
     if (!current_errors_.empty() && current_error_index_ < current_errors_.size())
     {
         ErrorLevel current_level = current_errors_[current_error_index_].level;
-        lv_color_t border_color = style_utils::GetErrorColor(current_level);
+        lv_color_t border_color = theme_->Colors().ErrorColor(current_level);
         lv_obj_set_style_border_color(error_container_, border_color, 0);
     }
 }
@@ -179,7 +179,7 @@ void ErrorComponent::UpdateErrorDisplay(const std::vector<ErrorInfo> &errors, si
     if (!current_errors_.empty() && current_error_index_ < current_errors_.size())
     {
         ErrorLevel current_level = current_errors_[current_error_index_].level;
-        lv_color_t border_color = style_utils::GetErrorColor(current_level);
+        lv_color_t border_color = theme_->Colors().ErrorColor(current_level);
         lv_obj_set_style_border_color(error_container_, border_color, 0);
     }
 }
@@ -277,7 +277,7 @@ void ErrorComponent::DisplayCurrentError()
     // Update error level with color
     const char *level_text = GetErrorLevelText(current_error.level);
     lv_label_set_text(error_level_label_, level_text);
-    lv_obj_set_style_text_color(error_level_label_, style_utils::GetErrorColor(current_error.level), 0);
+    lv_obj_set_style_text_color(error_level_label_, theme_->Colors().ErrorColor(current_error.level), 0);
 
     // Update source
     lv_label_set_text(error_source_label_, current_error.source);

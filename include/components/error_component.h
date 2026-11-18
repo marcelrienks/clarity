@@ -1,10 +1,9 @@
 #pragma once
 
-#include "definitions/styles.h"
 #include "definitions/types.h"
 #include "interfaces/i_component.h"
-#include "interfaces/i_style_manager.h"
 #include "managers/error_manager.h"
+#include "ui/theme.h"
 
 #include <lvgl.h>
 #include <vector>
@@ -39,7 +38,7 @@ class ErrorComponent : public IComponent
 {
   public:
     // ========== Constructors and Destructor ==========
-    explicit ErrorComponent(IStyleManager *style_manager);
+    explicit ErrorComponent(Theme *theme);
     ~ErrorComponent() override;
 
     // ========== Public Interface Methods ==========
@@ -62,7 +61,7 @@ class ErrorComponent : public IComponent
     const char *GetErrorLevelText(ErrorLevel level);
 
     // ========== Private Data Members ==========
-    IStyleManager *style_manager_;
+    Theme *theme_;
     lv_obj_t *error_container_;      // Main container for error display
     lv_obj_t *error_content_area_;   // Single error content display area
     lv_obj_t *error_count_label_;    // Header showing current error position

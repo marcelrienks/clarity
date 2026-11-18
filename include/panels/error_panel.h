@@ -7,8 +7,8 @@
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_style_manager.h"
 #include "managers/error_manager.h"
+#include "ui/theme.h"
 /**
  * @class ErrorPanel
  * @brief Application error display and management panel
@@ -40,8 +40,7 @@ class ErrorPanel : public IPanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    ErrorPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-               IPanelManager *panel_manager);
+    ErrorPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager);
     ~ErrorPanel() override;
 
     // ========== Public Interface Methods ==========
@@ -64,7 +63,7 @@ class ErrorPanel : public IPanel
     // ========== Private Data Members ==========
     IGpioProvider *gpio_provider_;
     IDisplayProvider *display_provider_;
-    IStyleManager *style_manager_;
+    Theme *theme_;
     IPanelManager *panel_manager_;
     lv_obj_t *screen_ = nullptr;
     ErrorComponent error_component_; // Error component - static allocation

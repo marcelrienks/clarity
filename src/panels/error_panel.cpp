@@ -2,7 +2,7 @@
 #include "components/error_component.h"
 #include "definitions/constants.h"
 #include "managers/panel_manager.h"
-#include "managers/style_manager.h"
+#include "ui/theme.h"
 #include "utilities/logging.h"
 #include <Arduino.h>
 #include <algorithm>
@@ -13,16 +13,15 @@
  * @brief Constructs error panel with required service dependencies
  * @param gpio GPIO provider for hardware interaction
  * @param display Display provider for screen management
- * @param styleManager Style service for theme management
+ * @param theme Theme for the shared styles and the palette
  *
  * Creates error panel with stack-allocated error component for memory efficiency.
  * Initializes component state and sets error panel as active in ErrorManager
  * for proper coordination with the trigger system.
  */
-ErrorPanel::ErrorPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-                       IPanelManager *panel_manager)
-    : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager), panel_manager_(panel_manager),
-      error_component_(style_manager), component_initialized_(false), panel_loaded_(false), current_error_index_(0)
+ErrorPanel::ErrorPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager)
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme), panel_manager_(panel_manager),
+      error_component_(theme), component_initialized_(false), panel_loaded_(false), current_error_index_(0)
 {
     log_v("ErrorPanel constructor called");
 }
@@ -126,11 +125,12 @@ void ErrorPanel::Load()
 
     lv_screen_load(screen_);
 
-    // Ensure ERROR theme is applied when panel is loaded
-    if (style_manager_)
+    // The error panel forces the Error theme (EffectiveTheme); DisplayController::ApplyOverride() puts the
+    // lights theme back when the restoration is applied
+    if (theme_)
     {
-        style_manager_->SetTheme(themes::ERROR);
-        style_manager_->ApplyThemeToScreen(screen_);
+        theme_->Apply(clarity::core::ThemeId::Error);
+        theme_->ApplyBackground(screen_);
     }
 
     panel_loaded_ = true;
@@ -217,7 +217,7 @@ void ErrorPanel::Update()
 /**
  * @brief Injects manager dependencies for panel operation
  * @param panelManager Panel service for navigation control
- * @param styleManager Style service for theme management
+ * @param theme Theme for the shared styles and the palette
  *
  * Dependency injection method that provides panel with required manager
  * interfaces. Called during panel creation to establish service dependencies

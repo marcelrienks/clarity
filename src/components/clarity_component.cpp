@@ -6,13 +6,13 @@
 // ========== Constructors and Destructor ==========
 
 /**
- * @brief Constructs a clarity component with style service dependency
- * @param styleManager Style service for theme and styling management
+ * @brief Constructs a clarity component with theme dependency
+ * @param theme Theme for the shared styles and the palette
  *
- * Initializes the clarity component with the provided style service for
+ * Initializes the clarity component with the provided theme for
  * applying themes and visual styling to the splash screen display.
  */
-ClarityComponent::ClarityComponent(IStyleManager *style_manager) : style_manager_(style_manager)
+ClarityComponent::ClarityComponent(Theme *theme) : theme_(theme)
 {
     log_v("ClarityComponent constructor called");
 }
@@ -40,8 +40,7 @@ void ClarityComponent::Render(lv_obj_t *screen, const ComponentLocation &locatio
     lv_label_set_text(splash, ui_constants::APP_NAME);
 
     // Apply the current theme's text style
-    lv_obj_add_style(splash, &style_manager_->GetTextStyle(),
-                     static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
+    lv_obj_add_style(splash, &theme_->TextStyle(), static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
 
     // Apply location settings
     lv_obj_align(splash, location.align, location.x_offset, location.y_offset);

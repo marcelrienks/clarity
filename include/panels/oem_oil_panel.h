@@ -11,9 +11,9 @@
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_style_manager.h"
 #include "sensors/oil_pressure_sensor.h"
 #include "sensors/oil_temperature_sensor.h"
+#include "ui/theme.h"
 #include <Arduino.h>
 
 // Forward declarations
@@ -53,8 +53,8 @@ class OemOilPanel : public IPanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-                IPanelManager *panel_manager, IConfigurationManager *configuration_manager);
+    OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+                IConfigurationManager *configuration_manager);
     ~OemOilPanel() override;
 
     // ========== Public Interface Methods ==========
@@ -100,7 +100,7 @@ class OemOilPanel : public IPanel
     // ========== Private Data Members ==========
     IGpioProvider *gpio_provider_;
     IDisplayProvider *display_provider_;
-    IStyleManager *style_manager_;
+    Theme *theme_;
     IPanelManager *panel_manager_;
     IConfigurationManager *configuration_manager_ = nullptr;
     // Instance Data Members - UI Objects
@@ -138,7 +138,7 @@ class OemOilPanel : public IPanel
     // Helper methods for deadband calculation
     void CalculateDeadbands();
 
-    String last_theme_; // Track last theme to force refresh when theme changes
+    clarity::core::ThemeId last_theme_ = clarity::core::ThemeId::Day; ///< Theme the gauges were coloured for
 
     // Cache settings to avoid redundant updates
     int last_update_rate_ = -1; // Track last applied update rate

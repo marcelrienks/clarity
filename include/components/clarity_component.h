@@ -2,7 +2,7 @@
 
 // Project Includes
 #include "interfaces/i_component.h"
-#include "interfaces/i_style_manager.h"
+#include "ui/theme.h"
 
 /**
  * @class ClarityComponent
@@ -28,7 +28,7 @@ class ClarityComponent : public IComponent
 {
   public:
     // ========== Constructors and Destructor ==========
-    explicit ClarityComponent(IStyleManager *style_manager);
+    explicit ClarityComponent(Theme *theme);
     ~ClarityComponent() override = default;
 
     // ========== Public Interface Methods ==========
@@ -42,6 +42,6 @@ class ClarityComponent : public IComponent
 
   private:
     // ========== Private Data Members ==========
-    IStyleManager *style_manager_;
+    Theme *theme_;
     lv_obj_t *label_ = nullptr;
 };

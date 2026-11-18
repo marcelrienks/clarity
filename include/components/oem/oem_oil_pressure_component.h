@@ -47,7 +47,7 @@ class OemOilPressureComponent : public OemOilComponent
 {
   public:
     // ========== Constructors and Destructor ==========
-    OemOilPressureComponent(IStyleManager *style_manager);
+    OemOilPressureComponent(Theme *theme);
     ~OemOilPressureComponent() override = default;
 
   protected:

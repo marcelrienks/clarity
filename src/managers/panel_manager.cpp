@@ -24,26 +24,25 @@ static PanelManager *instance_ptr = nullptr;
  * @brief Constructs the PanelManager with all required service dependencies
  * @param display Display provider interface for panel rendering
  * @param gpio GPIO provider interface for hardware interaction
- * @param styleManager Style service interface for theme management
+ * @param theme Theme for the shared styles and the palette
  * @param preferenceService Preference service interface for configuration persistence
  *
  * Initializes the panel manager with dependency injection pattern. Validates all
  * required dependencies and sets up the default oil panel as the initial panel.
  * Establishes the singleton instance used by panels that request restoration.
  */
-PanelManager::PanelManager(IDisplayProvider *display, IGpioProvider *gpio, IStyleManager *style_manager,
+PanelManager::PanelManager(IDisplayProvider *display, IGpioProvider *gpio, Theme *theme,
                            IConfigurationManager *configuration_manager)
-    : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager),
-      configuration_manager_(configuration_manager), error_manager_(ErrorManager::Instance())
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme), configuration_manager_(configuration_manager),
+      error_manager_(ErrorManager::Instance())
 {
     log_v("PanelManager() constructor called");
-    if (!display || !gpio || !style_manager || !configuration_manager)
+    if (!display || !gpio || !theme || !configuration_manager)
     {
-        log_e("PanelManager requires all dependencies: display, gpio, styleManager, and "
+        log_e("PanelManager requires all dependencies: display, gpio, theme, and "
               "preferenceService");
         error_manager_.ReportCriticalError(
-            "PanelManager",
-            "Missing required dependencies - display, gpio, styleManager, or preferenceService is null");
+            "PanelManager", "Missing required dependencies - display, gpio, theme, or preferenceService is null");
         // In a real embedded system, you might want to handle this more gracefully
         return;
     }
@@ -497,35 +496,32 @@ std::shared_ptr<IPanel> PanelManager::CreatePanel(const char *panel_name)
 
     if (strcmp(panel_name, panel_names::SPLASH) == 0)
     {
-        return std::make_shared<SplashPanel>(gpio_provider_, display_provider_, style_manager_, this,
-                                             configuration_manager_);
+        return std::make_shared<SplashPanel>(gpio_provider_, display_provider_, theme_, this, configuration_manager_);
     }
 
     if (strcmp(panel_name, panel_names::OIL) == 0)
     {
-        return std::make_shared<OemOilPanel>(gpio_provider_, display_provider_, style_manager_, this,
-                                             configuration_manager_);
+        return std::make_shared<OemOilPanel>(gpio_provider_, display_provider_, theme_, this, configuration_manager_);
     }
 
     if (strcmp(panel_name, panel_names::ERROR) == 0)
     {
-        return std::make_shared<ErrorPanel>(gpio_provider_, display_provider_, style_manager_, this);
+        return std::make_shared<ErrorPanel>(gpio_provider_, display_provider_, theme_, this);
     }
 
     if (strcmp(panel_name, panel_names::CONFIG) == 0)
     {
-        return std::make_shared<ConfigPanel>(gpio_provider_, display_provider_, style_manager_, this,
-                                             configuration_manager_);
+        return std::make_shared<ConfigPanel>(gpio_provider_, display_provider_, theme_, this, configuration_manager_);
     }
 
     if (strcmp(panel_name, panel_names::KEY) == 0)
     {
-        return std::make_shared<KeyPanel>(gpio_provider_, display_provider_, style_manager_, this);
+        return std::make_shared<KeyPanel>(gpio_provider_, display_provider_, theme_, this);
     }
 
     if (strcmp(panel_name, panel_names::LOCK) == 0)
     {
-        return std::make_shared<LockPanel>(gpio_provider_, display_provider_, style_manager_, this);
+        return std::make_shared<LockPanel>(gpio_provider_, display_provider_, theme_, this);
     }
 
     // Unknown panel type
@@ -566,13 +562,6 @@ void PanelManager::CreateAndLoadPanelDirect(const char *panel_name, bool is_trig
 
     // Initialize panel
     new_panel->Init();
-
-    // Apply current theme from preferences BEFORE panel is loaded
-    // This ensures correct theme is set before any rendering happens
-    if (style_manager_)
-    {
-        style_manager_->ApplyCurrentTheme();
-    }
 
     // Swap: the old panel stays alive until the new screen is the active one (D-13)
     std::shared_ptr<IPanel> old_panel = std::move(panel_);

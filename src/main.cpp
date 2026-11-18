@@ -12,8 +12,8 @@
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
 #include "managers/panel_manager.h"
-#include "managers/style_manager.h"
 #include "providers/device_provider.h"
+#include "ui/theme.h"
 #include "utilities/logging.h"
 #include "utilities/test_inject.h"
 #include <algorithm>
@@ -34,7 +34,7 @@ std::unique_ptr<ManagerFactory> manager_factory;
 std::unique_ptr<DeviceProvider> device_provider;
 std::unique_ptr<IGpioProvider> gpio_provider;
 std::unique_ptr<IDisplayProvider> display_provider;
-std::unique_ptr<StyleManager> style_manager;
+std::unique_ptr<Theme> ui_theme;
 std::unique_ptr<IConfigurationManager> configuration_manager;
 std::unique_ptr<PanelManager> panel_manager;
 std::unique_ptr<Inputs> inputs;
@@ -168,22 +168,14 @@ bool InitializeServices()
         ErrorManager::Instance().ReportCriticalError("main", "ConfigurationManager creation failed");
         return false;
     }
-    // Start with the Day theme: the lights signal selects Night once it is sampled
-    style_manager = manager_factory->CreateStyleManager(themes::DAY);
-    if (!style_manager)
-    {
-        log_e("Failed to create StyleManager via factory");
-        ErrorManager::Instance().ReportCriticalError("main", "StyleManager creation failed");
-        return false;
-    }
-
-    style_manager->SetConfigurationManager(configuration_manager.get());
+    // Starts on Day (Theme::Init()): the lights signal selects Night once it is sampled
+    ui_theme = std::make_unique<Theme>();
 
     inputs = std::make_unique<Inputs>(*gpio_provider);
 
     // Create PanelManager with all dependencies
-    panel_manager = manager_factory->CreatePanelManager(display_provider.get(), gpio_provider.get(),
-                                                        style_manager.get(), configuration_manager.get());
+    panel_manager = manager_factory->CreatePanelManager(display_provider.get(), gpio_provider.get(), ui_theme.get(),
+                                                        configuration_manager.get());
 
     if (!panel_manager)
     {
@@ -192,7 +184,7 @@ bool InitializeServices()
         return false;
     }
 
-    display_controller = std::make_unique<DisplayController>(*panel_manager, *style_manager);
+    display_controller = std::make_unique<DisplayController>(*panel_manager, *ui_theme);
     panel_manager->SetDisplayController(display_controller.get());
 
     error_manager = manager_factory->CreateErrorManager();
@@ -244,7 +236,7 @@ void setup()
     // Register all configuration schemas from components
     ConfigurationManager::Instance().RegisterAllSchemas();
 
-    style_manager->InitializeStyles();
+    ui_theme->Init();
 
     test_inject::Begin(gpio_provider.get());
 

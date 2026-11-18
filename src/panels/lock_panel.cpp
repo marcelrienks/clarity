@@ -11,16 +11,14 @@
  * @brief Constructs lock panel for vehicle security status display
  * @param gpio GPIO provider for hardware interaction
  * @param display Display provider for screen management
- * @param styleManager Style service for theme-based styling
+ * @param theme Theme for the shared styles and the palette
  *
  * Creates lock panel that displays vehicle security lock status. Assumes
  * lock engaged state since panel is only loaded when lock state changes.
  * Uses stack-allocated component for efficient memory management.
  */
-LockPanel::LockPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-                     IPanelManager *panel_manager)
-    : BasePanel(gpio, display, style_manager, panel_manager), lock_component_(style_manager),
-      component_initialized_(false)
+LockPanel::LockPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager)
+    : BasePanel(gpio, display, theme, panel_manager), lock_component_(theme), component_initialized_(false)
 {
     // Note: LockPanel is display-only, the display controller loads it while the lock input is active
     // Since this panel is only loaded when lock state changes, assume engaged

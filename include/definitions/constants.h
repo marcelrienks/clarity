@@ -16,16 +16,6 @@
 /*============================================================================*/
 
 /**
- * @brief Available themes for the application
- */
-namespace themes
-{
-static constexpr const char *DAY = "Day";
-static constexpr const char *NIGHT = "Night";
-static constexpr const char *ERROR = "Error";
-} // namespace themes
-
-/**
  * @brief Panel names used throughout the system
  */
 namespace panel_names

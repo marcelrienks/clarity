@@ -30,8 +30,7 @@ class LockPanel : public BasePanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    LockPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-              IPanelManager *panel_manager = nullptr);
+    LockPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager = nullptr);
 
     // ========== Public Interface Methods ==========
     static constexpr const char *NAME = panel_names::LOCK;

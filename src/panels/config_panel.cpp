@@ -1,9 +1,8 @@
 #include "panels/config_panel.h"
 #include "definitions/constants.h"
-#include "definitions/styles.h"
 #include "definitions/types.h"
 #include "managers/error_manager.h"
-#include "managers/style_manager.h"
+#include "ui/theme.h"
 #include "utilities/logging.h"
 #include <Arduino.h>
 #include <algorithm>
@@ -16,15 +15,15 @@
  * @brief Constructs configuration panel with required service dependencies
  * @param gpio GPIO provider for hardware interaction
  * @param display Display provider for screen management
- * @param styleManager Style service for theme management
+ * @param theme Theme for the shared styles and the palette
  *
  * Creates configuration panel with stack-allocated configuration component.
  * Initializes menu system for automotive settings management including
  * theme selection, calibration, and system configuration options.
  */
-ConfigPanel::ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-                         IPanelManager *panel_manager, IConfigurationManager *configuration_manager)
-    : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager), panel_manager_(panel_manager),
+ConfigPanel::ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+                         IConfigurationManager *configuration_manager)
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme), panel_manager_(panel_manager),
       configuration_manager_(configuration_manager), component_initialized_(false), current_menu_index_(0)
 {
     log_v("ConfigPanel constructor called");
@@ -71,12 +70,12 @@ void ConfigPanel::Init()
 
     screen_ = display_provider_->CreateScreen();
 
-    if (!style_manager_)
+    if (!theme_)
     {
         return;
     }
 
-    style_manager_->ApplyThemeToScreen(screen_);
+    theme_->ApplyBackground(screen_);
 
     log_i("ConfigPanel initialization completed");
 }
@@ -96,17 +95,10 @@ void ConfigPanel::Load()
     current_menu_index_ = 0;
 
     // Apply current theme to config panel (don't change the theme, just apply existing)
-    if (style_manager_)
+    if (theme_)
     {
-        style_manager_->ApplyThemeToScreen(screen_);
-
-        // For night theme, override the screen background to use dark red instead of black
-        const std::string &theme = style_manager_->GetCurrentTheme();
-        if (theme == themes::NIGHT)
-        {
-            lv_obj_set_style_bg_color(screen_, lv_color_hex(colors::NIGHT_BACKGROUND), LV_PART_MAIN); // Very dark red
-            lv_obj_set_style_bg_opa(screen_, LV_OPA_COVER, LV_PART_MAIN);
-        }
+        theme_->ApplyBackground(screen_);
+        ApplyMenuBackground();
     }
 
     // Initialize the config component with the screen
@@ -119,7 +111,7 @@ void ConfigPanel::Load()
     component_initialized_ = true;
 
     config_component_.Init(screen_);
-    config_component_.SetStyleService(style_manager_);
+    config_component_.SetTheme(theme_);
 
     // Build dynamic menu from registered configuration sections
     BuildDynamicMenus();
@@ -142,7 +134,23 @@ void ConfigPanel::Update()
 {
     log_v("Update() called");
 
-    // Config panel is static - updates are driven by button presses
+    // Otherwise static: updates are driven by button presses. The menu colours are set locally, so follow a
+    // theme change while the panel is open (the lights signal, D-06)
+    if (theme_ && component_initialized_ && theme_->Active() != styled_theme_)
+    {
+        ApplyMenuBackground();
+        config_component_.UpdateThemeColors();
+    }
+}
+
+/**
+ * @brief Gives the screen the theme's menu background (dark red at night instead of black)
+ */
+void ConfigPanel::ApplyMenuBackground()
+{
+    styled_theme_ = theme_->Active();
+    lv_obj_set_style_bg_color(screen_, theme_->Colors().menuBackground, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(screen_, LV_OPA_COVER, LV_PART_MAIN);
 }
 
 // SetManagers and SetConfigurationManager removed - using constructor injection

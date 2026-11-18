@@ -2,7 +2,7 @@
 
 #include "definitions/types.h"
 #include "interfaces/i_component.h"
-#include "interfaces/i_style_manager.h"
+#include "ui/theme.h"
 
 #include <lvgl.h>
 
@@ -30,7 +30,7 @@ class KeyComponent : public IComponent
 {
   public:
     // ========== Constructors and Destructor ==========
-    explicit KeyComponent(IStyleManager *style_manager);
+    explicit KeyComponent(Theme *theme);
     ~KeyComponent() override;
 
     // ========== Public Interface Methods ==========
@@ -40,7 +40,7 @@ class KeyComponent : public IComponent
   protected:
     // ========== Protected Data Members ==========
     lv_obj_t *key_icon_;
-    IStyleManager *style_manager_;
+    Theme *theme_;
 
   private:
     // ========== Private Methods ==========

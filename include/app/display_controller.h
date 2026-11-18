@@ -7,7 +7,7 @@
 #include "clarity/core/types.h"
 
 class PanelManager;
-class IStyleManager;
+class Theme;
 
 /**
  * @class DisplayController
@@ -27,7 +27,7 @@ class IStyleManager;
 class DisplayController
 {
   public:
-    DisplayController(PanelManager &panels, IStyleManager &style) noexcept : panels_(panels), style_(style)
+    DisplayController(PanelManager &panels, Theme &theme) noexcept : panels_(panels), theme_(theme)
     {
     }
 
@@ -39,19 +39,20 @@ class DisplayController
     void Update(const Inputs &inputs);
 
     /// Called by PanelManager::RestoreNow(): request the key or lock override that is still active, and
-    /// apply the theme the lights signal asks for. Returns true if an override panel was requested.
+    /// apply the theme the lights signal asks for (replacing Error). Returns true if an override panel was
+    /// requested.
     bool ApplyOverride();
 
   private:
-    void ApplyLightsTheme(bool lights);
+    void ApplyTheme(const clarity::core::VehicleInputs &in);
     void RequestOverride(const clarity::core::DisplayRequest &request);
     void ExecuteButton(clarity::core::ButtonEvent event);
     void ReportDebugErrors();
 
     PanelManager &panels_;
-    IStyleManager &style_;
+    Theme &theme_;
 
     clarity::core::VehicleInputs vehicle_{};
     clarity::core::DisplayRequest applied_{clarity::core::OverridePanel::None, clarity::core::KeyState::Inactive};
-    bool applied_lights_ = false; ///< Lights state the theme was last set for (the style manager starts on Day)
+    bool applied_lights_ = false; ///< Lights state the theme was last set for (the theme starts on Day)
 };

@@ -1,8 +1,7 @@
 #include "components/oem/oem_oil_component.h"
 #include "definitions/constants.h"
-#include "definitions/styles.h"
 #include "managers/error_manager.h"
-#include "managers/style_manager.h" // For MAIN_DEFAULT, ITEMS_DEFAULT, INDICATOR_DEFAULT constants
+#include "ui/theme.h"
 #include <Arduino.h>
 #include <cstring>
 #include <esp32-hal-log.h>
@@ -11,24 +10,23 @@
 // ========== Constructors and Destructor ==========
 
 /**
- * @brief Constructs an OEM oil component with style service dependency
- * @param styleManager Style service for theme and styling management
+ * @brief Constructs an OEM oil component with theme dependency
+ * @param theme Theme for the shared styles and the palette
  *
  * Initializes all LVGL object pointers to nullptr and validates the required
- * style service dependency. Reports critical error if style service is missing.
+ * theme dependency. Reports critical error if theme is missing.
  */
-OemOilComponent::OemOilComponent(IStyleManager *style_manager)
-    : style_manager_(style_manager), scale_(nullptr), needle_line_(nullptr), needle_middle_(nullptr),
-      needle_base_(nullptr), needle_highlight_line_(nullptr), needle_highlight_middle_(nullptr),
-      needle_highlight_base_(nullptr), oil_icon_(nullptr), low_label_(nullptr), high_label_(nullptr),
-      pivot_circle_(nullptr), pivot_highlight_(nullptr), scale_rotation_(0)
+OemOilComponent::OemOilComponent(Theme *theme)
+    : theme_(theme), scale_(nullptr), needle_line_(nullptr), needle_middle_(nullptr), needle_base_(nullptr),
+      needle_highlight_line_(nullptr), needle_highlight_middle_(nullptr), needle_highlight_base_(nullptr),
+      oil_icon_(nullptr), low_label_(nullptr), high_label_(nullptr), pivot_circle_(nullptr), pivot_highlight_(nullptr),
+      scale_rotation_(0)
 {
-    // Validate styleManager dependency
-    if (!style_manager_)
+    // Validate the theme dependency
+    if (!theme_)
     {
-        log_e("StyleService is required but was null");
-        ErrorManager::Instance().ReportCriticalError("OemOilComponent",
-                                                     "Cannot create - StyleService dependency is null");
+        log_e("Theme is required but was null");
+        ErrorManager::Instance().ReportCriticalError("OemOilComponent", "Cannot create - Theme dependency is null");
     }
 }
 
@@ -37,7 +35,7 @@ OemOilComponent::OemOilComponent(IStyleManager *style_manager)
  *
  * Every widget is a descendant of the panel's screen and is freed when the
  * panel deletes that screen. Deleting any of them here would double-delete.
- * Styles are managed by StyleManager and don't require cleanup here.
+ * The shared styles belong to the Theme and don't require cleanup here.
  */
 OemOilComponent::~OemOilComponent() = default;
 
@@ -85,25 +83,10 @@ void OemOilComponent::Render(lv_obj_t *screen, const ComponentLocation &location
 void OemOilComponent::Refresh(const Reading &reading)
 {
     int32_t value = std::get<int32_t>(reading);
-    const ThemeColors &colours = style_manager_->GetThemeColors();
+    const Palette &colours = theme_->Colors();
 
-    const std::string &current_theme = style_manager_->GetCurrentTheme();
-    // Component refresh completed
-
-    // Icon color logic - in night mode, always use gaugeNormal (red)
-    // In day mode, use gaugeNormal normally, gaugeDanger when in danger
-    bool is_night_theme = (current_theme == themes::NIGHT);
-    lv_color_t icon_colour;
-    if (is_night_theme)
-    {
-        // Night mode: icons are always red regardless of danger condition
-        icon_colour = colours.gaugeNormal;
-    }
-    else
-    {
-        // Day mode: normal color switching based on danger condition
-        icon_colour = IsDangerCondition(value) ? colours.gaugeDanger : colours.gaugeNormal;
-    }
+    // Icon colour: the Night palette's danger colour is its normal colour, so the icon stays red at night
+    lv_color_t icon_colour = IsDangerCondition(value) ? colours.gaugeDanger : colours.gaugeNormal;
 
     // Update needle and icon colors (all three needle sections with 3D gradient)
     if (IsDangerCondition(value))
@@ -210,9 +193,9 @@ void OemOilComponent::UpdatePivotStyling()
 {
     if (pivot_circle_)
     {
-        const ThemeColors &colours = style_manager_->GetThemeColors();
+        const Palette &colours = theme_->Colors();
 
-        if (style_manager_->GetCurrentTheme() == themes::NIGHT)
+        if (!colours.pivotVisible)
         {
             // Night mode - make pivot completely invisible by matching background exactly
             lv_obj_set_style_bg_color(pivot_circle_, colours.background, MAIN_DEFAULT);
@@ -233,9 +216,9 @@ void OemOilComponent::UpdatePivotStyling()
         else
         {
             // Day mode - visible plastic appearance with radial gradient
-            lv_obj_set_style_bg_color(pivot_circle_, lv_color_hex(colors::PIVOT_CIRCLE_CENTER),
+            lv_obj_set_style_bg_color(pivot_circle_, colours.pivotCenter,
                                       MAIN_DEFAULT); // Medium gray center
-            lv_obj_set_style_bg_grad_color(pivot_circle_, lv_color_hex(colors::PIVOT_CIRCLE_EDGE),
+            lv_obj_set_style_bg_grad_color(pivot_circle_, colours.pivotEdge,
                                            MAIN_DEFAULT); // Dark gray edge
             lv_obj_set_style_bg_grad_dir(pivot_circle_, LV_GRAD_DIR_HOR,
                                          MAIN_DEFAULT);                         // Horizontal for radial-like effect
@@ -244,12 +227,12 @@ void OemOilComponent::UpdatePivotStyling()
 
             // Dark beveled border (darker than main body)
             lv_obj_set_style_border_width(pivot_circle_, 2, MAIN_DEFAULT);
-            lv_obj_set_style_border_color(pivot_circle_, lv_color_hex(colors::PIVOT_CIRCLE_BORDER),
+            lv_obj_set_style_border_color(pivot_circle_, colours.pivotBorder,
                                           MAIN_DEFAULT);                            // Very dark border
             lv_obj_set_style_border_opa(pivot_circle_, LV_OPA_COVER, MAIN_DEFAULT); // Solid border
 
             // Subtle shadow for depth
-            lv_obj_set_style_shadow_color(pivot_circle_, lv_color_hex(colors::PIVOT_CIRCLE_SHADOW), MAIN_DEFAULT);
+            lv_obj_set_style_shadow_color(pivot_circle_, colours.pivotShadow, MAIN_DEFAULT);
             lv_obj_set_style_shadow_width(pivot_circle_, 3U, MAIN_DEFAULT);      // Moderate shadow
             lv_obj_set_style_shadow_opa(pivot_circle_, LV_OPA_20, MAIN_DEFAULT); // Subtle
             lv_obj_set_style_shadow_spread(pivot_circle_, 1, MAIN_DEFAULT);
@@ -276,7 +259,7 @@ void OemOilComponent::UpdatePivotStyling()
  */
 void OemOilComponent::CreateIcon()
 {
-    const ThemeColors &colours = style_manager_->GetThemeColors();
+    const Palette &colours = theme_->Colors();
 
     oil_icon_ = lv_image_create(scale_);
     lv_image_set_src(oil_icon_, GetIcon());
@@ -296,18 +279,18 @@ void OemOilComponent::CreateLabels()
     // Create "L" label for low end
     low_label_ = lv_label_create(scale_);
     lv_label_set_text(low_label_, ui_constants::GAUGE_LOW_LABEL);
-    if (style_manager_ && style_manager_->IsInitialized())
+    if (theme_)
     {
-        lv_obj_add_style(low_label_, &style_manager_->GetTextStyle(), MAIN_DEFAULT);
+        lv_obj_add_style(low_label_, &theme_->TextStyle(), MAIN_DEFAULT);
     }
     lv_obj_set_style_text_font(low_label_, &lv_font_montserrat_18, MAIN_DEFAULT);
 
     // Create "H" label for high end
     high_label_ = lv_label_create(scale_);
     lv_label_set_text(high_label_, ui_constants::GAUGE_HIGH_LABEL);
-    if (style_manager_ && style_manager_->IsInitialized())
+    if (theme_)
     {
-        lv_obj_add_style(high_label_, &style_manager_->GetTextStyle(), MAIN_DEFAULT);
+        lv_obj_add_style(high_label_, &theme_->TextStyle(), MAIN_DEFAULT);
     }
     lv_obj_set_style_text_font(high_label_, &lv_font_montserrat_18, MAIN_DEFAULT);
 
@@ -337,7 +320,7 @@ void OemOilComponent::CreateLabels()
  */
 void OemOilComponent::CreateNeedle()
 {
-    const ThemeColors &colours = style_manager_->GetThemeColors();
+    const Palette &colours = theme_->Colors();
 
     // Create realistic 3-section tapered needle (based on actual car dashboard reference)
 
@@ -368,7 +351,7 @@ void OemOilComponent::CreateNeedle()
 
     // Highlight for tip section - very subtle white highlight
     needle_highlight_line_ = lv_line_create(scale_);
-    lv_obj_set_style_line_color(needle_highlight_line_, lv_color_hex(colors::NEEDLE_HIGHLIGHT),
+    lv_obj_set_style_line_color(needle_highlight_line_, colours.needleHighlight,
                                 MAIN_DEFAULT);                            // Pure white highlight
     lv_obj_set_style_line_width(needle_highlight_line_, 1, MAIN_DEFAULT); // Thin highlight line
     lv_obj_set_style_line_rounded(needle_highlight_line_, true, MAIN_DEFAULT);
@@ -376,7 +359,7 @@ void OemOilComponent::CreateNeedle()
 
     // Highlight for middle section
     needle_highlight_middle_ = lv_line_create(scale_);
-    lv_obj_set_style_line_color(needle_highlight_middle_, lv_color_hex(colors::NEEDLE_HIGHLIGHT),
+    lv_obj_set_style_line_color(needle_highlight_middle_, colours.needleHighlight,
                                 MAIN_DEFAULT);                              // Pure white highlight
     lv_obj_set_style_line_width(needle_highlight_middle_, 1, MAIN_DEFAULT); // Thin highlight line
     lv_obj_set_style_line_rounded(needle_highlight_middle_, true, MAIN_DEFAULT);
@@ -384,7 +367,7 @@ void OemOilComponent::CreateNeedle()
 
     // Highlight for base section
     needle_highlight_base_ = lv_line_create(scale_);
-    lv_obj_set_style_line_color(needle_highlight_base_, lv_color_hex(colors::NEEDLE_HIGHLIGHT),
+    lv_obj_set_style_line_color(needle_highlight_base_, colours.needleHighlight,
                                 MAIN_DEFAULT);                            // Pure white highlight
     lv_obj_set_style_line_width(needle_highlight_base_, 1, MAIN_DEFAULT); // Thin highlight line
     lv_obj_set_style_line_rounded(needle_highlight_base_, true, MAIN_DEFAULT);
@@ -401,7 +384,7 @@ void OemOilComponent::CreateNeedle()
     lv_obj_set_size(pivot_highlight_, 16U, 16U); // Proportional to larger pivot
     lv_obj_center(pivot_highlight_);
     lv_obj_set_style_radius(pivot_highlight_, LV_RADIUS_CIRCLE, MAIN_DEFAULT);
-    lv_obj_set_style_bg_color(pivot_highlight_, lv_color_hex(colors::PIVOT_HIGHLIGHT),
+    lv_obj_set_style_bg_color(pivot_highlight_, colours.pivotHighlight,
                               MAIN_DEFAULT);                            // Light gray highlight
     lv_obj_set_style_bg_opa(pivot_highlight_, LV_OPA_80, MAIN_DEFAULT); // More opaque for plastic look
     lv_obj_set_style_border_width(pivot_highlight_, 0, MAIN_DEFAULT);
@@ -434,15 +417,15 @@ void OemOilComponent::CreateScale(int32_t rotation)
     lv_scale_set_major_tick_every(scale_, 3);
     lv_scale_set_label_show(scale_, false); // Disable built-in labels, use custom L/H positioning
 
-    if (style_manager_ && style_manager_->IsInitialized())
+    if (theme_)
     {
-        lv_obj_add_style(scale_, &style_manager_->GetGaugeMainStyle(), MAIN_DEFAULT);
-        lv_obj_add_style(scale_, &style_manager_->GetGaugeIndicatorStyle(), INDICATOR_DEFAULT);
-        lv_obj_add_style(scale_, &style_manager_->GetGaugeItemsStyle(), ITEMS_DEFAULT);
+        lv_obj_add_style(scale_, &theme_->GaugeMainStyle(), MAIN_DEFAULT);
+        lv_obj_add_style(scale_, &theme_->GaugeIndicatorStyle(), INDICATOR_DEFAULT);
+        lv_obj_add_style(scale_, &theme_->GaugeItemsStyle(), ITEMS_DEFAULT);
     }
     else
     {
-        log_w("StyleService not available for gauge style application");
+        log_w("Theme not available for gauge style application");
     }
 
     lv_scale_section_t *section = lv_scale_add_section(scale_);
@@ -451,15 +434,15 @@ void OemOilComponent::CreateScale(int32_t rotation)
         return;
     }
 
-    if (style_manager_ && style_manager_->IsInitialized())
+    if (theme_)
     {
-        lv_scale_section_set_style(section, MAIN_DEFAULT, &style_manager_->GetGaugeMainStyle());
-        lv_scale_section_set_style(section, INDICATOR_DEFAULT, &style_manager_->GetGaugeDangerSectionStyle());
-        lv_scale_section_set_style(section, ITEMS_DEFAULT, &style_manager_->GetGaugeDangerSectionStyle());
+        lv_scale_section_set_style(section, MAIN_DEFAULT, &theme_->GaugeMainStyle());
+        lv_scale_section_set_style(section, INDICATOR_DEFAULT, &theme_->GaugeDangerSectionStyle());
+        lv_scale_section_set_style(section, ITEMS_DEFAULT, &theme_->GaugeDangerSectionStyle());
     }
     else
     {
-        log_w("StyleService not available for danger zone style application");
+        log_w("Theme not available for danger zone style application");
     }
 
     // Set danger zone range - derived classes will handle specific ranges

@@ -12,16 +12,14 @@
  * @brief Constructs key panel with required service dependencies
  * @param gpio GPIO provider for hardware sensor access
  * @param display Display provider for screen management
- * @param styleManager Style service for theme-based icon coloring
+ * @param theme Theme for the shared styles and the palette
  *
  * Creates key panel that displays vehicle ignition key status. Determines
  * current key state during construction and initializes stack-allocated
  * key component for efficient memory usage.
  */
-KeyPanel::KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-                   IPanelManager *panel_manager)
-    : BasePanel(gpio, display, style_manager, panel_manager), key_component_(style_manager),
-      component_initialized_(false)
+KeyPanel::KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager)
+    : BasePanel(gpio, display, theme, panel_manager), key_component_(theme), component_initialized_(false)
 {
     // Determine current key state by checking which sensor is currently active
     current_key_state_ = panel_manager_->GetKeyState();

@@ -44,7 +44,7 @@ class ManagerFactory;
 class DeviceProvider;
 class IGpioProvider;
 class IDisplayProvider;
-class StyleManager;
+class Theme;
 class IConfigurationManager;
 class PanelManager;
 class Inputs;
@@ -63,7 +63,7 @@ extern std::unique_ptr<IGpioProvider> gpio_provider;
 extern std::unique_ptr<IDisplayProvider> display_provider;
 
 // Global managers - created by ManagerFactory
-extern std::unique_ptr<StyleManager> style_manager;
+extern std::unique_ptr<Theme> ui_theme;
 extern std::unique_ptr<IConfigurationManager> preference_manager;
 extern std::unique_ptr<PanelManager> panel_manager;
 extern std::unique_ptr<Inputs> inputs;

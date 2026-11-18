@@ -5,6 +5,7 @@
 #include <lvgl.h>
 
 #include "clarity/core/types.h"
+#include "ui/theme.h"
 
 /**
  * @class Panel
@@ -24,8 +25,7 @@
  *    panel or widget object, so LVGL removes them when Exit() deletes the tree.
  * 4. Panels own no lv_timer. Time-based behaviour lives in Update(now).
  *
- * Not used yet: the screen manager (5.3) drives it and the six panels move onto it in 5.5. Enter() takes the
- * Theme once it exists (5.2).
+ * Not used yet: the screen manager (5.3) drives it and the six panels move onto it in 5.5.
  */
 class Panel
 {
@@ -36,8 +36,9 @@ class Panel
     /// Does not delete the LVGL tree (rule 1): the owner calls Exit() first
     virtual ~Panel() = default;
 
-    /// Creates screen_, calls Build() and loads the screen. Does nothing if the panel is already entered
-    void Enter();
+    /// Creates screen_ with the theme's background, calls Build() and loads the screen. Does nothing if the
+    /// panel is already entered
+    void Enter(Theme &theme);
 
     /// Calls OnExit() and deletes screen_ and everything on it. Does nothing if the panel is not entered.
     /// The screen must no longer be the active one (swap order)
@@ -63,8 +64,9 @@ class Panel
     }
 
   protected:
-    /// Creates the panel's widgets on screen; they stay valid until Exit()
-    virtual void Build(lv_obj_t *screen) = 0;
+    /// Creates the panel's widgets on screen; they stay valid until Exit(). Colours a widget sets locally come
+    /// from theme.Colors()
+    virtual void Build(lv_obj_t *screen, Theme &theme) = 0;
 
     /// Called by Exit() before the tree is deleted: reset per-visit state. Delete no LVGL objects here
     virtual void OnExit()

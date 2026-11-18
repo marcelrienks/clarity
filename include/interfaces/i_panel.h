@@ -11,7 +11,7 @@
 
 // Forward declarations
 class IPanelManager;
-class IStyleManager;
+class Theme;
 class IConfigurationManager;
 
 /**

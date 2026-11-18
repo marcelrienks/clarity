@@ -6,9 +6,9 @@
 
 #include "definitions/constants.h"
 #include "definitions/enums.h"
-#include "interfaces/i_style_manager.h"
 #include "managers/error_manager.h"
 #include "managers/panel_manager.h"
+#include "ui/theme.h"
 #include "utilities/logging.h"
 
 namespace
@@ -62,10 +62,7 @@ void LogDeactivated([[maybe_unused]] const clarity::core::VehicleInputs &was,
 bool DisplayController::Begin(const Inputs &inputs)
 {
     vehicle_ = inputs.Vehicle();
-    if (vehicle_.lights)
-    {
-        ApplyLightsTheme(true);
-    }
+    ApplyTheme(vehicle_);
 
     applied_ = clarity::core::ResolveDisplay(vehicle_, false);
     panels_.SetKeyState(ToPanelKeyState(applied_.key));
@@ -108,10 +105,7 @@ void DisplayController::Update(const Inputs &inputs)
         return;
     }
 
-    if (now.lights != applied_lights_)
-    {
-        ApplyLightsTheme(now.lights);
-    }
+    ApplyTheme(now);
 
     // The splash finishes before an override replaces it (Q-06): keep the last acted-on lines, so the
     // difference is acted on once the target panel is loaded
@@ -149,10 +143,7 @@ bool DisplayController::ApplyOverride()
     applied_ = clarity::core::ResolveDisplay(vehicle_, false);
     panels_.SetKeyState(ToPanelKeyState(applied_.key));
 
-    if (vehicle_.lights != applied_lights_)
-    {
-        ApplyLightsTheme(vehicle_.lights);
-    }
+    ApplyTheme(vehicle_);
 
     if (applied_.panel == OverridePanel::None)
     {
@@ -162,19 +153,24 @@ bool DisplayController::ApplyOverride()
     return true;
 }
 
-void DisplayController::ApplyLightsTheme(bool lights)
+void DisplayController::ApplyTheme(const clarity::core::VehicleInputs &in)
 {
-    applied_lights_ = lights;
-    if (lights)
+    if (in.lights != applied_lights_)
     {
-        log_t("LightsOnActivate() - Setting NIGHT theme");
-        style_.SetTheme(themes::NIGHT);
+        applied_lights_ = in.lights;
+        if (in.lights)
+        {
+            log_t("LightsOnActivate() - Setting NIGHT theme");
+        }
+        else
+        {
+            log_t("LightsOffActivate() - Setting DAY theme");
+        }
     }
-    else
-    {
-        log_t("LightsOffActivate() - Setting DAY theme");
-        style_.SetTheme(themes::DAY);
-    }
+
+    // Errors do not count here: the error panel applies the Error theme itself, and this runs only while it is
+    // not shown or is being replaced. Apply() does nothing if the theme is unchanged
+    theme_.Apply(clarity::core::EffectiveTheme(clarity::core::ResolveDisplay(in, false), in));
 }
 
 void DisplayController::RequestOverride(const DisplayRequest &request)

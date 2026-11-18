@@ -4,13 +4,12 @@
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel_manager.h"
-#include "interfaces/i_style_manager.h"
 #include <Arduino.h>
 #include <memory>
 
 // Forward declarations
 class PanelManager;
-class StyleManager;
+class Theme;
 class DeviceProvider;
 class ConfigurationManager;
 class ErrorManager;
@@ -42,11 +41,8 @@ class ManagerFactory
 
     // ========== Public Interface Methods ==========
     // Factory methods
-    std::unique_ptr<PanelManager> CreatePanelManager(IDisplayProvider *display, IGpioProvider *gpio,
-                                                     IStyleManager *style_manager,
+    std::unique_ptr<PanelManager> CreatePanelManager(IDisplayProvider *display, IGpioProvider *gpio, Theme *theme,
                                                      IConfigurationManager *configuration_manager);
-
-    std::unique_ptr<StyleManager> CreateStyleManager(const char *theme = nullptr);
 
     std::unique_ptr<IConfigurationManager> CreateConfigurationManager();
 
@@ -58,10 +54,8 @@ class ManagerFactory
 
     // ========== Static Methods ==========
     static std::unique_ptr<PanelManager> CreatePanelManagerImpl(IDisplayProvider *display, IGpioProvider *gpio,
-                                                                IStyleManager *style_manager,
+                                                                Theme *theme,
                                                                 IConfigurationManager *configuration_manager);
-
-    static std::unique_ptr<StyleManager> CreateStyleManagerImpl(const char *theme = nullptr);
 
     static std::unique_ptr<IConfigurationManager> CreateConfigurationManagerImpl();
 

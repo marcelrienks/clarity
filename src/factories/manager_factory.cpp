@@ -4,7 +4,6 @@
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
 #include "managers/panel_manager.h"
-#include "managers/style_manager.h"
 #include "providers/device_provider.h"
 #include <esp32-hal-log.h>
 
@@ -93,7 +92,7 @@ bool ManagerFactory::InitializeProviders()
  * @brief Internal implementation for creating PanelManager
  * @param display Display provider for UI rendering
  * @param gpio GPIO provider for hardware interaction
- * @param styleManager Style service for theme management
+ * @param theme Theme for the panels
  * @param preferenceService Preference service for configuration
  * @return Unique pointer to PanelManager or nullptr on failure
  *
@@ -101,7 +100,7 @@ bool ManagerFactory::InitializeProviders()
  * and initializes it before returning. Reports critical errors on failure.
  */
 std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManagerImpl(IDisplayProvider *display, IGpioProvider *gpio,
-                                                                     IStyleManager *style_manager,
+                                                                     Theme *theme,
                                                                      IConfigurationManager *configuration_manager)
 {
 
@@ -120,11 +119,11 @@ std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManagerImpl(IDisplayPro
                                                      "Cannot create PanelManager - GpioProvider dependency is null");
         return nullptr;
     }
-    if (!style_manager)
+    if (!theme)
     {
-        log_e("ManagerFactory: Cannot create PanelManager - IStyleManager is null");
+        log_e("ManagerFactory: Cannot create PanelManager - Theme is null");
         ErrorManager::Instance().ReportCriticalError("ManagerFactory",
-                                                     "Cannot create PanelManager - StyleService dependency is null");
+                                                     "Cannot create PanelManager - Theme dependency is null");
         return nullptr;
     }
 
@@ -136,7 +135,7 @@ std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManagerImpl(IDisplayPro
         return nullptr;
     }
 
-    auto panel_manager = std::make_unique<PanelManager>(display, gpio, style_manager, configuration_manager);
+    auto panel_manager = std::make_unique<PanelManager>(display, gpio, theme, configuration_manager);
     if (!panel_manager)
     {
         log_e("ManagerFactory: Failed to create PanelManager - allocation failed");
@@ -150,28 +149,6 @@ std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManagerImpl(IDisplayPro
     return panel_manager;
 }
 
-/**
- * @brief Internal implementation for creating StyleManager
- * @param theme Initial theme name (defaults to DAY if null)
- * @return Unique pointer to StyleManager or nullptr on failure
- *
- * Creates StyleManager with specified or default theme.
- * Reports critical error if allocation fails.
- */
-std::unique_ptr<StyleManager> ManagerFactory::CreateStyleManagerImpl(const char *theme)
-{
-
-    auto manager = std::make_unique<StyleManager>(theme ? theme : themes::DAY);
-    if (!manager)
-    {
-        log_e("ManagerFactory: Failed to create StyleManager - allocation failed");
-        ErrorManager::Instance().ReportCriticalError("ManagerFactory",
-                                                     "StyleManager allocation failed - out of memory");
-        return nullptr;
-    }
-
-    return manager;
-}
 /**
  * @brief Internal implementation for creating ConfigurationManager
  * @return Unique pointer to IConfigurationManager or nullptr on failure
@@ -226,7 +203,7 @@ ErrorManager *ManagerFactory::CreateErrorManagerImpl()
  * @brief Creates PanelManager with provided or factory-created providers
  * @param display Display provider (optional, created if null)
  * @param gpio GPIO provider (optional, created if null)
- * @param styleManager Style service for theme management
+ * @param theme Theme for the panels
  * @param preferenceService Preference service for configuration
  * @return Unique pointer to PanelManager or nullptr on failure
  *
@@ -234,7 +211,7 @@ ErrorManager *ManagerFactory::CreateErrorManagerImpl()
  * through provider factory if not supplied. Delegates to implementation method.
  */
 std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManager(IDisplayProvider *display, IGpioProvider *gpio,
-                                                                 IStyleManager *style_manager,
+                                                                 Theme *theme,
                                                                  IConfigurationManager *configuration_manager)
 {
 
@@ -254,19 +231,7 @@ std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManager(IDisplayProvide
         gpio_to_use = gpio ? gpio : gpio_provider_.get();
     }
 
-    return CreatePanelManagerImpl(display_to_use, gpio_to_use, style_manager, configuration_manager);
-}
-
-/**
- * @brief Creates StyleManager with specified theme
- * @param theme Theme name to initialize with
- * @return Unique pointer to StyleManager
- *
- * Public interface method that delegates to implementation.
- */
-std::unique_ptr<StyleManager> ManagerFactory::CreateStyleManager(const char *theme)
-{
-    return CreateStyleManagerImpl(theme);
+    return CreatePanelManagerImpl(display_to_use, gpio_to_use, theme, configuration_manager);
 }
 
 /**

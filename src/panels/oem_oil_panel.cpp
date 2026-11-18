@@ -6,9 +6,9 @@
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
 #include "managers/panel_manager.h"
-#include "managers/style_manager.h"
 #include "sensors/oil_pressure_sensor.h"
 #include "sensors/oil_temperature_sensor.h"
+#include "ui/theme.h"
 #include "utilities/logging.h"
 #include "utilities/unit_converter.h"
 #include <math.h>
@@ -19,21 +19,20 @@
  * @brief Constructs OEM oil monitoring panel with dual gauge display
  * @param gpio GPIO provider for sensor hardware access
  * @param display Display provider for screen management
- * @param styleManager Style service for theme-based styling
+ * @param theme Theme for the shared styles and the palette
  *
  * Creates automotive oil monitoring panel with pressure and temperature gauges.
  * Initializes stack-allocated components, creates sensor instances, and sets up
  * LVGL animation structures for smooth needle movements.
  */
-OemOilPanel::OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *style_manager,
-                         IPanelManager *panel_manager, IConfigurationManager *configuration_manager)
-    : gpio_provider_(gpio), display_provider_(display), style_manager_(style_manager), panel_manager_(panel_manager),
-      configuration_manager_(configuration_manager), oem_oil_pressure_component_(style_manager),
-      oem_oil_temperature_component_(style_manager),
-      oem_oil_pressure_sensor_(std::make_shared<OilPressureSensor>(gpio)),
+OemOilPanel::OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+                         IConfigurationManager *configuration_manager)
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme), panel_manager_(panel_manager),
+      configuration_manager_(configuration_manager), oem_oil_pressure_component_(theme),
+      oem_oil_temperature_component_(theme), oem_oil_pressure_sensor_(std::make_shared<OilPressureSensor>(gpio)),
       oem_oil_temperature_sensor_(std::make_shared<OilTemperatureSensor>(gpio)), components_initialized_(false),
       current_oil_pressure_value_(-1), current_oil_temperature_value_(-1), pressure_deadband_(0),
-      temperature_deadband_(0), last_animated_pressure_value_(-1), last_animated_temperature_value_(-1), last_theme_("")
+      temperature_deadband_(0), last_animated_pressure_value_(-1), last_animated_temperature_value_(-1)
 {
     log_v("OemOilPanel constructor called");
     // Initialize LVGL animation structures to prevent undefined behavior
@@ -115,9 +114,9 @@ void OemOilPanel::Init()
     screen_ = display_provider_->CreateScreen();
 
     // Apply current theme immediately after screen creation
-    if (style_manager_)
+    if (theme_)
     {
-        style_manager_->ApplyThemeToScreen(screen_);
+        theme_->ApplyBackground(screen_);
     }
 
     oem_oil_pressure_sensor_->Init();
@@ -150,9 +149,9 @@ void OemOilPanel::Load()
     log_v("Load() called");
 
     // Create components for both pressure and temperature
-    if (!style_manager_ || !style_manager_->IsInitialized())
+    if (!theme_)
     {
-        log_w("StyleService not properly initialized, skipping component creation");
+        log_w("Theme not set, skipping component creation");
         return;
     }
 
@@ -195,11 +194,11 @@ void OemOilPanel::Load()
 
     // Post-load validation
 
-    if (style_manager_)
+    if (theme_)
     {
-        style_manager_->ApplyThemeToScreen(screen_);
-        // Update last_theme_ to current theme to sync with theme detection in update()
-        last_theme_ = String(style_manager_->GetCurrentTheme().c_str());
+        theme_->ApplyBackground(screen_);
+        // Built with the applied theme's colours: Update() restyles only when it changes
+        last_theme_ = theme_->Active();
     }
 
     log_t("OemOilPanel loaded successfully");
@@ -214,16 +213,12 @@ void OemOilPanel::Load()
  */
 void OemOilPanel::Update()
 {
-    // Check for theme changes and apply immediately
-    const char *current_theme = style_manager_ ? style_manager_->GetCurrentTheme().c_str() : "";
-    bool theme_changed = last_theme_.isEmpty() || !last_theme_.equals(current_theme);
+    // The shared styles follow a theme change by themselves (Theme::Apply()); the needle, icon and pivot
+    // colours are set locally, so the readings below force a refresh
+    const bool theme_changed = theme_ && theme_->Active() != last_theme_;
     if (theme_changed)
     {
-        last_theme_ = String(current_theme);
-        if (style_manager_ && screen_)
-        {
-            style_manager_->ApplyThemeToScreen(screen_);
-        }
+        last_theme_ = theme_->Active();
     }
 
     // Apply sensor settings periodically (every ~100 updates) instead of every cycle

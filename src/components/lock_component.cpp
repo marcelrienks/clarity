@@ -5,7 +5,7 @@
 
 // ========== Constructors and Destructor ==========
 
-LockComponent::LockComponent(IStyleManager *style_manager) : lock_icon_(nullptr), style_manager_(style_manager)
+LockComponent::LockComponent(Theme *theme) : lock_icon_(nullptr), theme_(theme)
 {
     log_v("LockComponent constructor called");
 }
@@ -38,9 +38,9 @@ void LockComponent::Render(lv_obj_t *screen, const ComponentLocation &location, 
     lv_obj_align(lock_icon_, location.align, location.x_offset, location.y_offset);
 
     // Always show red (engaged) color for lock panel
-    if (style_manager_)
+    if (theme_)
     {
-        lv_color_t lock_colour = style_manager_->GetThemeColors().lockEngaged;
+        lv_color_t lock_colour = theme_->Colors().lockEngaged;
         lv_obj_set_style_image_recolor(lock_icon_, lock_colour,
                                        static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_DEFAULT);
         lv_obj_set_style_image_recolor_opa(lock_icon_, LV_OPA_COVER,

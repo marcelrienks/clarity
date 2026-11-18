@@ -1,6 +1,6 @@
 #include "ui/panel.h"
 
-void Panel::Enter()
+void Panel::Enter(Theme &theme)
 {
     if (screen_)
     {
@@ -8,7 +8,8 @@ void Panel::Enter()
     }
 
     screen_ = lv_obj_create(nullptr);
-    Build(screen_);
+    theme.ApplyBackground(screen_);
+    Build(screen_, theme);
     lv_screen_load(screen_);
 }
 
