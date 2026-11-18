@@ -9,15 +9,12 @@
 // ========== Constructors and Destructor ==========
 
 /**
- * @brief Constructs a configuration menu component with service dependencies
- * @param panelManager Panel service for navigation control
+ * @brief Constructs a configuration menu component
  * @param theme Theme for the menu colours
  *
- * Initializes the configuration component with dependencies for panel navigation
- * and theme styling. These services enable menu interactions and visual theming.
+ * The component only renders the menu: ConfigPanel handles the presses and returns the navigation intent.
  */
-ConfigComponent::ConfigComponent(IPanelManager *panel_manager, Theme *theme)
-    : panel_manager_(panel_manager), theme_(theme)
+ConfigComponent::ConfigComponent(Theme *theme) : theme_(theme)
 {
     log_v("ConfigComponent constructor called");
 }
@@ -50,48 +47,6 @@ void ConfigComponent::SetValue(int32_t /*value*/)
 {
     log_v("SetValue() called");
     // Not used for config menu - updates handled via specific methods
-}
-
-// ========== Public Interface Methods ==========
-
-/**
- * @brief Executes configuration menu actions
- * @param actionType Type of action to execute (submenu, panel_exit, panel_load)
- * @param actionParam Parameter for the action (e.g., panel name)
- *
- * Handles menu navigation actions including submenu entry, panel exit to restoration,
- * and direct panel loading. Used by ConfigPanel for menu interaction handling.
- */
-void ConfigComponent::ExecuteAction(const std::string &action_type, const std::string &action_param)
-{
-    log_v("ExecuteAction() called with type: %s, param: %s", action_type.c_str(), action_param.c_str());
-
-    if (action_type == ui_strings::action_types::SUBMENU)
-    {
-        // Handle submenu navigation - delegate back to config panel
-        // This would require a callback to the ConfigPanel
-    }
-    else if (action_type == ui_strings::action_types::PANEL_EXIT)
-    {
-        // Exit config panel and return to restoration panel
-        if (panel_manager_)
-        {
-            const char *restoration_panel = panel_manager_->GetRestorationPanel();
-            panel_manager_->CreateAndLoadPanel(restoration_panel, true);
-        }
-    }
-    else if (action_type == ui_strings::action_types::PANEL_LOAD)
-    {
-        // Load specific panel
-        if (panel_manager_)
-        {
-            panel_manager_->CreateAndLoadPanel(action_param.c_str(), true);
-        }
-    }
-    else
-    {
-        log_w("Unknown action type: %s", action_type.c_str());
-    }
 }
 
 // ========== Private Methods ==========

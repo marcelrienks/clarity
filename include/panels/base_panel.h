@@ -4,7 +4,6 @@
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
-#include "interfaces/i_panel_manager.h"
 #include "ui/theme.h"
 /**
  * @class BasePanel
@@ -30,8 +29,7 @@
  * - GetPanelName(): Return panel name constant for logging/identification
  *
  * @optional_overrides:
- * - HandleShortPress(): Panel-specific short button press behavior
- * - HandleLongPress(): Panel-specific long button press behavior
+ * - OnButton(): Panel-specific button behavior (IPanel's default does nothing)
  * - PostLoad(): Additional setup after content creation
  * - CustomInit(): Additional initialization before screen creation
  *
@@ -62,7 +60,7 @@ class BasePanel : public IPanel
      * @param display Display provider for screen management
      * @param theme Theme for the shared styles and the palette
      */
-    BasePanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager = nullptr);
+    BasePanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme);
     BasePanel(const BasePanel &) = delete;
     BasePanel &operator=(const BasePanel &) = delete;
     /**
@@ -88,30 +86,6 @@ class BasePanel : public IPanel
      * @details Template method - calls UpdateContent() and resets UI state
      */
     void Update() override final;
-
-    /**
-     * @brief Inject panel and theme dependencies
-     * @param panelManager Panel management service
-     * @param theme Theme for the shared styles and the palette
-     */
-
-    /**
-     * @brief Get function pointer for short button press handling
-     * @return Pointer to static wrapper function
-     */
-    void (*GetShortPressFunction())(void *panel_context) final;
-
-    /**
-     * @brief Get function pointer for long button press handling
-     * @return Pointer to static wrapper function
-     */
-    void (*GetLongPressFunction())(void *panel_context) final;
-
-    /**
-     * @brief Get panel instance pointer for button handler context
-     * @return Pointer to this panel instance
-     */
-    // Old GetPanelContext method removed - no longer needed
 
   protected:
     // ========== Protected Methods ==========
@@ -149,44 +123,14 @@ class BasePanel : public IPanel
     {
     }
 
-    /**
-     * @brief Handle short button press - override for panel-specific behavior
-     * @details Default implementation does nothing
-     */
-    void HandleShortPress() override
-    {
-    }
-
-    /**
-     * @brief Handle long button press - override for panel-specific behavior
-     * @details Default implementation does nothing
-     */
-    void HandleLongPress() override
-    {
-    }
-
     // ========== Protected Data Members ==========
     IGpioProvider *gpio_provider_;
     IDisplayProvider *display_provider_;
     Theme *theme_;
-    IPanelManager *panel_manager_;
     ComponentLocation center_location_;
     lv_obj_t *screen_ = nullptr;
 
   private:
-    // ========== Static Methods ==========
-    /**
-     * @brief Static wrapper for short button press handling
-     * @param panelContext Pointer to BasePanel instance
-     */
-    static void BasePanelShortPress(void *panel_context);
-
-    /**
-     * @brief Static wrapper for long button press handling
-     * @param panelContext Pointer to BasePanel instance
-     */
-    static void BasePanelLongPress(void *panel_context);
-
     // ========== Private Methods ==========
     /**
      * @brief Validate required providers are non-null

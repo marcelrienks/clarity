@@ -2,7 +2,6 @@
 
 #include "definitions/types.h"
 #include "interfaces/i_component.h"
-#include "interfaces/i_panel_manager.h"
 #include "ui/theme.h"
 #include <functional>
 #include <string>
@@ -45,12 +44,10 @@ class ConfigComponent : public IComponent
     };
 
     // ========== Constructors and Destructor ==========
-    ConfigComponent(IPanelManager *panel_manager = nullptr, Theme *theme = nullptr);
+    explicit ConfigComponent(Theme *theme = nullptr);
     ~ConfigComponent() override = default;
 
     // ========== Public Interface Methods ==========
-    void ExecuteAction(const std::string &action_type, const std::string &action_param);
-
     // IComponent interface implementation
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;
     void SetValue(int32_t value) override;
@@ -97,7 +94,6 @@ class ConfigComponent : public IComponent
     std::string current_title_ = "Configuration";
 
     // Dependency-injected interfaces for direct calls
-    IPanelManager *panel_manager_ = nullptr;
     Theme *theme_ = nullptr;
 
     // Constants

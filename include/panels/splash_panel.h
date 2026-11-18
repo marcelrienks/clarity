@@ -3,12 +3,10 @@
 // Project Includes
 #include "components/clarity_component.h"
 #include "definitions/constants.h"
-#include "interfaces/i_action_handler.h"
 #include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
-#include "interfaces/i_panel_manager.h"
 #include "ui/theme.h"
 #include <memory>
 /**
@@ -40,7 +38,7 @@ class SplashPanel : public IPanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+    SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme,
                 IConfigurationManager *configuration_manager = nullptr);
     ~SplashPanel() override;
 
@@ -49,12 +47,14 @@ class SplashPanel : public IPanel
     void Init() override;
     void Load() override;
     void Update() override;
-    // IActionService Interface Implementation (inherited through IPanel)
-    // Old function pointer methods removed - using direct HandleShortPress/HandleLongPress
+    /// Short press skips the rest of the splash (Q-08); long press opens Config
+    clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
 
-    // Public action handlers
-    void HandleShortPress() override;
-    void HandleLongPress() override;
+    /// True once the fade-out ends or a short press skips it; the screen manager then loads the target panel
+    bool Finished() const override
+    {
+        return done_;
+    }
 
     // Configuration management
     void RegisterConfiguration();
@@ -89,7 +89,6 @@ class SplashPanel : public IPanel
     IGpioProvider *gpio_provider_;
     IDisplayProvider *display_provider_;
     Theme *theme_;
-    IPanelManager *panel_manager_;
     IConfigurationManager *configuration_manager_ = nullptr;
 
     // Components - static allocation
@@ -97,4 +96,5 @@ class SplashPanel : public IPanel
     ClarityComponent component_;
     bool component_initialized_ = false;
     lv_timer_t *timer_ = nullptr; // The one pending phase timer; each callback hands it on or clears it
+    bool done_ = false;
 };

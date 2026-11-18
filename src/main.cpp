@@ -1,5 +1,4 @@
 #include "main.h"
-#include "app/display_controller.h"
 #include "app/inputs.h"
 #include "definitions/configs.h"
 #include "definitions/constants.h"
@@ -11,13 +10,14 @@
 #include "interfaces/i_gpio_provider.h"
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
-#include "managers/panel_manager.h"
 #include "providers/device_provider.h"
+#include "ui/screen_manager.h"
 #include "ui/theme.h"
 #include "utilities/logging.h"
 #include "utilities/test_inject.h"
 #include <algorithm>
 #include <esp_system.h>
+#include <string>
 
 // Self-registration at program startup
 static bool system_config_registered = []()
@@ -36,9 +36,8 @@ std::unique_ptr<IGpioProvider> gpio_provider;
 std::unique_ptr<IDisplayProvider> display_provider;
 std::unique_ptr<Theme> ui_theme;
 std::unique_ptr<IConfigurationManager> configuration_manager;
-std::unique_ptr<PanelManager> panel_manager;
+std::unique_ptr<ScreenManager> screen_manager;
 std::unique_ptr<Inputs> inputs;
-std::unique_ptr<DisplayController> display_controller;
 ErrorManager *error_manager;
 
 // Set when initializeServices() fails; loop() then does nothing but wait for the restart
@@ -173,19 +172,8 @@ bool InitializeServices()
 
     inputs = std::make_unique<Inputs>(*gpio_provider);
 
-    // Create PanelManager with all dependencies
-    panel_manager = manager_factory->CreatePanelManager(display_provider.get(), gpio_provider.get(), ui_theme.get(),
-                                                        configuration_manager.get());
-
-    if (!panel_manager)
-    {
-        log_e("Failed to create PanelManager via factory");
-        ErrorManager::Instance().ReportCriticalError("main", "PanelManager creation failed");
-        return false;
-    }
-
-    display_controller = std::make_unique<DisplayController>(*panel_manager, *ui_theme);
-    panel_manager->SetDisplayController(display_controller.get());
+    screen_manager =
+        std::make_unique<ScreenManager>(*gpio_provider, *display_provider, *ui_theme, *configuration_manager);
 
     error_manager = manager_factory->CreateErrorManager();
     if (!error_manager)
@@ -209,6 +197,23 @@ static void UpdateButtonThresholds()
     }
     inputs->SetButtonThresholds(clarity::core::InputSampler::DEFAULT_MIN_SHORT_MS,
                                 static_cast<uint32_t>(long_press_ms));
+}
+
+/// Debug builds only: the test button (GPIO 34) reports one warning, one error and one critical error
+static void ReportDebugErrors()
+{
+#ifdef CLARITY_DEBUG
+    log_t("ErrorActivate() - Debug error button pressed, generating test errors");
+
+    // Three test errors with unique timestamps, as the old debug trigger generated
+    const std::string stamp = std::to_string(millis());
+    ErrorManager &errors = ErrorManager::Instance();
+    errors.ReportWarning("DebugTest", "Test warning from debug error trigger @" + stamp);
+    errors.ReportError(ErrorLevel::ERROR, "DebugTest", "Test error from debug error trigger @" + stamp);
+    errors.ReportCriticalError("DebugTest", "Test critical error from debug error trigger @" + stamp);
+
+    log_t("Debug errors generated: 1 WARNING, 1 ERROR, 1 CRITICAL - error panel will load automatically");
+#endif
 }
 
 // ========== Arduino Functions ==========
@@ -244,22 +249,7 @@ void setup()
     // that is active at boot shows its panel directly and skips the default panel and its splash
     UpdateButtonThresholds();
     inputs->Begin(millis());
-    const bool override_requested = display_controller->Begin(*inputs);
-
-    if (!override_requested)
-    {
-        // Determine the default panel from configuration
-        std::string default_panel_name = panel_names::OIL; // Default
-        if (auto name_value =
-                configuration_manager->QueryConfig<std::string>(config_constants::keys::SYSTEM_DEFAULT_PANEL))
-        {
-            default_panel_name = *name_value;
-        }
-        panel_manager->CreateAndLoadPanel(default_panel_name.c_str());
-    }
-
-    // Initial triggers and the default panel only recorded a request: apply it before the first loop
-    panel_manager->ApplyPendingTransition();
+    screen_manager->Begin(inputs->Vehicle());
 
     log_i("Clarity application started successfully");
 }
@@ -267,8 +257,8 @@ void setup()
 /**
  * @brief Arduino main loop - processes system events and updates UI
  *
- * Samples the inputs, acts on them through the display controller, monitors
- * error conditions, applies the pending panel transition and updates the
+ * Samples the inputs, hands the button event to the screen manager, lets it
+ * apply the panel transition the inputs and errors ask for and updates the
  * active panel. Ends with the single LVGL pump and sleeps until LVGL's next
  * timer is due, at most 10 ms so the inputs keep being sampled (D-12).
  */
@@ -287,37 +277,27 @@ void loop()
 
     UpdateButtonThresholds();
     inputs->Sample(millis());
-    display_controller->Update(*inputs);
+
+    // The button first, then the debug error line, then the vehicle lines and errors. Everything is acted on in
+    // the pass it arrives (Q-07): the panel only returns an intent, applied by Apply() below
+    const clarity::core::ButtonEvent button = inputs->Button();
+    if (button == clarity::core::ButtonEvent::Long)
+    {
+        log_t("Long press triggered during hold");
+    }
+    screen_manager->OnButton(button);
+
+    if (inputs->DebugErrorEdge())
+    {
+        ReportDebugErrors();
+    }
     test_inject::Poll();
 
-    // Check for error panel trigger. It only records a request (applied below), so it does not wait for an
-    // animation (Q-07); like the other overrides it waits for the splash to finish (Q-06)
-    static bool error_panel_triggered = false; // Track if error panel was already triggered
-    if (!panel_manager->IsSplashRunning())
-    {
-        bool should_trigger_error = error_manager->ShouldTriggerErrorPanel();
-        const char *current_panel = panel_manager->GetCurrentPanel();
-        bool is_currently_error_panel = current_panel && strcmp(current_panel, panel_names::ERROR) == 0;
-
-        // Trigger error panel if needed and not already triggered
-        if (should_trigger_error && !error_panel_triggered && !is_currently_error_panel)
-        {
-            log_t("ErrorOccurredActivate() - Loading ERROR panel");
-            panel_manager->CreateAndLoadPanel(panel_names::ERROR, true); // Mark as trigger-driven
-            error_panel_triggered = true;
-        }
-        // Reset trigger state when no longer needed
-        else if (!should_trigger_error && error_panel_triggered)
-        {
-            error_panel_triggered = false;
-        }
-    }
-
-    // Apply the transition requested above or by a panel during the previous iteration
-    panel_manager->ApplyPendingTransition();
+    // The single transition point. Overrides, the error panel included, wait for the splash to finish (Q-06)
+    screen_manager->Apply(inputs->Vehicle(), error_manager->ShouldTriggerErrorPanel());
 
     // Every pass: a panel that animates skips its own updates until the animation ends
-    panel_manager->UpdatePanel();
+    screen_manager->Update();
 
     // The only lv_timer_handler() call: it renders and runs LVGL timers, and returns the ms until the next is due
     const uint32_t idle_ms = lv_timer_handler();

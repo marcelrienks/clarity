@@ -3,7 +3,6 @@
 #include "factories/provider_factory.h"
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
-#include "managers/panel_manager.h"
 #include "providers/device_provider.h"
 #include <esp32-hal-log.h>
 
@@ -34,119 +33,6 @@ ManagerFactory::ManagerFactory(std::unique_ptr<ProviderFactory> provider_factory
  */
 ManagerFactory::ManagerFactory() : provider_factory_(std::make_unique<ProviderFactory>())
 {
-}
-
-// ========== Private Methods ==========
-
-/**
- * @brief Initializes hardware providers if not already created
- * @return true if all providers initialized successfully
- *
- * Creates device, GPIO, and display providers through the provider factory.
- * Ensures all providers are available before manager creation.
- */
-bool ManagerFactory::InitializeProviders()
-{
-
-    if (!provider_factory_)
-    {
-        log_e("Cannot initialize providers - provider factory is null");
-        return false;
-    }
-
-    // Create providers if not already created
-    if (!device_provider_)
-    {
-        device_provider_ = provider_factory_->CreateDeviceProvider();
-        if (!device_provider_)
-        {
-            log_e("Failed to create DeviceProvider");
-            return false;
-        }
-    }
-
-    if (!gpio_provider_)
-    {
-        gpio_provider_ = provider_factory_->CreateGpioProvider();
-        if (!gpio_provider_)
-        {
-            log_e("Failed to create GpioProvider");
-            return false;
-        }
-    }
-
-    if (!display_provider_)
-    {
-        display_provider_ = provider_factory_->CreateDisplayProvider(device_provider_.get());
-        if (!display_provider_)
-        {
-            log_e("Failed to create DisplayProvider");
-            return false;
-        }
-    }
-
-    return true;
-}
-
-/**
- * @brief Internal implementation for creating PanelManager
- * @param display Display provider for UI rendering
- * @param gpio GPIO provider for hardware interaction
- * @param theme Theme for the panels
- * @param preferenceService Preference service for configuration
- * @return Unique pointer to PanelManager or nullptr on failure
- *
- * Validates all dependencies, creates PanelManager with dependency injection,
- * and initializes it before returning. Reports critical errors on failure.
- */
-std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManagerImpl(IDisplayProvider *display, IGpioProvider *gpio,
-                                                                     Theme *theme,
-                                                                     IConfigurationManager *configuration_manager)
-{
-
-    // Validate required providers
-    if (!display)
-    {
-        log_e("ManagerFactory: Cannot create PanelManager - IDisplayProvider is null");
-        ErrorManager::Instance().ReportCriticalError("ManagerFactory",
-                                                     "Cannot create PanelManager - DisplayProvider dependency is null");
-        return nullptr;
-    }
-    if (!gpio)
-    {
-        log_e("ManagerFactory: Cannot create PanelManager - IGpioProvider is null");
-        ErrorManager::Instance().ReportCriticalError("ManagerFactory",
-                                                     "Cannot create PanelManager - GpioProvider dependency is null");
-        return nullptr;
-    }
-    if (!theme)
-    {
-        log_e("ManagerFactory: Cannot create PanelManager - Theme is null");
-        ErrorManager::Instance().ReportCriticalError("ManagerFactory",
-                                                     "Cannot create PanelManager - Theme dependency is null");
-        return nullptr;
-    }
-
-    if (!configuration_manager)
-    {
-        log_e("ManagerFactory: Cannot create PanelManager - IConfigurationManager is null");
-        ErrorManager::Instance().ReportCriticalError("ManagerFactory",
-                                                     "Cannot create PanelManager - ConfigManager null");
-        return nullptr;
-    }
-
-    auto panel_manager = std::make_unique<PanelManager>(display, gpio, theme, configuration_manager);
-    if (!panel_manager)
-    {
-        log_e("ManagerFactory: Failed to create PanelManager - allocation failed");
-        ErrorManager::Instance().ReportCriticalError("ManagerFactory",
-                                                     "PanelManager allocation failed - out of memory");
-        return nullptr;
-    }
-
-    panel_manager->Init();
-
-    return panel_manager;
 }
 
 /**
@@ -197,41 +83,6 @@ ErrorManager *ManagerFactory::CreateErrorManagerImpl()
     }
 
     return error_manager;
-}
-
-/**
- * @brief Creates PanelManager with provided or factory-created providers
- * @param display Display provider (optional, created if null)
- * @param gpio GPIO provider (optional, created if null)
- * @param theme Theme for the panels
- * @param preferenceService Preference service for configuration
- * @return Unique pointer to PanelManager or nullptr on failure
- *
- * Public interface method that uses provided providers or creates them
- * through provider factory if not supplied. Delegates to implementation method.
- */
-std::unique_ptr<PanelManager> ManagerFactory::CreatePanelManager(IDisplayProvider *display, IGpioProvider *gpio,
-                                                                 Theme *theme,
-                                                                 IConfigurationManager *configuration_manager)
-{
-
-    // When using the dual factory pattern, get providers from provider factory
-    IDisplayProvider *display_to_use = display;
-    IGpioProvider *gpio_to_use = gpio;
-
-    // If providers not passed, get them from provider factory
-    if (!display || !gpio)
-    {
-        if (!InitializeProviders())
-        {
-            log_e("Failed to initialize providers from factory");
-            return nullptr;
-        }
-        display_to_use = display ? display : display_provider_.get();
-        gpio_to_use = gpio ? gpio : gpio_provider_.get();
-    }
-
-    return CreatePanelManagerImpl(display_to_use, gpio_to_use, theme, configuration_manager);
 }
 
 /**

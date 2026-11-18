@@ -46,9 +46,8 @@ class IGpioProvider;
 class IDisplayProvider;
 class Theme;
 class IConfigurationManager;
-class PanelManager;
+class ScreenManager;
 class Inputs;
-class DisplayController;
 class ErrorManager;
 class ConfigurationManager;
 
@@ -65,9 +64,8 @@ extern std::unique_ptr<IDisplayProvider> display_provider;
 // Global managers - created by ManagerFactory
 extern std::unique_ptr<Theme> ui_theme;
 extern std::unique_ptr<IConfigurationManager> preference_manager;
-extern std::unique_ptr<PanelManager> panel_manager;
+extern std::unique_ptr<ScreenManager> screen_manager;
 extern std::unique_ptr<Inputs> inputs;
-extern std::unique_ptr<DisplayController> display_controller;
 extern ErrorManager *error_manager;
 extern std::unique_ptr<IConfigurationManager> configuration_manager;
 

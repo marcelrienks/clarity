@@ -30,7 +30,10 @@ class LockPanel : public BasePanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    LockPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager = nullptr);
+    LockPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme);
+
+    /// Long press opens Config
+    clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
 
     // ========== Public Interface Methods ==========
     static constexpr const char *NAME = panel_names::LOCK;
@@ -43,9 +46,6 @@ class LockPanel : public BasePanel
     {
         return panel_names::LOCK;
     }
-
-    // Optional overrides
-    void HandleLongPress() override;
 
   private:
     // ========== Private Data Members ==========

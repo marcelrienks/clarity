@@ -1,7 +1,6 @@
 #include "panels/error_panel.h"
 #include "components/error_component.h"
 #include "definitions/constants.h"
-#include "managers/panel_manager.h"
 #include "ui/theme.h"
 #include "utilities/logging.h"
 #include <Arduino.h>
@@ -19,9 +18,9 @@
  * Initializes component state and sets error panel as active in ErrorManager
  * for proper coordination with the trigger system.
  */
-ErrorPanel::ErrorPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager)
-    : gpio_provider_(gpio), display_provider_(display), theme_(theme), panel_manager_(panel_manager),
-      error_component_(theme), component_initialized_(false), panel_loaded_(false), current_error_index_(0)
+ErrorPanel::ErrorPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme)
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme), error_component_(theme),
+      component_initialized_(false), current_error_index_(0)
 {
     log_v("ErrorPanel constructor called");
 }
@@ -43,8 +42,7 @@ ErrorPanel::~ErrorPanel()
 
     // Components delete no LVGL objects, so destroying them after the screen is safe
 
-    // Don't restore theme here - let the trigger system manage themes
-    // The CheckRestoration() method will apply the correct theme based on active triggers
+    // Don't restore theme here: the screen manager applies the lights theme when it restores
 }
 
 // ========== Public Interface Methods ==========
@@ -125,15 +123,11 @@ void ErrorPanel::Load()
 
     lv_screen_load(screen_);
 
-    // The error panel forces the Error theme (EffectiveTheme); DisplayController::ApplyOverride() puts the
-    // lights theme back when the restoration is applied
+    // The screen manager applied the Error theme (EffectiveTheme) before creating this panel
     if (theme_)
     {
-        theme_->Apply(clarity::core::ThemeId::Error);
         theme_->ApplyBackground(screen_);
     }
-
-    panel_loaded_ = true;
 
     log_t("ErrorPanel loaded successfully");
 }
@@ -204,46 +198,40 @@ void ErrorPanel::Update()
         log_i("Displaying error %zu/%zu", current_error_index_ + 1, current_errors_.size());
     }
 
-    // If no errors remain, trigger auto-restoration to previous panel
-    if (current_errors_.empty() && panel_loaded_)
-    {
-        // Restoration only records a request (applied later in the loop pass), and it requests a key or
-        // lock override instead if one is still active
-        log_i("ErrorPanel: No errors remaining - checking for active triggers before restoration");
-        PanelManager::Instance().CheckRestoration();
-    }
+    // No errors remaining: the press that cleared them returned ClearErrors, and the screen manager restores
 }
 
-/**
- * @brief Injects manager dependencies for panel operation
- * @param panelManager Panel service for navigation control
- * @param theme Theme for the shared styles and the palette
- *
- * Dependency injection method that provides panel with required manager
- * interfaces. Called during panel creation to establish service dependencies
- * needed for proper panel operation and lifecycle management.
- */
-
-// ========== IActionService Interface Implementation ==========
-
 // ========== Action Handler Methods ==========
+
+clarity::core::NavIntent ErrorPanel::OnButton(clarity::core::ButtonEvent event)
+{
+    if (event == clarity::core::ButtonEvent::Short)
+    {
+        return HandleShortPress();
+    }
+    if (event == clarity::core::ButtonEvent::Long)
+    {
+        return HandleLongPress();
+    }
+    return clarity::core::NavIntent::None;
+}
 
 /**
  * @brief Handles short button press events for error cycling
  *
- * Processes short button press events by advancing to the next error in the
- * current error list. Cycles through all errors sequentially, wrapping back
- * to the first error after reaching the last one. Does not clear errors or
- * exit the panel - only provides navigation through the error list.
+ * Processes short button press events by removing the viewed error and
+ * showing the next one. Once the last one is viewed, all errors are cleared
+ * and the panel asks the screen manager to restore (Q-12 decides whether
+ * that stays).
  */
-void ErrorPanel::HandleShortPress()
+clarity::core::NavIntent ErrorPanel::HandleShortPress()
 {
     log_t("ErrorPanel::HandleShortPress() - Manual cycling to next error");
 
     if (current_errors_.empty())
     {
         log_w("ErrorPanel::HandleShortPress() - No errors to cycle through");
-        return;
+        return clarity::core::NavIntent::ClearErrors;
     }
 
     log_t("ErrorPanel::HandleShortPress() - Current error index: %zu/%zu", current_error_index_,
@@ -253,8 +241,8 @@ void ErrorPanel::HandleShortPress()
     log_t("ErrorPanel::HandleShortPress() - Advancing to next error");
     AdvanceToNextError();
 
-    // Short press only cycles through errors, never exits
-    // User must use long press to clear and exit
+    // The last error was viewed: AdvanceToNextError() cleared them all
+    return current_errors_.empty() ? clarity::core::NavIntent::ClearErrors : clarity::core::NavIntent::None;
 }
 
 /**
@@ -265,17 +253,15 @@ void ErrorPanel::HandleShortPress()
  * triggers the restoration logic to return to the appropriate previous panel
  * or default state. This provides the primary mechanism for dismissing errors.
  */
-void ErrorPanel::HandleLongPress()
+clarity::core::NavIntent ErrorPanel::HandleLongPress()
 {
     log_t("ErrorPanel: Long press - clearing all errors and exiting panel");
 
     // Clear all errors from the error manager
     ErrorManager::Instance().ClearAllErrors();
 
-    // Use standard restoration logic for all builds
-    // This will check for other active triggers and restore appropriately
-    PanelManager::Instance().CheckRestoration();
-    log_i("ErrorPanel: Triggered restoration check after clearing errors");
+    // The screen manager restores: it shows a key or lock override that is still active, otherwise the user panel
+    return clarity::core::NavIntent::ClearErrors;
 }
 
 // ========== Private Methods ==========

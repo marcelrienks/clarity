@@ -11,7 +11,7 @@
  * It provides a simple, clean interface for monitoring key presence or ignition state.
  *
  * @presenter_role Coordinates KeyComponent with the key state
- * @data_source Key state from PanelManager::GetKeyState(), set by the display controller
+ * @data_source Key state handed in by ScreenManager when it creates the panel
  * @update_strategy Simple boolean state updates without animation
  *
  * @ui_layout:
@@ -30,7 +30,10 @@ class KeyPanel : public BasePanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager = nullptr);
+    KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, KeyState key_state);
+
+    /// Long press opens Config
+    clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
 
     // ========== Public Interface Methods ==========
     static constexpr const char *NAME = panel_names::KEY;
@@ -43,9 +46,6 @@ class KeyPanel : public BasePanel
     {
         return panel_names::KEY;
     }
-
-    // Optional overrides
-    void HandleLongPress() override;
 
   private:
     // ========== Private Data Members ==========

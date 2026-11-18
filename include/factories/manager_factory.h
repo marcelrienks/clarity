@@ -3,14 +3,10 @@
 #include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
-#include "interfaces/i_panel_manager.h"
 #include <Arduino.h>
 #include <memory>
 
 // Forward declarations
-class PanelManager;
-class Theme;
-class DeviceProvider;
 class ConfigurationManager;
 class ErrorManager;
 class ProviderFactory;
@@ -41,30 +37,16 @@ class ManagerFactory
 
     // ========== Public Interface Methods ==========
     // Factory methods
-    std::unique_ptr<PanelManager> CreatePanelManager(IDisplayProvider *display, IGpioProvider *gpio, Theme *theme,
-                                                     IConfigurationManager *configuration_manager);
-
     std::unique_ptr<IConfigurationManager> CreateConfigurationManager();
 
     ErrorManager *CreateErrorManager();
 
   private:
-    // ========== Private Methods ==========
-    bool InitializeProviders();
-
     // ========== Static Methods ==========
-    static std::unique_ptr<PanelManager> CreatePanelManagerImpl(IDisplayProvider *display, IGpioProvider *gpio,
-                                                                Theme *theme,
-                                                                IConfigurationManager *configuration_manager);
-
     static std::unique_ptr<IConfigurationManager> CreateConfigurationManagerImpl();
 
     static ErrorManager *CreateErrorManagerImpl();
 
     // ========== Private Data Members ==========
     std::unique_ptr<ProviderFactory> provider_factory_;
-
-    std::unique_ptr<IGpioProvider> gpio_provider_;
-    std::unique_ptr<IDisplayProvider> display_provider_;
-    std::unique_ptr<DeviceProvider> device_provider_;
 };

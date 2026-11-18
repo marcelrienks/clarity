@@ -5,7 +5,6 @@
 #include "definitions/constants.h"
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
-#include "managers/panel_manager.h"
 #include "sensors/oil_pressure_sensor.h"
 #include "sensors/oil_temperature_sensor.h"
 #include "ui/theme.h"
@@ -25,11 +24,11 @@
  * Initializes stack-allocated components, creates sensor instances, and sets up
  * LVGL animation structures for smooth needle movements.
  */
-OemOilPanel::OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+OemOilPanel::OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme,
                          IConfigurationManager *configuration_manager)
-    : gpio_provider_(gpio), display_provider_(display), theme_(theme), panel_manager_(panel_manager),
-      configuration_manager_(configuration_manager), oem_oil_pressure_component_(theme),
-      oem_oil_temperature_component_(theme), oem_oil_pressure_sensor_(std::make_shared<OilPressureSensor>(gpio)),
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme), configuration_manager_(configuration_manager),
+      oem_oil_pressure_component_(theme), oem_oil_temperature_component_(theme),
+      oem_oil_pressure_sensor_(std::make_shared<OilPressureSensor>(gpio)),
       oem_oil_temperature_sensor_(std::make_shared<OilTemperatureSensor>(gpio)), components_initialized_(false),
       current_oil_pressure_value_(-1), current_oil_temperature_value_(-1), pressure_deadband_(0),
       temperature_deadband_(0), last_animated_pressure_value_(-1), last_animated_temperature_value_(-1)
@@ -833,32 +832,25 @@ int32_t OemOilPanel::MapTemperatureValue(int32_t sensor_value)
     return mapped_value;
 }
 
-// ========== IActionService Interface Implementation ==========
-
 // ========== Action Handler Methods ==========
 
 /**
- * @brief Handles short button press during oil monitoring display
+ * @brief Handles button presses during oil monitoring display
  *
- * Currently provides no-op functionality. The OEM oil panel
- * is primarily a monitoring display without direct interaction.
+ * A short press does nothing: the OEM oil panel is primarily a monitoring
+ * display without direct interaction. A long press opens the configuration panel.
  */
-void OemOilPanel::HandleShortPress()
+clarity::core::NavIntent OemOilPanel::OnButton(clarity::core::ButtonEvent event)
 {
-    // No action on short press - monitoring panel
-    log_v("OemOilPanel short press - no action");
-}
-void OemOilPanel::HandleLongPress()
-{
-    if (panel_manager_)
+    if (event != clarity::core::ButtonEvent::Long)
     {
-        log_i("OemOilPanel long press - loading config panel");
-        panel_manager_->CreateAndLoadPanel(panel_names::CONFIG, true);
+        // No action on short press - monitoring panel
+        log_v("OemOilPanel short press - no action");
+        return clarity::core::NavIntent::None;
     }
-    else
-    {
-        log_w("OemOilPanel: Cannot load config panel - panelManager not available");
-    }
+
+    log_i("OemOilPanel long press - loading config panel");
+    return clarity::core::NavIntent::OpenConfig;
 }
 
 // ========== Helper Methods ==========

@@ -9,8 +9,8 @@
 /**
  * @brief Initialize BasePanel with dependency injection of required services
  */
-BasePanel::BasePanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager)
-    : gpio_provider_(gpio), display_provider_(display), theme_(theme), panel_manager_(panel_manager)
+BasePanel::BasePanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme)
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme)
 {
     log_v("BasePanel constructor called");
 }
@@ -82,43 +82,6 @@ void BasePanel::Update()
 
     // Update panel-specific content (implemented by derived classes)
     UpdateContent();
-}
-
-/**
- * @brief Inject manager service dependencies
- * @details Updates panel and theme references for runtime services
- */
-
-/**
- * @brief Get short press handler function pointer
- */
-
-// ========== Static Methods ==========
-
-/**
- * @brief Static wrapper for short button press - delegates to virtual method
- */
-void BasePanel::BasePanelShortPress(void *panel_context)
-{
-    auto *panel = static_cast<BasePanel *>(panel_context);
-    if (panel)
-    {
-        log_v("%s::BasePanelShortPress() called", panel->GetPanelName());
-        panel->HandleShortPress();
-    }
-}
-
-/**
- * @brief Static wrapper for long button press - delegates to virtual method
- */
-void BasePanel::BasePanelLongPress(void *panel_context)
-{
-    auto *panel = static_cast<BasePanel *>(panel_context);
-    if (panel)
-    {
-        log_v("%s::BasePanelLongPress() called", panel->GetPanelName());
-        panel->HandleLongPress();
-    }
 }
 
 // ========== Private Methods ==========

@@ -3,12 +3,10 @@
 #include "components/config_component.h"
 #include "definitions/configs.h"
 #include "definitions/types.h"
-#include "interfaces/i_action_handler.h"
 #include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
-#include "interfaces/i_panel_manager.h"
 #include "ui/theme.h"
 
 #include <memory>
@@ -49,7 +47,7 @@ class ConfigPanel : public IPanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+    ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme,
                 IConfigurationManager *configuration_manager);
     ~ConfigPanel() override;
 
@@ -58,9 +56,9 @@ class ConfigPanel : public IPanel
     void Init() override;
     void Load() override;
     void Update() override;
-    // IActionService Interface Implementation (inherited through IPanel)
-    void HandleShortPress() override;
-    void HandleLongPress() override;
+
+    /// Short press highlights the next item; long press selects it. Returns ExitConfig when Exit is selected
+    clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
 
   private:
     // ========== Private Types ==========
@@ -109,16 +107,19 @@ class ConfigPanel : public IPanel
     std::vector<std::string> ParseOptions(const std::string &constraints) const;
     std::pair<std::string, std::string> ParseConfigKey(const std::string &full_key) const;
 
+    void HandleShortPress();
+    clarity::core::NavIntent HandleLongPress();
+
     // Helper methods for HandleLongPress
     bool ValidateMenuState() const;
-    void ExecuteMenuAction(const ConfigComponent::MenuItem &item);
+    clarity::core::NavIntent ExecuteMenuAction(const ConfigComponent::MenuItem &item);
     MenuActionType ParseActionType(const std::string &action_type_str) const;
     void HandleEnterSection(const std::string &section_name);
     void HandleToggleBoolean(const std::string &full_key);
     void HandleShowOptions(const std::string &full_key);
     void HandleSetConfigValue(const std::string &action_param);
     void HandleBackAction(const std::string &action_param);
-    void HandlePanelExit();
+    clarity::core::NavIntent HandlePanelExit();
 
     // ========== Private Data Members ==========
 
@@ -126,7 +127,6 @@ class ConfigPanel : public IPanel
     IGpioProvider *gpio_provider_;
     IDisplayProvider *display_provider_;
     Theme *theme_;
-    IPanelManager *panel_manager_;
     IConfigurationManager *configuration_manager_ = nullptr;
     lv_obj_t *screen_ = nullptr;
 

@@ -18,11 +18,10 @@
  * current key state during construction and initializes stack-allocated
  * key component for efficient memory usage.
  */
-KeyPanel::KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager)
-    : BasePanel(gpio, display, theme, panel_manager), key_component_(theme), component_initialized_(false)
+KeyPanel::KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, KeyState key_state)
+    : BasePanel(gpio, display, theme), key_component_(theme), component_initialized_(false),
+      current_key_state_(key_state)
 {
-    // Determine current key state by checking which sensor is currently active
-    current_key_state_ = panel_manager_->GetKeyState();
 }
 
 // ========== Protected Methods ==========
@@ -56,26 +55,20 @@ void KeyPanel::CreateContent()
 void KeyPanel::UpdateContent()
 {
     // Key panel is static - no updates needed
-    // State changes are handled by the display controller reloading the panel
+    // State changes are handled by the screen manager reloading the panel
 }
 
 // Panel-specific button handling
 /**
- * @brief Handles long button press events for panel navigation
- *
- * Processes long button press events by navigating to the configuration panel.
- * This provides users with access to system settings from the key status display.
- * Includes error handling for cases where the panel service is not available.
+ * @brief Handles button presses: a long press opens the configuration panel
  */
-void KeyPanel::HandleLongPress()
+clarity::core::NavIntent KeyPanel::OnButton(clarity::core::ButtonEvent event)
 {
-    if (panel_manager_)
+    if (event != clarity::core::ButtonEvent::Long)
     {
-        log_i("KeyPanel long press - loading config panel");
-        panel_manager_->CreateAndLoadPanel(panel_names::CONFIG, true);
+        return clarity::core::NavIntent::None;
     }
-    else
-    {
-        log_w("KeyPanel: Cannot load config panel - panelManager not available");
-    }
+
+    log_i("KeyPanel long press - loading config panel");
+    return clarity::core::NavIntent::OpenConfig;
 }

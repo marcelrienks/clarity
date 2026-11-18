@@ -21,10 +21,10 @@
  * Initializes menu system for automotive settings management including
  * theme selection, calibration, and system configuration options.
  */
-ConfigPanel::ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+ConfigPanel::ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme,
                          IConfigurationManager *configuration_manager)
-    : gpio_provider_(gpio), display_provider_(display), theme_(theme), panel_manager_(panel_manager),
-      configuration_manager_(configuration_manager), component_initialized_(false), current_menu_index_(0)
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme), configuration_manager_(configuration_manager),
+      component_initialized_(false), current_menu_index_(0)
 {
     log_v("ConfigPanel constructor called");
 }
@@ -157,6 +157,20 @@ void ConfigPanel::ApplyMenuBackground()
 
 // ========== Public Action Handlers ==========
 
+clarity::core::NavIntent ConfigPanel::OnButton(clarity::core::ButtonEvent event)
+{
+    if (event == clarity::core::ButtonEvent::Short)
+    {
+        HandleShortPress();
+        return clarity::core::NavIntent::None;
+    }
+    if (event == clarity::core::ButtonEvent::Long)
+    {
+        return HandleLongPress();
+    }
+    return clarity::core::NavIntent::None;
+}
+
 /**
  * @brief Handles short button press to cycle through menu items
  *
@@ -192,18 +206,19 @@ void ConfigPanel::HandleShortPress()
  * with the selected menu item. Actions include entering sections,
  * toggling booleans, showing options, or exiting the panel.
  */
-void ConfigPanel::HandleLongPress()
+clarity::core::NavIntent ConfigPanel::HandleLongPress()
 {
 
     if (!ValidateMenuState())
     {
         log_e("ConfigPanel::HandleLongPress() - ValidateMenuState failed");
-        return;
+        return clarity::core::NavIntent::None;
     }
 
-    const auto &item = menu_items_[current_menu_index_];
+    // A copy: entering a section or an option list rebuilds menu_items_
+    const ConfigComponent::MenuItem item = menu_items_[current_menu_index_];
 
-    ExecuteMenuAction(item);
+    return ExecuteMenuAction(item);
 }
 
 // ========== Helper Methods for HandleLongPress ==========
@@ -239,7 +254,7 @@ bool ConfigPanel::ValidateMenuState() const
  * Parses the action type and delegates to appropriate handler method.
  * Supports section navigation, value toggling, options display, and panel exit.
  */
-void ConfigPanel::ExecuteMenuAction(const ConfigComponent::MenuItem &item)
+clarity::core::NavIntent ConfigPanel::ExecuteMenuAction(const ConfigComponent::MenuItem &item)
 {
 
     MenuActionType action_type = ParseActionType(item.actionType);
@@ -264,14 +279,14 @@ void ConfigPanel::ExecuteMenuAction(const ConfigComponent::MenuItem &item)
         case MenuActionType::NONE:
             break;
         case MenuActionType::PANEL_EXIT:
-            HandlePanelExit();
-            break;
+            return HandlePanelExit();
         case MenuActionType::UNKNOWN:
         default:
             log_w("ExecuteMenuAction - Unknown action type: %s (enum: %d)", item.actionType.c_str(),
                   static_cast<int>(action_type));
             break;
     }
+    return clarity::core::NavIntent::None;
 }
 
 /**
@@ -434,17 +449,12 @@ void ConfigPanel::HandleBackAction(const std::string & /*action_param*/)
 /**
  * @brief Handles exit from configuration panel
  *
- * Retrieves the restoration panel from panel service and loads it.
- * Typically returns to the previous operational panel.
+ * Asks the screen manager to load the user panel (ExitConfig).
  */
-void ConfigPanel::HandlePanelExit()
+clarity::core::NavIntent ConfigPanel::HandlePanelExit()
 {
     log_t("ConfigPanel: Executing exit function");
-    if (panel_manager_)
-    {
-        const char *restoration_panel = panel_manager_->GetRestorationPanel();
-        panel_manager_->CreateAndLoadPanel(restoration_panel, true);
-    }
+    return clarity::core::NavIntent::ExitConfig;
 }
 
 // ========== Dynamic Configuration Implementation ==========

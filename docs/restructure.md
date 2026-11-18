@@ -361,7 +361,7 @@ Back from an option list returns to the **main** menu, not to the section (`conf
 
 ### D-21: Factory fallback would initialise the hardware twice (S3, dead code today)
 
-If `ManagerFactory::CreatePanelManager` or `CreateInterruptManager` ever receives null, `InitializeProviders()` builds a **second** `DeviceProvider`. That means a second LovyanGFX init, a second `lv_init()` and a second display (`manager_factory.cpp:52-86, 279-286, 327-333`). Delete the factory (A-01).
+If `ManagerFactory::CreatePanelManager` or `CreateInterruptManager` ever receives null, `InitializeProviders()` builds a **second** `DeviceProvider`. That means a second LovyanGFX init, a second `lv_init()` and a second display (`manager_factory.cpp:52-86, 279-286, 327-333`). Delete the factory (A-01). Since todo 5.3 the fallback is gone: `CreatePanelManager` and `InitializeProviders()` were deleted with `PanelManager`.
 
 ### D-22: The automated scenario is stale and CI is gone (S2, Confirmed)
 

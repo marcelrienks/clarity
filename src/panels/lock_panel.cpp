@@ -17,10 +17,10 @@
  * lock engaged state since panel is only loaded when lock state changes.
  * Uses stack-allocated component for efficient memory management.
  */
-LockPanel::LockPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager)
-    : BasePanel(gpio, display, theme, panel_manager), lock_component_(theme), component_initialized_(false)
+LockPanel::LockPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme)
+    : BasePanel(gpio, display, theme), lock_component_(theme), component_initialized_(false)
 {
-    // Note: LockPanel is display-only, the display controller loads it while the lock input is active
+    // Note: LockPanel is display-only, the screen manager loads it while the lock input is active
     // Since this panel is only loaded when lock state changes, assume engaged
     is_lock_engaged_ = true;
 }
@@ -48,30 +48,24 @@ void LockPanel::CreateContent()
  *
  * Lock panel displays static state determined by trigger system.
  * State changes result in panel transitions rather than content updates
- * within the same panel instance. The display controller manages state changes.
+ * within the same panel instance. The screen manager manages state changes.
  */
 void LockPanel::UpdateContent()
 {
     // Lock panel is static - no updates needed
-    // State changes are handled by the display controller loading different panels
+    // State changes are handled by the screen manager loading different panels
 }
 
 /**
- * @brief Handles long press button action to access configuration menu
- *
- * Responds to long press by loading configuration panel, providing access
- * to system settings from the lock display. Essential for automotive user
- * interface navigation from security status screen.
+ * @brief Handles button presses: a long press opens the configuration menu
  */
-void LockPanel::HandleLongPress()
+clarity::core::NavIntent LockPanel::OnButton(clarity::core::ButtonEvent event)
 {
-    if (panel_manager_)
+    if (event != clarity::core::ButtonEvent::Long)
     {
-        log_i("LockPanel long press - loading config panel");
-        panel_manager_->CreateAndLoadPanel(panel_names::CONFIG, true);
+        return clarity::core::NavIntent::None;
     }
-    else
-    {
-        log_w("LockPanel: Cannot load config panel - panelManager not available");
-    }
+
+    log_i("LockPanel long press - loading config panel");
+    return clarity::core::NavIntent::OpenConfig;
 }

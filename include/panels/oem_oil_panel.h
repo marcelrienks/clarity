@@ -5,12 +5,10 @@
 #include "definitions/configs.h"
 #include "definitions/constants.h"
 #include "definitions/types.h"
-#include "interfaces/i_action_handler.h"
 #include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
 #include "interfaces/i_panel.h"
-#include "interfaces/i_panel_manager.h"
 #include "sensors/oil_pressure_sensor.h"
 #include "sensors/oil_temperature_sensor.h"
 #include "ui/theme.h"
@@ -53,7 +51,7 @@ class OemOilPanel : public IPanel
 {
   public:
     // ========== Constructors and Destructor ==========
-    OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+    OemOilPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme,
                 IConfigurationManager *configuration_manager);
     ~OemOilPanel() override;
 
@@ -65,12 +63,8 @@ class OemOilPanel : public IPanel
 
     void ApplyCurrentSensorSettings();
 
-    // IActionService Interface Implementation (inherited through IPanel)
-    // Old function pointer methods removed - using direct HandleShortPress/HandleLongPress
-
-    // Public action handlers
-    void HandleShortPress() override;
-    void HandleLongPress() override;
+    /// Long press opens Config; short press does nothing
+    clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
 
     // ========== Public Data Members ==========
     static constexpr int32_t ANIMATION_DURATION = 750;
@@ -101,7 +95,6 @@ class OemOilPanel : public IPanel
     IGpioProvider *gpio_provider_;
     IDisplayProvider *display_provider_;
     Theme *theme_;
-    IPanelManager *panel_manager_;
     IConfigurationManager *configuration_manager_ = nullptr;
     // Instance Data Members - UI Objects
     lv_obj_t *screen_ = nullptr;

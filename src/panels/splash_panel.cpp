@@ -2,7 +2,6 @@
 #include "definitions/constants.h"
 #include "managers/configuration_manager.h"
 #include "managers/error_manager.h"
-#include "managers/panel_manager.h"
 #include "ui/theme.h"
 #include "utilities/logging.h"
 #include <algorithm>
@@ -29,10 +28,10 @@ static bool splash_panel_registered = []()
  * splash component and sets up notification service with fallback to default.
  * The component is stack-allocated for better memory management.
  */
-SplashPanel::SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, IPanelManager *panel_manager,
+SplashPanel::SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme,
                          IConfigurationManager *configuration_manager)
-    : gpio_provider_(gpio), display_provider_(display), theme_(theme), panel_manager_(panel_manager),
-      configuration_manager_(configuration_manager), component_(theme), component_initialized_(false)
+    : gpio_provider_(gpio), display_provider_(display), theme_(theme), configuration_manager_(configuration_manager),
+      component_(theme), component_initialized_(false)
 {
     log_v("SplashPanel constructor called");
 }
@@ -119,13 +118,13 @@ void SplashPanel::Load()
     timer_ = lv_timer_create(SplashPanel::FadeInTimerCallback, GetAnimationTime(), this);
 
 #ifdef CLARITY_TEST_SPLASH_INTERRUPT
-    // Test only (D-02): destroy this panel while its fade-in timer is pending
+    // Test only (D-02): finish early, so the screen manager destroys this panel while its fade-in timer is pending
     lv_timer_t *interrupt = lv_timer_create(
         [](lv_timer_t *t)
         {
             auto *panel = static_cast<SplashPanel *>(lv_timer_get_user_data(t));
             log_t("Test: interrupting splash mid fade-in");
-            panel->panel_manager_->CreateAndLoadPanel(panel_names::OIL, true);
+            panel->done_ = true;
         },
         GetAnimationTime() / 2, this);
     lv_timer_set_repeat_count(interrupt, 1);
@@ -239,19 +238,11 @@ void SplashPanel::FadeOutTimerCallback(lv_timer_t *fade_out_timer)
         return;
     }
 
-    // OnPanelLoadComplete below may destroy the panel; this callback deletes its own timer
+    // This callback deletes its own timer
     panel->timer_ = nullptr;
 
-    if (!panel->panel_manager_)
-    {
-        log_e("SplashPanel::fade_out_timer_callback: PanelManager is null!");
-        ErrorManager::Instance().ReportCriticalError(panel_names::SPLASH,
-                                                     "PanelManager is null - cannot complete splash transition");
-        lv_timer_del(fade_out_timer);
-        return;
-    }
-
-    static_cast<PanelManager *>(panel->panel_manager_)->OnPanelLoadComplete(panel);
+    // The screen manager loads the target panel on its next Apply() and destroys the splash then
+    panel->done_ = true;
 
     // Remove the fade_out_timer after transition, this replaces having to set a repeat on the animation_timer
     lv_timer_del(fade_out_timer);
@@ -392,44 +383,26 @@ void SplashPanel::FadeLabel(lv_opa_t from, lv_opa_t to)
     lv_anim_start(&anim);
 }
 
-// ========== IActionService Interface Implementation ==========
-
 // ========== Action Handler Methods ==========
 
 /**
- * @brief Handles short button press by skipping the rest of the splash (Q-08)
+ * @brief Handles button presses: a short press skips the rest of the splash (Q-08), a long press opens Config
  *
- * Completes the splash as the fade-out timer would, so the target panel loads on the next
- * ApplyPendingTransition(). The pending timer and any running screen animation are cleaned up when
- * the splash is destroyed.
+ * The skip completes the splash as the fade-out timer would, so the screen manager loads the target panel on
+ * its next Apply(). The pending timer and the label animation are cleaned up when the splash is destroyed.
  */
-void SplashPanel::HandleShortPress()
+clarity::core::NavIntent SplashPanel::OnButton(clarity::core::ButtonEvent event)
 {
-    if (!panel_manager_)
+    if (event == clarity::core::ButtonEvent::Short)
     {
-        log_w("SplashPanel short press - no panel manager, cannot skip");
-        return;
+        log_t("SplashPanel short press - skipping to target panel");
+        done_ = true;
+        return clarity::core::NavIntent::None;
     }
-
-    log_t("SplashPanel short press - skipping to target panel");
-    static_cast<PanelManager *>(panel_manager_)->OnPanelLoadComplete(this);
-}
-/**
- * @brief Handles long press action by loading configuration panel
- *
- * Provides immediate access to the configuration panel during splash screen
- * animation. Marks the panel load as trigger-driven to ensure proper restoration
- * behavior. Reports warning if panel service is not available.
- */
-void SplashPanel::HandleLongPress()
-{
-    if (panel_manager_)
+    if (event == clarity::core::ButtonEvent::Long)
     {
         log_i("SplashPanel long press - loading config panel");
-        panel_manager_->CreateAndLoadPanel(panel_names::CONFIG, true);
+        return clarity::core::NavIntent::OpenConfig;
     }
-    else
-    {
-        log_w("SplashPanel: Cannot load config panel - panelManager not available");
-    }
+    return clarity::core::NavIntent::None;
 }

@@ -22,7 +22,7 @@ _Partially vibe coded with claude a learning excercise._
 
 ### **Core Architecture**
 - **[Architecture Overview](docs/architecture.md)** - High-level MVP pattern and system design
-- **[Interrupt Architecture](docs/interrupts.md)** - The old trigger system, replaced by `Inputs` and `DisplayController` (rewrite pending, todo 9)
+- **[Interrupt Architecture](docs/interrupts.md)** - The old trigger system, replaced by `Inputs` and `ScreenManager` (rewrite pending, todo 9)
 - **[Sensor Architecture](docs/sensor.md)** - Single ownership model for the oil sensors (rewrite pending, todo 9)
 - **[Development Patterns](docs/patterns.md)** - Design patterns, string memory management, and coding practices
 
@@ -78,9 +78,9 @@ cd test/wokwi && ./wokwi_test_automation.sh
 
 ### **Input and Display Policy**
 - **Inputs**: samples the key, lock, lights and button lines every loop pass, with debouncing and a short/long press state machine
-- **DisplayController**: resolves the panel to show (errors, then key, then lock) and the theme (lights on gives Night) with the pure functions in `lib/core`
-- **Deferred Transitions**: panel changes are recorded and applied once per loop pass, never from inside a panel or an LVGL callback
-- **Restoration**: automatic return to the last user-driven panel when the overrides clear
+- **ScreenManager**: the single owner of the screen. It resolves the panel to show (errors, then key, then lock) and the theme (lights on gives Night) with the pure functions in `lib/core`
+- **Deferred Transitions**: panels return a navigation intent instead of switching screens; the screen manager applies at most one transition per loop pass, never from inside a panel or an LVGL callback
+- **Restoration**: automatic return to the user panel (the default panel) when the overrides clear
 
 ### **Key Features**
 - **Immediate Response**: buttons and overrides act in the pass they arrive, also while a panel animates
