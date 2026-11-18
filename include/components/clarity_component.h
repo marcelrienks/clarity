@@ -34,7 +34,14 @@ class ClarityComponent : public IComponent
     // ========== Public Interface Methods ==========
     void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) override;
 
+    /// The "Clarity" label created by Render(), owned by its screen; nullptr before Render()
+    lv_obj_t *GetLabel() const
+    {
+        return label_;
+    }
+
   private:
     // ========== Private Data Members ==========
     IStyleManager *style_manager_;
+    lv_obj_t *label_ = nullptr;
 };

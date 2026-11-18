@@ -12,8 +12,7 @@ steps:
 
   # Step 1b: Short press skips the splash (Q-08)
   # - Pressed during the hold (fade-in 500 ms, hold 500 ms, fade-out 500 ms at the default 1500 ms).
-  #   A 150 ms press during the fade-out was missed in Wokwi, probably because the fade makes the loop
-  #   passes too slow for the debounce (not confirmed; revisit with the frame pacing fix, 4.7)
+  #   Parts 4 and 5 press during the fade-in and the fade-out
   # - A press after the splash would reach the Oil panel, which logs no skip line, and the wait fails
   - delay: 550ms
   - set-control:

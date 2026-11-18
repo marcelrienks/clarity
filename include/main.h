@@ -14,7 +14,7 @@
  * 1. Device initialization and display setup
  * 2. Preference loading and theme configuration
  * 3. Panel manager initialization and default panel loading
- * 4. Main event loop with ticker-based updates
+ * 4. Main event loop with a single LVGL pump that paces the loop
  *
  * @context This is the main entry point for the application. The system
  * follows a strict initialization order and uses dependency injection for
@@ -36,7 +36,6 @@
 // ========== Project Includes ==========
 #include "definitions/configs.h"
 #include "definitions/constants.h"
-#include "utilities/ticker.h"
 #include <memory>
 
 // ========== Forward Declarations ==========

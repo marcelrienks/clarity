@@ -16,7 +16,7 @@
 #include "providers/device_provider.h"
 #include "utilities/logging.h"
 #include "utilities/test_inject.h"
-#include "utilities/ticker.h"
+#include <algorithm>
 #include <esp_system.h>
 
 // Self-registration at program startup
@@ -45,6 +45,11 @@ ErrorManager *error_manager;
 static bool init_failed = false;
 static uint32_t init_failed_at_ms = 0;
 static constexpr uint32_t INIT_FAILED_RESTART_DELAY_MS = 5000;
+
+// Loop sleep bounds: at least 1 ms to yield to other tasks, at most 10 ms so inputs are sampled well inside
+// the 30 ms debounce period
+static constexpr uint32_t LOOP_MIN_SLEEP_MS = 1;
+static constexpr uint32_t LOOP_MAX_SLEEP_MS = 10;
 
 // ========== System Configuration ==========
 
@@ -239,10 +244,7 @@ void setup()
     // Register all configuration schemas from components
     ConfigurationManager::Instance().RegisterAllSchemas();
 
-    Ticker::HandleLvTasks();
-
     style_manager->InitializeStyles();
-    Ticker::HandleLvTasks();
 
     test_inject::Begin(gpio_provider.get());
 
@@ -266,7 +268,6 @@ void setup()
 
     // Initial triggers and the default panel only recorded a request: apply it before the first loop
     panel_manager->ApplyPendingTransition();
-    Ticker::HandleLvTasks();
 
     log_i("Clarity application started successfully");
 }
@@ -276,8 +277,8 @@ void setup()
  *
  * Samples the inputs, acts on them through the display controller, monitors
  * error conditions, applies the pending panel transition and updates the
- * active panel. Maintains responsive system behavior through dynamic delay
- * management.
+ * active panel. Ends with the single LVGL pump and sleeps until LVGL's next
+ * timer is due, at most 10 ms so the inputs keep being sampled (D-12).
  */
 void loop()
 {
@@ -326,6 +327,7 @@ void loop()
     // Every pass: a panel that animates skips its own updates until the animation ends
     panel_manager->UpdatePanel();
 
-    Ticker::HandleLvTasks();
-    Ticker::HandleDynamicDelay(millis());
+    // The only lv_timer_handler() call: it renders and runs LVGL timers, and returns the ms until the next is due
+    const uint32_t idle_ms = lv_timer_handler();
+    delay(std::clamp<uint32_t>(idle_ms, LOOP_MIN_SLEEP_MS, LOOP_MAX_SLEEP_MS));
 }

@@ -20,17 +20,17 @@
  * the system initializes in the background.
  *
  * @presenter_role Coordinates the ClarityComponent for branding display
- * @animation_sequence Initial delay (100ms) → Fade-in (1000ms) → Display (configurable) → Fade-out (1000ms) → Complete
- * (100ms delay) → Next panel
- * @timing_total ~2200ms + configurable display time
+ * @animation_sequence Label fade-in → Display (500ms) → Label fade-out → Blank (200ms) → Next panel. Each fade
+ * takes (duration - 500ms) / 2, so 500ms at the default 1500ms duration. A short press skips to the next panel
+ * (Q-08), a long press opens Config.
  *
  * @transitions_to OemOilPanel (or user-configured default panel)
  * @memory_usage Minimal - single component with timer-based animations
  *
  * @ui_layout:
  * - ClarityComponent centered on screen
- * - Black background with animated opacity
- * - Smooth fade transitions using LVGL timers
+ * - Only the label fades, so each frame redraws the label area, not the whole screen
+ * - Phases chained with one-shot LVGL timers
  *
  * @context This is the first panel shown on startup. It uses timer-based
  * animations for smooth transitions and automatically proceeds to the main
@@ -77,6 +77,7 @@ class SplashPanel : public IPanel
   private:
     // ========== Private Methods ==========
     int GetAnimationTime() const;
+    void FadeLabel(lv_opa_t from, lv_opa_t to);
 
     // ========== Static Methods ==========
     static void FadeInTimerCallback(lv_timer_t *timer);
@@ -84,11 +85,6 @@ class SplashPanel : public IPanel
     static void FadeOutTimerCallback(lv_timer_t *timer);
 
     // ========== Private Data Members ==========
-    // Panel specific constants
-    static constexpr const int DISPLAY_TIME = 500;
-    static constexpr const int DELAY_TIME = 200; // NOTE: the delay time is essential, to give LVGL and the code time
-                                                 // to cleanup, else memory becomes corrupted
-
     // Dependencies
     IGpioProvider *gpio_provider_;
     IDisplayProvider *display_provider_;
@@ -100,6 +96,5 @@ class SplashPanel : public IPanel
     lv_obj_t *screen_ = nullptr;
     ClarityComponent component_;
     bool component_initialized_ = false;
-    lv_obj_t *blank_screen_ = nullptr;
     lv_timer_t *timer_ = nullptr; // The one pending phase timer; each callback hands it on or clears it
 };

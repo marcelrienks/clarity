@@ -2,8 +2,22 @@ name: 'Clarity Automated Integration Test - Part 5: Config Exit'
 version: 1
 steps:
   # Part 5 of 5. Wokwi caps a session at 5 min wall-clock, so each part boots fresh.
-  # Boot to the Oil panel
+  # Boot to the Oil panel. A short press 150 ms into the fade-out (fade-in and hold take 1000 ms)
+  # skips the splash (Q-08); part 1 presses during the hold, part 4 during the fade-in.
+  # A press after the splash would reach the Oil panel, which logs no skip line, and the wait fails
   - wait-serial: '[T] System ready'
+  - wait-serial: '[T] SplashPanel loaded successfully'
+  - delay: 1150ms
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - delay: 150ms
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - wait-serial: '[T] SplashPanel short press - skipping to target panel'
   - wait-serial: '[T] Pressure reading:'
   - delay: 300ms
 

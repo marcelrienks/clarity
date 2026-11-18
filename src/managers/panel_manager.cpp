@@ -15,7 +15,6 @@ static PanelManager *instance_ptr = nullptr;
 // ActionManager include removed - button handling moved to handler-based system
 #include "definitions/constants.h"
 #include "managers/error_manager.h"
-#include "utilities/ticker.h"
 #include <cstring>
 #include <esp32-hal-log.h>
 
@@ -119,15 +118,12 @@ PanelManager &PanelManager::Instance()
 /**
  * @brief Initializes the panel service to control the flow and rendering of all panels
  *
- * Handles LVGL tasks to ensure proper graphics initialization. Uses direct panel
- * instantiation rather than factory pattern for better performance and memory usage.
- * Hardware providers are already injected via constructor dependency injection.
+ * Hardware providers are already injected via constructor dependency injection. LVGL is
+ * pumped only by the main loop (D-12).
  */
 void PanelManager::Init()
 {
     log_v("Init() called");
-
-    Ticker::HandleLvTasks();
     log_i("PanelManager initialization completed");
 }
 
@@ -232,7 +228,7 @@ void PanelManager::LoadRequested(const char *panel_name, bool is_trigger_driven)
 /**
  * @brief Updates the currently active panel (called from main loop)
  *
- * Calls the Update method on the current panel and handles LVGL tasks. Called every loop pass,
+ * Calls the Update method on the current panel; the main loop renders afterwards. Called every loop pass,
  * also while a panel animates: a panel that animates skips its own updates until the animation ends.
  */
 void PanelManager::UpdatePanel()
@@ -241,7 +237,6 @@ void PanelManager::UpdatePanel()
     if (panel_)
     {
         panel_->Update();
-        Ticker::HandleLvTasks();
     }
 }
 
@@ -588,7 +583,6 @@ void PanelManager::CreateAndLoadPanelDirect(const char *panel_name, bool is_trig
 
     panel_->Load();
     old_panel.reset();
-    Ticker::HandleLvTasks();
 
     log_v("CreateAndLoadPanelDirect() completed");
 }

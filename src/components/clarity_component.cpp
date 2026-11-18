@@ -36,6 +36,7 @@ void ClarityComponent::Render(lv_obj_t *screen, const ComponentLocation &locatio
         return;
     }
     lv_obj_t *splash = display->CreateLabel(screen);
+    label_ = splash;
     lv_label_set_text(splash, ui_constants::APP_NAME);
 
     // Apply the current theme's text style

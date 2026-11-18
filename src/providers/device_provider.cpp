@@ -109,6 +109,9 @@ void DeviceProvider::Prepare()
 
     // Initialize LVGL graphics library
     lv_init();
+
+    // LVGL reads its time from millis(), so no lv_tick_inc bookkeeping is needed (D-12)
+    lv_tick_set_cb([]() -> uint32_t { return millis(); });
     log_i("Display configuration...");
 
     // Create LVGL display object with dual buffer configuration

@@ -40,8 +40,8 @@ SplashPanel::SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleM
 /**
  * @brief Destructor that cleans up LVGL screen resources
  *
- * Safely deletes both the main screen and blank screen used for animation
- * transitions. The component is stack-allocated and automatically destroyed.
+ * Deletes the screen, which deletes the label and its running fade animation with it.
+ * The component is stack-allocated and automatically destroyed.
  * Ensures no LVGL memory leaks when panel is destroyed.
  */
 SplashPanel::~SplashPanel()
@@ -55,20 +55,12 @@ SplashPanel::~SplashPanel()
         timer_ = nullptr;
     }
 
-    // While the fade-in screen load is pending LVGL still holds screen_ as the load target. Freeing it now
-    // would make the next lv_screen_load dereference it, so let the next load finish the animation first and
-    // free both screens afterwards. Without a pending load nothing else references them
-    const bool load_pending = screen_ && lv_anim_get(screen_, nullptr);
+    // The screen is loaded without a screen animation, so LVGL holds no pending load that references it, and
+    // the next panel's screen is already active when the splash is destroyed
     if (screen_)
     {
-        load_pending ? lv_obj_delete_async(screen_) : lv_obj_del(screen_);
+        lv_obj_del(screen_);
         screen_ = nullptr;
-    }
-
-    if (blank_screen_)
-    {
-        load_pending ? lv_obj_delete_async(blank_screen_) : lv_obj_del(blank_screen_);
-        blank_screen_ = nullptr;
     }
 
     // Components delete no LVGL objects, so destroying them after the screens is safe
@@ -77,12 +69,10 @@ SplashPanel::~SplashPanel()
 // ========== Public Interface Methods ==========
 
 /**
- * @brief Initializes the screen with component and creates blank screens for animation transitions
+ * @brief Initializes the screen the splash component is rendered on
  *
- * Creates both the main screen for content display and a blank screen for
- * smooth fade-out animation transitions. Validates display provider availability
- * and reports critical errors if dependencies are missing. Part of the panel
- * lifecycle initialization phase.
+ * Validates display provider availability and reports critical errors if
+ * dependencies are missing. Part of the panel lifecycle initialization phase.
  */
 void SplashPanel::Init()
 {
@@ -96,17 +86,19 @@ void SplashPanel::Init()
         return;
     }
 
-    blank_screen_ = display_provider_->CreateScreen();
     screen_ = display_provider_->CreateScreen();
 }
 
 /**
- * @brief Shows the screen with fade-in animation
+ * @brief Shows the screen and fades the label in
  *
- * Renders the splash component at the center of the screen and initiates
- * the fade-in animation sequence. Creates LVGL timers to manage the animation
- * lifecycle including fade-in, display, and fade-out phases. The animation
- * duration is configurable through preferences.
+ * Renders the splash component at the center of the screen, loads the screen at once and
+ * fades the label in. Creates LVGL timers to manage the animation lifecycle including
+ * fade-in, display, and fade-out phases. The animation duration is configurable through
+ * preferences.
+ *
+ * Only the label fades, not the screen (A-05): a screen fade redraws the whole display every
+ * frame, which made fade frames so slow that a short press during the fade was not sampled.
  */
 void SplashPanel::Load()
 {
@@ -120,7 +112,8 @@ void SplashPanel::Load()
     // Render the component
     component_.Render(screen_, splash_location, display_provider_);
 
-    lv_screen_load_anim(screen_, LV_SCR_LOAD_ANIM_FADE_IN, GetAnimationTime(), 0, false);
+    lv_screen_load(screen_);
+    FadeLabel(LV_OPA_TRANSP, LV_OPA_COVER);
 
     // Schedule the fade-in animation
     timer_ = lv_timer_create(SplashPanel::FadeInTimerCallback, GetAnimationTime(), this);
@@ -193,8 +186,7 @@ void SplashPanel::FadeInTimerCallback(lv_timer_t *fade_in_timer)
  * @brief Callback for display timer completion after splash screen display period
  * @param fadeOutTimer The LVGL timer that has completed
  *
- * Called when the display period expires. Loads the blank screen with fade-out effect, and schedules the
- * final fade-out timer. Includes essential delay time for LVGL cleanup.
+ * Called when the display period expires. Fades the label out and schedules the final fade-out timer.
  */
 void SplashPanel::DisplayTimerCallback(lv_timer_t *fade_out_timer)
 {
@@ -214,13 +206,11 @@ void SplashPanel::DisplayTimerCallback(lv_timer_t *fade_out_timer)
     // This callback now owns the firing timer, so the destructor must not delete it
     panel->timer_ = nullptr;
 
-    lv_screen_load_anim(panel->blank_screen_, LV_SCR_LOAD_ANIM_FADE_OUT, panel->GetAnimationTime(), 0, false);
+    panel->FadeLabel(LV_OPA_COVER, LV_OPA_TRANSP);
 
-    // Schedule the fade-out animation
+    // Complete after the fade-out plus a short blank pause before the target panel appears
     panel->timer_ = lv_timer_create(SplashPanel::FadeOutTimerCallback,
-                                    panel->GetAnimationTime() + timing_constants::splash::DELAY_TIME_MS,
-                                    panel); // NOTE: the delay time is essential, to give LVGL and the code time to
-                                            // cleanup, else memory becomes corrupted
+                                    panel->GetAnimationTime() + timing_constants::splash::DELAY_TIME_MS, panel);
 
     // Delete the animation_timer
     lv_timer_del(fade_out_timer);
@@ -373,6 +363,33 @@ int SplashPanel::GetAnimationTime() const
     int anim_time = (splash_duration - static_cast<int>(timing_constants::splash::DISPLAY_TIME_MS)) / 2;
 
     return std::max(anim_time, 0);
+}
+
+/**
+ * @brief Animates the label opacity over the animation time
+ * @param from Opacity at the start
+ * @param to Opacity at the end
+ *
+ * Only the label area is redrawn each frame. The animation is deleted with the label when the screen is deleted.
+ */
+void SplashPanel::FadeLabel(lv_opa_t from, lv_opa_t to)
+{
+    lv_obj_t *label = component_.GetLabel();
+    if (!label)
+    {
+        return;
+    }
+
+    lv_obj_set_style_opa(label, from, 0);
+
+    lv_anim_t anim;
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, label);
+    lv_anim_set_values(&anim, from, to);
+    lv_anim_set_duration(&anim, static_cast<uint32_t>(GetAnimationTime()));
+    lv_anim_set_exec_cb(&anim, [](void *obj, int32_t value)
+                        { lv_obj_set_style_opa(static_cast<lv_obj_t *>(obj), static_cast<lv_opa_t>(value), 0); });
+    lv_anim_start(&anim);
 }
 
 // ========== IActionService Interface Implementation ==========
