@@ -78,6 +78,20 @@ struct Palette
                 return errorWarning;
         }
     }
+
+    /// Same, for the level of an ErrorLog entry; the overload above goes with the old ErrorManager (5.7)
+    lv_color_t ErrorColor(clarity::core::ErrorLevel level) const
+    {
+        switch (level)
+        {
+            case clarity::core::ErrorLevel::Critical:
+                return errorCritical;
+            case clarity::core::ErrorLevel::Error:
+                return errorError;
+            default:
+                return errorWarning;
+        }
+    }
 };
 
 /// The palette of a theme; an unknown id gives the Day palette
