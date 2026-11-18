@@ -47,6 +47,15 @@ enum class ButtonEvent : uint8_t
     Long
 };
 
+/// What a panel asks the screen manager to do after a button event, applied on its next Apply() (A-05)
+enum class NavIntent : uint8_t
+{
+    None,
+    OpenConfig,
+    ExitConfig,
+    ClearErrors
+};
+
 /// Machine-readable cause of a user-visible fault
 enum class Fault : uint16_t
 {
@@ -128,6 +137,22 @@ constexpr const char *ToString(ButtonEvent event)
             return "Short";
         case ButtonEvent::Long:
             return "Long";
+    }
+    return "Unknown";
+}
+
+constexpr const char *ToString(NavIntent intent)
+{
+    switch (intent)
+    {
+        case NavIntent::None:
+            return "None";
+        case NavIntent::OpenConfig:
+            return "OpenConfig";
+        case NavIntent::ExitConfig:
+            return "ExitConfig";
+        case NavIntent::ClearErrors:
+            return "ClearErrors";
     }
     return "Unknown";
 }

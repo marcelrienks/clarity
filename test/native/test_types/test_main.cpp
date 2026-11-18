@@ -57,6 +57,14 @@ void test_button_event_names()
     TEST_ASSERT_EQUAL_STRING("Long", ToString(ButtonEvent::Long));
 }
 
+void test_nav_intent_names()
+{
+    TEST_ASSERT_EQUAL_STRING("None", ToString(NavIntent::None));
+    TEST_ASSERT_EQUAL_STRING("OpenConfig", ToString(NavIntent::OpenConfig));
+    TEST_ASSERT_EQUAL_STRING("ExitConfig", ToString(NavIntent::ExitConfig));
+    TEST_ASSERT_EQUAL_STRING("ClearErrors", ToString(NavIntent::ClearErrors));
+}
+
 void test_fault_names()
 {
     TEST_ASSERT_EQUAL_STRING("NvsWriteFailed", ToString(Fault::NvsWriteFailed));
@@ -72,6 +80,7 @@ void test_out_of_range_values_have_a_name()
     TEST_ASSERT_EQUAL_STRING("Unknown", ToString(static_cast<KeyState>(250)));
     TEST_ASSERT_EQUAL_STRING("Unknown", ToString(static_cast<ErrorLevel>(250)));
     TEST_ASSERT_EQUAL_STRING("Unknown", ToString(static_cast<ButtonEvent>(250)));
+    TEST_ASSERT_EQUAL_STRING("Unknown", ToString(static_cast<NavIntent>(250)));
     TEST_ASSERT_EQUAL_STRING("Unknown", ToString(static_cast<Fault>(60000)));
 }
 
@@ -84,6 +93,7 @@ int main()
     RUN_TEST(test_error_level_names);
     RUN_TEST(test_error_level_orders_by_severity);
     RUN_TEST(test_button_event_names);
+    RUN_TEST(test_nav_intent_names);
     RUN_TEST(test_fault_names);
     RUN_TEST(test_out_of_range_values_have_a_name);
     return UNITY_END();

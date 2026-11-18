@@ -234,7 +234,12 @@ Goal: replace the interrupt framework and `UIState` gate with sampled inputs, th
 
 Goal: one panel model, one LVGL ownership rule, one theme.
 
-- [ ] **5.1 `Panel` base (A-05)** with `Enter`/`Exit`/`Update(now)`/`OnButton` returning `NavIntent`. Document the four LVGL ownership rules in `ui/panel.h`.
+- [x] **5.1 `Panel` base (A-05)** with `Enter`/`Exit`/`Update(now)`/`OnButton` returning `NavIntent`. Document the four LVGL ownership rules in `ui/panel.h`.
+  - [x] `NavIntent` (`None`, `OpenConfig`, `ExitConfig`, `ClearErrors`) with `ToString` in `clarity/core/types.h`; `test_types` covers the names and the out-of-range value. The splash skip (Q-08) and the error panel's next-error press stay inside their panels, so no intent is needed for them.
+  - [x] `include/ui/panel.h` and `src/ui/panel.cpp`: `Enter()` creates `screen_` with `lv_obj_create(nullptr)`, calls `Build(screen_)` and loads it; `Exit()` calls `OnExit()`, clears `screen_` and deletes the tree. Both do nothing when called twice. `Update(uint32_t now)`, `OnButton(ButtonEvent)` (returns `NavIntent::None`) and `Finished()` (true; the splash overrides it for Q-06) are virtual with defaults. The destructor does not delete the tree (rule 1): the owner calls `Exit()` first, and the panels are long-lived. The header documents the four ownership rules and the swap order (next `Enter()`, then previous `Exit()`). Not copyable.
+  - [x] Differences from the A-05 sketch: `Enter()` has no `Theme&` yet (5.2 adds it), and `Update` takes only `now` (there is no `SensorValues` until phase 8; the oil panel keeps its own sensors until then).
+  - [x] Not wired in yet: nothing derives from `Panel` (5.3 `ScreenManager` drives it, 5.5 moves the panels onto it), so no behaviour change and no Wokwi run.
+  - [x] Verified: all 7 envs build with no new warnings (`release`: RAM 35,092 bytes, flash 1,329,839 bytes), `pio test -e native` 168 cases pass, `pio check -e release` unchanged (0 high, 156 medium), `check_layering.sh`, `check_test_events.py` (48 strings) and clang-format 23.1.5 on the changed files clean.
 - [ ] **5.2 `Theme` (A-08).** One `Palette` including all roles formerly in `Colors::`; `Apply(ThemeId)` is a no-op if unchanged, else `lv_obj_report_style_change(nullptr)`; `Active()` returns the applied theme. Fixes D-06 fully. There is no user theme or `settings.theme`: `Apply` takes `EffectiveTheme(request, inputs)` (Q-05).
 - [ ] **5.3 `ScreenManager`** with six long-lived panels, deferred `Apply()`, and the splash deferral.
 - [ ] **5.4 Widgets (A-09).**
