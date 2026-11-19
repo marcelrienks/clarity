@@ -99,8 +99,8 @@ Clarity is a digital gauge system designed for automotive engine monitoring, bui
    - **Primary Function**: Display and manage system errors with user interaction
    - **Display**: Scrollable error list with severity color-coding (Critical/Error/Warning)
    - **Navigation**: Cycle through multiple errors for review
-   - **Short Press**: Cycle to next error in queue (marks current error as viewed)
-   - **Long Press**: Clear all acknowledged/viewed errors
+   - **Short Press**: Dismiss the viewed error and show the next; dismissing the last one clears all (a critical error is acknowledged and stays listed until cleared)
+   - **Long Press**: Clear all errors
    - **Auto-Restoration**: Automatically restore previous panel when all errors viewed
    - **Priority**: CRITICAL - highest priority, overrides all other panels
    - **State Management**: Tracks viewed errors and auto-restoration conditions

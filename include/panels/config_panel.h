@@ -141,4 +141,5 @@ class ConfigPanel : public Panel
     std::vector<MenuItem> menu_items_;
     size_t current_menu_index_ = 0;
     std::string current_section_name_;
+    bool in_options_menu_ = false; ///< An option list is shown; Back returns to its section menu (Q-09)
 };

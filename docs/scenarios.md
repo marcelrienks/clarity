@@ -88,6 +88,7 @@ This scenario demonstrates the complete system functionality following a realist
 - **Panel Transition**: Oil panel → Config panel via universal long press function
 
 ### 15. Configuration Navigation to the Display section
+Part 4 enters the Button section instead (the menu opens on it) and checks Back; part 3 covers the Display section.
 - **Short Press Repeatedly** → Navigate through the main menu: Button, Display, Oil Press., Oil Temp., Splash Scr., System, Exit
 - **Display**: Option highlighted when navigation reaches it
 
@@ -107,6 +108,7 @@ Former theme selection and application steps. The theme is not configurable.
 - **Short Press Repeatedly** → Navigate through options until Exit reached
 - **Config Panel**: Cycles through main menu options until Exit option highlighted
 - **Exit Option**: Final option in main configuration menu
+- **Back**: from an option list returns to its section menu; from a section menu it returns to the main menu (Q-09). Part 4 checks this with the Button section's Debounce options.
 
 ### 20. Return to Oil Panel with Applied Settings
 - **Long Press Action Button** → Oil panel loads, themed by the lights signal (night while the lights are on)

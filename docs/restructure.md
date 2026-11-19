@@ -202,7 +202,7 @@ There are three palettes: Day, Night and Error.
 |---|---|---|
 | Splash short press skips the animation and loads the default panel (`hardware.md`) | No action (`splash_panel.cpp:358-362`) | **Resolved** (Q-08): skip, the code now follows the docs |
 | Short press 50–2000 ms, long press 2000–5000 ms, auto-release at 5 s (`hardware.md`, `action_handler.h:21-24`, `i_action_handler.h:19`) | Long press is configurable (default 1500 ms); no 5 s cap | Fix docs |
-| Error short press "cycles" through errors and never exits | Short press removes the viewed error; the last one clears all | Q-12 |
+| Error short press "cycles" through errors and never exits | Short press removes the viewed error; the last one clears all | **Resolved** (Q-12): docs fixed |
 | Config option lists in `config.md` (brightness 10/25/50/75/100; pressure offset −1.0…1.0) | `constants.h:320-331` differ | Fix docs |
 | Main config menu contains "Default Panel, Theme Settings, Exit" (`scenarios.md` §15) | Menu lists sections: Button, Display, Oil Press., Oil Temp., Splash Scr., System, Exit | Fix docs |
 | Rising-edge detection plus hardware debouncing on the button | Level polling with 50 ms software debounce | Fix docs |
@@ -357,7 +357,7 @@ The buffers are sized with `sizeof(lv_color_t)` (`device_provider.h:79-81`). In 
 
 ### D-20: The Config "Back" button jumps two levels (S4, Confirmed; UX)
 
-Back from an option list returns to the **main** menu, not to the section (`config_panel.cpp:409-420`). See Q-09.
+Back from an option list returned to the **main** menu, not to the section (`config_panel.cpp:409-420`). **Fixed** (Q-09, todo 5.6): it returns to the section menu.
 
 ### D-21: Factory fallback would initialise the hardware twice (S3, dead code today)
 
@@ -1128,10 +1128,10 @@ Phase 3 can run in parallel with Phase 4 once Phase 2 lands. Phases 4 and 5 both
 | Q-06 | Can overrides interrupt the splash? | Defer until the splash finishes (today); or preempt | Defer (keeps today's behaviour) |
 | Q-07 | Today button actions and overrides wait up to ~750 ms during needle animations. | Keep the wait; or act immediately | **Resolved**: act immediately (see `decisions.md`) |
 | Q-08 | What should a short press on the splash do? | Nothing (code); or skip to the target panel (docs) | **Resolved**: skip (see `decisions.md`) |
-| Q-09 | Where should Back go from an option list? | Main menu (today); or one level up | One level up |
+| Q-09 | Where should Back go from an option list? | Main menu (today); or one level up | **Resolved**: one level up (see `decisions.md`) |
 | Q-10 | What about `DiagnosticPanel`? | Remove the option; or implement the panel | Remove now |
 | Q-11 | Which toolchain? | Official `espressif32` 6.x (Arduino 2.x, older GCC, C++17); or pioarduino (Arduino 3.x / IDF 5, newer GCC, C++20) | pioarduino, pinned, if LovyanGFX and LVGL are verified on it. That gives C++20 (`std::span`, designated initialisers) and sdkconfig control (H-04). |
-| Q-12 | What should a short press on the error panel do? | Acknowledge and go to the next (code); or cycle without removing (docs) | Keep the code's behaviour and fix the docs |
+| Q-12 | What should a short press on the error panel do? | Acknowledge and go to the next (code); or cycle without removing (docs) | **Resolved**: keep the code's behaviour, docs fixed (see `decisions.md`) |
 | Q-13 | Do you want over-the-air updates? | Add `ota_1`; or a single factory partition | Decide based on product need |
 | Q-14 | How should the settings menu be defined? | Run-time registration (today); or a static descriptor table | Static table (A-07) |
 | Q-15 | Wiring the dead settings (D-05) changes behaviour on existing devices: brightness would drop from the hard-coded 100% to the default 80, and stored offset, scale, rate and debounce values would start applying. | (a) Apply whatever is stored; (b) schema migration 1 resets the previously dead settings to defaults and sets the brightness default to 100 | (b) |

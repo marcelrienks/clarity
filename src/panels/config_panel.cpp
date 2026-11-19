@@ -23,6 +23,7 @@ void ConfigPanel::Build(lv_obj_t *screen, Theme &theme)
     // Every visit starts at the main menu, on its first item
     current_menu_index_ = 0;
     current_section_name_.clear();
+    in_options_menu_ = false;
 
     ApplyMenuBackground();
     wheel_.Build(screen_, theme.Colors());
@@ -356,23 +357,22 @@ void ConfigPanel::HandleSetConfigValue(const std::string &action_param)
  * @brief Handles navigation back to previous menu level
  * @param actionParam Optional parameter specifying target menu
  *
- * Navigates back from submenu to section menu or from section to main menu.
- * Uses stored section name to determine appropriate navigation target.
+ * Navigates back from an option list to its section menu, or from a section menu to the main menu.
  */
 void ConfigPanel::HandleBackAction(const std::string & /*action_param*/)
 {
+    // From an option list, go up one level to its section menu (Q-09)
+    if (in_options_menu_ && !current_section_name_.empty())
+    {
+        const std::string section_name = current_section_name_;
+        BuildSectionMenu(section_name);
+        log_t("ConfigPanel: Returned to section %s menu", section_name.c_str());
+        return;
+    }
 
-    // If we're in a section menu, go back to main menu
-    if (!current_section_name_.empty())
-    {
-        current_section_name_.clear(); // Clear the current section
-        BuildDynamicMenus();
-    }
-    else
-    {
-        // Already at main menu, go back to main menu anyway
-        BuildDynamicMenus();
-    }
+    // From a section menu (or the main menu), go to the main menu
+    current_section_name_.clear();
+    BuildDynamicMenus();
 }
 
 /**
@@ -397,6 +397,7 @@ clarity::core::NavIntent ConfigPanel::HandlePanelExit()
  */
 void ConfigPanel::BuildDynamicMenus()
 {
+    in_options_menu_ = false;
     log_v("BuildDynamicMenus() called");
 
     if (!configuration_manager_)
@@ -443,6 +444,7 @@ void ConfigPanel::BuildDynamicMenus()
  */
 void ConfigPanel::BuildSectionMenu(const std::string &section_name)
 {
+    in_options_menu_ = false;
     log_v("BuildSectionMenu() called for section: %s", section_name.c_str());
 
     auto section = configuration_manager_->GetConfigSection(section_name);
@@ -510,6 +512,7 @@ std::string ConfigPanel::FormatItemLabel(const config::ConfigItem &item) const
 void ConfigPanel::ShowOptionsMenu(const std::string &full_key, const config::ConfigItem &item)
 {
     log_i("ShowOptionsMenu() for key: %s", full_key.c_str());
+    in_options_menu_ = true;
 
     // Make a copy of full_key to avoid reference invalidation when menu_items_ is cleared: callers pass a
     // reference into menu_items_, so a reference here would dangle after clear()

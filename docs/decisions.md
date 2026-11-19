@@ -7,8 +7,10 @@ One line per resolved decision from [restructure.md](restructure.md) §12 (X-10)
 | Q-05 | The theme follows the dash-light signal only: lights on gives Night (red, to match the car's dash lighting), lights off gives Day, and the error panel forces Error. The saved user theme plays no part, so `EffectiveTheme(request, inputs)` is a pure function with no latch. Boot with the lights off shows Day. | 2026-11-10 |
 | Q-07 | Act immediately: button actions, the debug error button and the key, lock and error overrides no longer wait for the UI to be idle (up to ~750 ms during a needle animation). They only record a transition, applied later in the same loop pass. Overrides still wait for the splash to finish (Q-06). | 2026-11-17 |
 | Q-08 | A short press during the splash skips the rest of it and loads the target panel at once, as `hardware.md` documents. A long press still opens Config. | 2026-11-17 |
+| Q-09 | Back from a Config option list returns one level up, to its section menu (was: the main menu, D-20). Back from a section menu still goes to the main menu. | 2026-11-19 |
 | Q-10 | Remove `DiagnosticPanel` from the default panel options (`PANEL_OPTIONS`) and `PanelNames`; no such panel exists. A stored selection that is no longer an allowed option falls back to the default on load. | 2026-11-09 |
 | Q-11 | Stay on `platformio/platform-espressif32` 8.0.0 (Arduino core 3.3.12, IDF 5.5.5, GCC 14.2.0). It already gives the C++20 toolchain pioarduino was meant to provide, so no switch. LVGL 9.3.0 and LovyanGFX 1.2.7 build and link on it with the flag changes below. Pin the platform exactly in 0.4. | 2026-11-05 |
+| Q-12 | Keep the code's error panel behaviour: a short press removes the viewed error and the last one clears the log and restores the previous panel (a critical error is acknowledged and stays listed until cleared). The docs that said a short press only cycles are fixed. | 2026-11-19 |
 
 ## Q-11 toolchain findings (task 0.1)
 

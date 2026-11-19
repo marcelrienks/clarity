@@ -39,23 +39,9 @@ steps:
   # after the load stalled the simulator in Wokwi (observed, cause not investigated)
   - delay: 1000ms
 
-  # Step 15: Configuration Navigation to the Display section
-  # - Main menu order: Button, Display, Oil Press., Oil Temp., Splash Scr., System, Exit
-  # - Short press moves to Display (holds the Brightness item; the theme follows the lights signal only)
-  - set-control:
-      part-id: btn1
-      control: pressed
-      value: 1
-  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
-  - set-control:
-      part-id: btn1
-      control: pressed
-      value: 0
-  - wait-serial: '[T] ConfigPanel: Display option highlighted'
-  - delay: 200ms
-
-  # Step 16: Display section access
-  # - Long press enters Display
+  # Step 15: Configuration section navigation and Back (Q-09)
+  # - Main menu order: Button, Display, ...; it opens on Button, so a long press enters that section
+  # - The Display section is covered by part 3
   - set-control:
       part-id: btn1
       control: pressed
@@ -63,15 +49,26 @@ steps:
   # Long press fires while held, so wait before releasing
   - wait-serial: '[T] Long press triggered during hold'
   - wait-serial: '[T] ConfigPanel: Entering section'
-  - wait-serial: '[T] ConfigPanel: Section style_manager menu loaded'
+  - wait-serial: '[T] ConfigPanel: Section button_sensor menu loaded'
   - set-control:
       part-id: btn1
       control: pressed
       value: 0
   - delay: 1000ms  # menu rebuilt: wait before the next press
 
-  # Step 19: Configuration Exit Navigation
-  # - Display section menu: Brightness, Back (no Theme item); long press on Back returns to the main menu
+  # Step 16: Debounce options (3 values, then Back); Back returns to the section menu, not the main menu
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  # Long press fires while held, so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] ConfigPanel: Options menu for button_sensor.debounce_ms loaded'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 1000ms
   - set-control:
       part-id: btn1
       control: pressed
@@ -81,6 +78,63 @@ steps:
       part-id: btn1
       control: pressed
       value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - wait-serial: '[T] ConfigPanel: Back option highlighted'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  # Long press fires while held, so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] ConfigPanel: Returned to section button_sensor menu'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 1000ms
+
+  # Step 19: Configuration Exit Navigation
+  # - Button section menu: Debounce, Long Press, Back; a long press on Back returns to the main menu
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 400ms
   - wait-serial: '[T] ConfigPanel: Back option highlighted'
   - set-control:
       part-id: btn1
