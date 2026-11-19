@@ -8,10 +8,7 @@
 #include "interfaces/i_configuration_manager.h"
 #include "panels/config_panel.h"
 #include "panels/error_panel.h"
-#include "panels/key_panel.h"
-#include "panels/lock_panel.h"
 #include "panels/oem_oil_panel.h"
-#include "panels/splash_panel.h"
 #include "ui/theme.h"
 #include "utilities/logging.h"
 
@@ -61,20 +58,6 @@ bool SameRequest(const DisplayRequest &a, const DisplayRequest &b)
     return a.panel == b.panel && a.key == b.key;
 }
 
-::KeyState ToPanelKeyState(clarity::core::KeyState state)
-{
-    switch (state)
-    {
-        case clarity::core::KeyState::Present:
-            return ::KeyState::Present;
-        case clarity::core::KeyState::NotPresent:
-            return ::KeyState::NotPresent;
-        case clarity::core::KeyState::Inactive:
-            break;
-    }
-    return ::KeyState::Inactive;
-}
-
 bool AnyOverrideDeactivated(const clarity::core::VehicleInputs &was, const clarity::core::VehicleInputs &now)
 {
     return (was.key_present && !now.key_present) || (was.key_not_present && !now.key_not_present) ||
@@ -101,7 +84,7 @@ void LogDeactivated([[maybe_unused]] const clarity::core::VehicleInputs &was,
 
 ScreenManager::ScreenManager(IGpioProvider &gpio, IDisplayProvider &display, Theme &theme,
                              IConfigurationManager &configuration)
-    : gpio_(gpio), display_(display), theme_(theme), configuration_(configuration)
+    : gpio_(gpio), display_(display), theme_(theme), configuration_(configuration), splash_(configuration)
 {
     std::string default_panel = panel_names::OIL;
     if (auto value = configuration_.QueryConfig<std::string>(config_constants::keys::SYSTEM_DEFAULT_PANEL))
@@ -112,8 +95,15 @@ ScreenManager::ScreenManager(IGpioProvider &gpio, IDisplayProvider &display, The
     log_i("ScreenManager: user panel is '%s'", PanelName(user_panel_));
 }
 
-// Out of line: IPanel is complete here
-ScreenManager::~ScreenManager() = default;
+// Out of line: IPanel is complete here. The shown long-lived panel's tree goes with the screen manager
+ScreenManager::~ScreenManager()
+{
+    panel_.reset();
+    if (active_)
+    {
+        active_->Exit();
+    }
+}
 
 void ScreenManager::Begin(const clarity::core::VehicleInputs &vehicle)
 {
@@ -121,7 +111,7 @@ void ScreenManager::Begin(const clarity::core::VehicleInputs &vehicle)
     ApplyTheme(vehicle_);
 
     applied_ = clarity::core::ResolveDisplay(vehicle_, false);
-    key_state_ = ToPanelKeyState(applied_.key);
+    key_state_ = applied_.key;
     if (applied_.panel != OverridePanel::None)
     {
         log_i("Override active at startup - skipping default panel load");
@@ -164,13 +154,21 @@ void ScreenManager::OnButton(clarity::core::ButtonEvent event)
         return;
     }
 
-    if (!panel_)
+    clarity::core::NavIntent intent = clarity::core::NavIntent::None;
+    if (active_)
+    {
+        intent = active_->OnButton(event);
+    }
+    else if (panel_)
+    {
+        intent = panel_->OnButton(event);
+    }
+    else
     {
         log_w("No active panel for button action");
         return;
     }
 
-    const clarity::core::NavIntent intent = panel_->OnButton(event);
     if (intent != clarity::core::NavIntent::None)
     {
         intent_ = intent;
@@ -183,12 +181,12 @@ void ScreenManager::Apply(const clarity::core::VehicleInputs &vehicle, bool erro
     // button's intent, then the key and lock lines, then errors
     Transition next;
 
-    key_state_ = ToPanelKeyState(clarity::core::ResolveDisplay(vehicle, false).key);
+    key_state_ = clarity::core::ResolveDisplay(vehicle, false).key;
 
     // The splash defers every override (Q-06), including in the pass it finishes: they are acted on once its
     // target panel is loaded
     const bool splash_running = current_ == PanelId::Splash;
-    if (splash_running && panel_ && panel_->Finished())
+    if (splash_running && PanelFinished())
     {
         log_i("Splash panel completed - transitioning to target panel: %s", PanelName(splash_target_));
         next = Request(splash_target_);
@@ -255,13 +253,26 @@ void ScreenManager::Apply(const clarity::core::VehicleInputs &vehicle, bool erro
     Perform(next);
 }
 
-void ScreenManager::Update()
+void ScreenManager::Update(uint32_t now)
 {
     // Every pass: a panel that animates skips its own updates until the animation ends
-    if (panel_)
+    if (active_)
+    {
+        active_->Update(now);
+    }
+    else if (panel_)
     {
         panel_->Update();
     }
+}
+
+bool ScreenManager::PanelFinished() const
+{
+    if (active_)
+    {
+        return active_->Finished();
+    }
+    return panel_ && panel_->Finished();
 }
 
 ScreenManager::Transition ScreenManager::Request(PanelId panel) const
@@ -334,7 +345,7 @@ void ScreenManager::Restore()
     // The error panel is going away, so errors do not count. The lights theme replaces Error before the next
     // panel loads
     applied_ = clarity::core::ResolveDisplay(vehicle_, false);
-    key_state_ = ToPanelKeyState(applied_.key);
+    key_state_ = applied_.key;
     ApplyTheme(vehicle_);
 
     if (applied_.panel != OverridePanel::None)
@@ -360,31 +371,78 @@ void ScreenManager::Load(PanelId panel)
         theme_.Apply(clarity::core::ThemeId::Error);
     }
 
-    std::unique_ptr<IPanel> next = CreatePanel(panel);
-    next->Init();
+    Panel *next = LongLivedPanel(panel);
 
-    // Swap order (A-05): the previous panel is destroyed only once the new screen is the active one
-    std::unique_ptr<IPanel> previous = std::move(panel_);
-    panel_ = std::move(next);
+    if (next && next == active_)
+    {
+        // A reload of the panel that is shown (key state change, lock line cleared and another still held):
+        // recolour in place, a deleted active screen would leave LVGL without one
+        if (panel == PanelId::Key)
+        {
+            key_.SetState(key_state_);
+        }
+        log_t("%s loaded successfully", PanelName(panel));
+        return;
+    }
+
+    // Swap order (A-05): the previous panel is exited or destroyed only once the new screen is the active one
+    Panel *previous = std::exchange(active_, nullptr);
+    std::unique_ptr<IPanel> previous_legacy = std::move(panel_);
+
     current_ = panel;
-    panel_->Load();
-    previous.reset();
+    if (next)
+    {
+        if (panel == PanelId::Key)
+        {
+            key_.SetState(key_state_);
+        }
+        next->Enter(theme_);
+        active_ = next;
+        log_t("%s loaded successfully", PanelName(panel));
+    }
+    else
+    {
+        panel_ = CreatePanel(panel);
+        panel_->Init();
+        panel_->Load();
+    }
+
+    if (previous)
+    {
+        previous->Exit();
+    }
+    previous_legacy.reset();
+}
+
+Panel *ScreenManager::LongLivedPanel(PanelId panel)
+{
+    switch (panel)
+    {
+        case PanelId::Splash:
+            return &splash_;
+        case PanelId::Key:
+            return &key_;
+        case PanelId::Lock:
+            return &lock_;
+        case PanelId::Oil:
+        case PanelId::Config:
+        case PanelId::Error:
+            break;
+    }
+    return nullptr;
 }
 
 std::unique_ptr<IPanel> ScreenManager::CreatePanel(PanelId panel)
 {
     switch (panel)
     {
-        case PanelId::Splash:
-            return std::make_unique<SplashPanel>(&gpio_, &display_, &theme_, &configuration_);
         case PanelId::Config:
             return std::make_unique<ConfigPanel>(&gpio_, &display_, &theme_, &configuration_);
         case PanelId::Error:
             return std::make_unique<ErrorPanel>(&gpio_, &display_, &theme_);
+        case PanelId::Splash:
         case PanelId::Key:
-            return std::make_unique<KeyPanel>(&gpio_, &display_, &theme_, key_state_);
         case PanelId::Lock:
-            return std::make_unique<LockPanel>(&gpio_, &display_, &theme_);
         case PanelId::Oil:
             break;
     }

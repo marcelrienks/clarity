@@ -30,9 +30,6 @@
  * @memory_management Components do not own LVGL objects (screen manages lifecycle)
  *
  * @implementations:
- * - ClarityComponent: Branding/logo display
- * - KeyComponent: Key status indicator
- * - LockComponent: Lock status indicator
  * - OemOilComponent: Oil pressure gauge
  * - OemOilPressureComponent: Dedicated pressure display
  * - OemOilTemperatureComponent: Dedicated temperature display

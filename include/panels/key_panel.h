@@ -1,55 +1,36 @@
 #pragma once
 
-#include "components/key_component.h"
+#include "clarity/core/types.h"
 #include "definitions/constants.h"
-#include "panels/base_panel.h"
+#include "ui/icon_view.h"
+#include "ui/panel.h"
+
 /**
  * @class KeyPanel
- * @brief Key status monitoring panel
+ * @brief Key status panel: a centred key icon, green while the key is present, red while it is not
  *
- * @details This panel displays the key/ignition status using a centered key icon.
- * It provides a simple, clean interface for monitoring key presence or ignition state.
- *
- * @presenter_role Coordinates KeyComponent with the key state
- * @data_source Key state handed in by ScreenManager when it creates the panel
- * @update_strategy Simple boolean state updates without animation
- *
- * @ui_layout:
- * - Key Icon: Center of screen with key-solid icon
- * - Icon changes color based on key status (white=present, red=absent)
- *
- * @visual_feedback:
- * - Normal: White key icon when key is present/ignition on
- * - Alert: Red key icon when key is absent/ignition off
- * - Smooth color transitions for status changes
- *
- * @context This panel provides a dedicated view for key status monitoring.
- * It's designed to be simple and clear, focusing on the key status indication.
+ * @details A long-lived Panel (A-05) with one IconView. The screen manager sets the key state before Enter() and
+ * again when the key line changes while the panel is already shown, which recolours the icon in place.
  */
-class KeyPanel : public BasePanel
+class KeyPanel : public Panel
 {
   public:
-    // ========== Constructors and Destructor ==========
-    KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme, KeyState key_state);
+    static constexpr const char *NAME = panel_names::KEY;
+
+    /// Sets the key state and recolours the icon if the panel is entered; otherwise Enter() applies it
+    void SetState(clarity::core::KeyState state);
 
     /// Long press opens Config
     clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
 
-    // ========== Public Interface Methods ==========
-    static constexpr const char *NAME = panel_names::KEY;
-
   protected:
-    // ========== Protected Methods ==========
-    void CreateContent() override;
-    void UpdateContent() override;
-    const char *GetPanelName() const override
-    {
-        return panel_names::KEY;
-    }
+    void Build(lv_obj_t *screen, Theme &theme) override;
+    void OnExit() override;
 
   private:
-    // ========== Private Data Members ==========
-    KeyComponent key_component_;
-    bool component_initialized_ = false;
-    KeyState current_key_state_ = KeyState::Inactive;
+    void ApplyColor();
+
+    IconView icon_;
+    Theme *theme_ = nullptr; ///< Valid between Build() and OnExit()
+    clarity::core::KeyState state_ = clarity::core::KeyState::Inactive;
 };

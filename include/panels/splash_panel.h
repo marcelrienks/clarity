@@ -1,63 +1,42 @@
 #pragma once
 
-// Project Includes
-#include "components/clarity_component.h"
+#include <cstdint>
+
+#include "clarity/core/types.h"
 #include "definitions/constants.h"
 #include "interfaces/i_configuration_manager.h"
-#include "interfaces/i_display_provider.h"
-#include "interfaces/i_gpio_provider.h"
-#include "interfaces/i_panel.h"
-#include "ui/theme.h"
-#include <memory>
+#include "ui/panel.h"
+
 /**
  * @class SplashPanel
  * @brief Startup splash screen with animated Clarity branding
  *
- * @details This panel displays the Clarity logo with fade-in/fade-out animations
- * during system startup. It provides a professional bootup experience while
- * the system initializes in the background.
+ * @details A long-lived Panel (A-05) driven by Update(now), with no lv_timer (rule 4). The phases are
+ * FadeIn → Hold (500 ms) → FadeOut → blank pause (200 ms) → Done. Each fade takes (duration - 500 ms) / 2, so
+ * 500 ms at the default 1500 ms duration. Only the label fades, so each frame redraws the label area, not the
+ * whole screen. A short press skips to Done (Q-08), a long press opens Config. The screen manager loads the
+ * target panel once Finished() is true.
  *
- * @presenter_role Coordinates the ClarityComponent for branding display
- * @animation_sequence Label fade-in → Display (500ms) → Label fade-out → Blank (200ms) → Next panel. Each fade
- * takes (duration - 500ms) / 2, so 500ms at the default 1500ms duration. A short press skips to the next panel
- * (Q-08), a long press opens Config.
- *
- * @transitions_to OemOilPanel (or user-configured default panel)
- * @memory_usage Minimal - single component with timer-based animations
- *
- * @ui_layout:
- * - ClarityComponent centered on screen
- * - Only the label fades, so each frame redraws the label area, not the whole screen
- * - Phases chained with one-shot LVGL timers
- *
- * @context This is the first panel shown on startup. It uses timer-based
- * animations for smooth transitions and automatically proceeds to the main
- * application panel when animation completes.
+ * @context This is the first panel shown on startup.
  */
-class SplashPanel : public IPanel
+class SplashPanel : public Panel
 {
   public:
-    // ========== Constructors and Destructor ==========
-    SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme,
-                IConfigurationManager *configuration_manager = nullptr);
-    ~SplashPanel() override;
+    explicit SplashPanel(IConfigurationManager &configuration);
 
-    // ========== Public Interface Methods ==========
     static constexpr const char *NAME = panel_names::SPLASH;
-    void Init() override;
-    void Load() override;
-    void Update() override;
+
+    /// Advances the phase when its time has passed. The first call after Enter() starts the clock
+    void Update(uint32_t now) override;
+
     /// Short press skips the rest of the splash (Q-08); long press opens Config
     clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
 
-    /// True once the fade-out ends or a short press skips it; the screen manager then loads the target panel
+    /// True once the blank pause ends or a short press skips it; the screen manager then loads the target panel
     bool Finished() const override
     {
-        return done_;
+        return phase_ == Phase::Done;
     }
-
-    // Configuration management
-    void RegisterConfiguration();
 
     // Static schema registration for self-registering pattern
     static void RegisterConfigSchema(IConfigurationManager *configuration_manager);
@@ -74,27 +53,30 @@ class SplashPanel : public IPanel
         config::ConfigMetadata(timing_constants::splash::DURATION_OPTIONS, timing_constants::splash::DURATION_UNIT,
                                config::ConfigItemType::Selection)};
 
+  protected:
+    void Build(lv_obj_t *screen, Theme &theme) override;
+    void OnExit() override;
+
   private:
-    // ========== Private Methods ==========
+    enum class Phase : uint8_t
+    {
+        FadeIn,
+        Hold,
+        FadeOut, ///< Includes the blank pause that follows the fade
+        Done,
+    };
+
     int GetAnimationTime() const;
     void FadeLabel(lv_opa_t from, lv_opa_t to);
 
-    // ========== Static Methods ==========
-    static void FadeInTimerCallback(lv_timer_t *timer);
-    static void DisplayTimerCallback(lv_timer_t *timer);
-    static void FadeOutTimerCallback(lv_timer_t *timer);
+    IConfigurationManager &configuration_;
 
-    // ========== Private Data Members ==========
-    // Dependencies
-    IGpioProvider *gpio_provider_;
-    IDisplayProvider *display_provider_;
-    Theme *theme_;
-    IConfigurationManager *configuration_manager_ = nullptr;
-
-    // Components - static allocation
-    lv_obj_t *screen_ = nullptr;
-    ClarityComponent component_;
-    bool component_initialized_ = false;
-    lv_timer_t *timer_ = nullptr; // The one pending phase timer; each callback hands it on or clears it
-    bool done_ = false;
+    lv_obj_t *label_ = nullptr; ///< Owned by screen_
+    Phase phase_ = Phase::FadeIn;
+    int fade_ms_ = 0; ///< Read from the configuration in Build()
+    uint32_t phase_start_ms_ = 0;
+    bool clock_started_ = false;
+#ifdef CLARITY_TEST_SPLASH_INTERRUPT
+    bool interrupted_ = false;
+#endif
 };

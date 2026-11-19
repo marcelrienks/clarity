@@ -27,16 +27,6 @@ enum class ErrorLevel
 };
 
 /**
- * @brief Key state for automotive key presence detection
- */
-enum class KeyState
-{
-    Present,
-    NotPresent,
-    Inactive
-};
-
-/**
  * @brief Oil sensor types for animations and callbacks
  */
 enum class OilSensorTypes

@@ -297,7 +297,7 @@ void loop()
     screen_manager->Apply(inputs->Vehicle(), error_manager->ShouldTriggerErrorPanel());
 
     // Every pass: a panel that animates skips its own updates until the animation ends
-    screen_manager->Update();
+    screen_manager->Update(millis());
 
     // The only lv_timer_handler() call: it renders and runs LVGL timers, and returns the ms until the next is due
     const uint32_t idle_ms = lv_timer_handler();

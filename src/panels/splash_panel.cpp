@@ -15,237 +15,88 @@ static bool splash_panel_registered = []()
     return true;
 }();
 
-// ========== Constructors and Destructor ==========
-
-/**
- * @brief Constructs a splash panel with required dependencies
- * @param gpio GPIO provider interface for hardware interaction
- * @param display Display provider interface for screen creation
- * @param theme Theme for the shared styles and the palette
- * @param notificationService Notification service for panel lifecycle events
- *
- * Initializes the splash panel with dependency injection pattern. Creates the
- * splash component and sets up notification service with fallback to default.
- * The component is stack-allocated for better memory management.
- */
-SplashPanel::SplashPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme,
-                         IConfigurationManager *configuration_manager)
-    : gpio_provider_(gpio), display_provider_(display), theme_(theme), configuration_manager_(configuration_manager),
-      component_(theme), component_initialized_(false)
+SplashPanel::SplashPanel(IConfigurationManager &configuration) : configuration_(configuration)
 {
-    log_v("SplashPanel constructor called");
 }
 
-/**
- * @brief Destructor that cleans up LVGL screen resources
- *
- * Deletes the screen, which deletes the label and its running fade animation with it.
- * The component is stack-allocated and automatically destroyed.
- * Ensures no LVGL memory leaks when panel is destroyed.
- */
-SplashPanel::~SplashPanel()
+void SplashPanel::Build(lv_obj_t *screen, Theme &theme)
 {
-    log_v("~SplashPanel() destructor called");
-
-    // A pending timer would fire with a dangling panel pointer
-    if (timer_)
-    {
-        lv_timer_del(timer_);
-        timer_ = nullptr;
-    }
-
-    // The screen is loaded without a screen animation, so LVGL holds no pending load that references it, and
-    // the next panel's screen is already active when the splash is destroyed
-    if (screen_)
-    {
-        lv_obj_del(screen_);
-        screen_ = nullptr;
-    }
-
-    // Components delete no LVGL objects, so destroying them after the screens is safe
-}
-
-// ========== Public Interface Methods ==========
-
-/**
- * @brief Initializes the screen the splash component is rendered on
- *
- * Validates display provider availability and reports critical errors if
- * dependencies are missing. Part of the panel lifecycle initialization phase.
- */
-void SplashPanel::Init()
-{
-    log_v("Init() called");
-
-    if (!display_provider_)
-    {
-        log_e("SplashPanel requires display provider");
-        ErrorManager::Instance().ReportCriticalError(panel_names::SPLASH,
-                                                     "Cannot initialize - display provider is null");
-        return;
-    }
-
-    screen_ = display_provider_->CreateScreen();
-}
-
-/**
- * @brief Shows the screen and fades the label in
- *
- * Renders the splash component at the center of the screen, loads the screen at once and
- * fades the label in. Creates LVGL timers to manage the animation lifecycle including
- * fade-in, display, and fade-out phases. The animation duration is configurable through
- * preferences.
- *
- * Only the label fades, not the screen (A-05): a screen fade redraws the whole display every
- * frame, which made fade frames so slow that a short press during the fade was not sampled.
- */
-void SplashPanel::Load()
-{
-    log_v("Load() called");
-    // Component is now stack-allocated and initialized in constructor
-    component_initialized_ = true;
-
-    // Create location parameters for the splash component
-    ComponentLocation splash_location(LV_ALIGN_CENTER, 0, 0);
-
-    // Render the component
-    component_.Render(screen_, splash_location, display_provider_);
-
-    lv_screen_load(screen_);
-    FadeLabel(LV_OPA_TRANSP, LV_OPA_COVER);
-
-    // Schedule the fade-in animation
-    timer_ = lv_timer_create(SplashPanel::FadeInTimerCallback, GetAnimationTime(), this);
-
+    phase_ = Phase::FadeIn;
+    clock_started_ = false;
+    fade_ms_ = GetAnimationTime();
 #ifdef CLARITY_TEST_SPLASH_INTERRUPT
-    // Test only (D-02): finish early, so the screen manager destroys this panel while its fade-in timer is pending
-    lv_timer_t *interrupt = lv_timer_create(
-        [](lv_timer_t *t)
-        {
-            auto *panel = static_cast<SplashPanel *>(lv_timer_get_user_data(t));
-            log_t("Test: interrupting splash mid fade-in");
-            panel->done_ = true;
-        },
-        GetAnimationTime() / 2, this);
-    lv_timer_set_repeat_count(interrupt, 1);
+    interrupted_ = false;
 #endif
 
-    log_t("SplashPanel loaded successfully");
+    label_ = lv_label_create(screen);
+    lv_label_set_text(label_, ui_constants::APP_NAME);
+    lv_obj_add_style(label_, &theme.TextStyle(), MAIN_DEFAULT);
+    lv_obj_align(label_, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_text_font(label_, &lv_font_montserrat_20, 0);
+
+    // Only the label fades, not the screen (A-05): a screen fade redraws the whole display every frame, which
+    // made fade frames so slow that a short press during the fade was not sampled
+    FadeLabel(LV_OPA_TRANSP, LV_OPA_COVER);
 }
 
-/**
- * @brief Updates the panel state (minimal for splash panel)
- *
- * Splash panel doesn't require regular content updates as it's animation-driven.
- * Simply notifies the notification service that the update cycle is complete.
- * The animation timers handle the panel's lifecycle independently.
- */
-void SplashPanel::Update()
+void SplashPanel::OnExit()
 {
-    log_v("Update() called");
-    // Splash panel doesn't need regular updates - animation handles its own state
+    // The label and its animation are deleted with the screen
+    label_ = nullptr;
 }
 
-// ========== Static Callback Methods ==========
-
-/**
- * @brief Callback function for fade-in animation completion
- * @param fadeInTimer The LVGL timer that has completed
- *
- * Called when the fade-in animation finishes. Schedules the display
- * timer for the next phase. Cleans up the completed fade-in timer.
- */
-void SplashPanel::FadeInTimerCallback(lv_timer_t *fade_in_timer)
+void SplashPanel::Update(uint32_t now)
 {
-    log_v("fade_in_timer_callback() called");
-    // Get the screen pointer that was added to the user data
-    auto *panel = static_cast<SplashPanel *>(lv_timer_get_user_data(fade_in_timer));
-
-    if (!panel)
+    if (!screen_ || phase_ == Phase::Done)
     {
-        log_e("SplashPanel::fade_in_timer_callback: Panel is null from timer user data!");
-        ErrorManager::Instance().ReportCriticalError(panel_names::SPLASH,
-                                                     "Timer callback received null panel - splash fade-in broken");
-        lv_timer_del(fade_in_timer);
         return;
     }
 
-    // This callback now owns the firing timer, so the destructor must not delete it
-    panel->timer_ = nullptr;
-
-    // Create a timer for the callback
-    panel->timer_ =
-        lv_timer_create(SplashPanel::DisplayTimerCallback, timing_constants::splash::DISPLAY_TIME_MS, panel);
-
-    // Remove the fade_in_timer after transition
-    lv_timer_del(fade_in_timer);
-}
-
-/**
- * @brief Callback for display timer completion after splash screen display period
- * @param fadeOutTimer The LVGL timer that has completed
- *
- * Called when the display period expires. Fades the label out and schedules the final fade-out timer.
- */
-void SplashPanel::DisplayTimerCallback(lv_timer_t *fade_out_timer)
-{
-    log_v("display_timer_callback() called");
-    // Get the splash panel instance
-    auto *panel = static_cast<SplashPanel *>(lv_timer_get_user_data(fade_out_timer));
-
-    if (!panel)
+    if (!clock_started_)
     {
-        log_e("SplashPanel::display_timer_callback: Panel is null from timer user data!");
-        ErrorManager::Instance().ReportCriticalError(panel_names::SPLASH,
-                                                     "Timer callback received null panel - splash display broken");
-        lv_timer_del(fade_out_timer);
+        clock_started_ = true;
+        phase_start_ms_ = now;
+    }
+    const uint32_t elapsed = now - phase_start_ms_; // unsigned: correct across the millis() wrap
+
+#ifdef CLARITY_TEST_SPLASH_INTERRUPT
+    // Test only (D-02): finish early, so the screen manager exits this panel while its fade-in is running
+    if (!interrupted_ && elapsed >= static_cast<uint32_t>(fade_ms_ / 2) && phase_ == Phase::FadeIn)
+    {
+        interrupted_ = true;
+        log_t("Test: interrupting splash mid fade-in");
+        phase_ = Phase::Done;
         return;
     }
+#endif
 
-    // This callback now owns the firing timer, so the destructor must not delete it
-    panel->timer_ = nullptr;
-
-    panel->FadeLabel(LV_OPA_COVER, LV_OPA_TRANSP);
-
-    // Complete after the fade-out plus a short blank pause before the target panel appears
-    panel->timer_ = lv_timer_create(SplashPanel::FadeOutTimerCallback,
-                                    panel->GetAnimationTime() + timing_constants::splash::DELAY_TIME_MS, panel);
-
-    // Delete the animation_timer
-    lv_timer_del(fade_out_timer);
-}
-
-/**
- * @brief Callback function for fade-out animation completion
- * @param fadeOutTimer The LVGL timer that has completed
- *
- * Called when the fade-out animation finishes. Notifies the notification
- * service that panel loading is complete, which triggers transition to the
- * target panel. Cleans up the fade-out timer to complete the animation cycle.
- */
-void SplashPanel::FadeOutTimerCallback(lv_timer_t *fade_out_timer)
-{
-    log_v("fade_out_timer_callback() called");
-    // Get the splash panel instance
-    auto *panel = static_cast<SplashPanel *>(lv_timer_get_user_data(fade_out_timer));
-
-    if (!panel)
+    switch (phase_)
     {
-        log_e("SplashPanel::fade_out_timer_callback: Panel is null from timer user data!");
-        ErrorManager::Instance().ReportCriticalError(panel_names::SPLASH,
-                                                     "Timer callback received null panel - splash animation broken");
-        lv_timer_del(fade_out_timer);
-        return;
+        case Phase::FadeIn:
+            if (elapsed >= static_cast<uint32_t>(fade_ms_))
+            {
+                phase_ = Phase::Hold;
+                phase_start_ms_ = now;
+            }
+            break;
+        case Phase::Hold:
+            if (elapsed >= timing_constants::splash::DISPLAY_TIME_MS)
+            {
+                FadeLabel(LV_OPA_COVER, LV_OPA_TRANSP);
+                phase_ = Phase::FadeOut;
+                phase_start_ms_ = now;
+            }
+            break;
+        case Phase::FadeOut:
+            // The fade, then a short blank pause before the target panel appears
+            if (elapsed >= static_cast<uint32_t>(fade_ms_) + timing_constants::splash::DELAY_TIME_MS)
+            {
+                phase_ = Phase::Done;
+            }
+            break;
+        case Phase::Done:
+            break;
     }
-
-    // This callback deletes its own timer
-    panel->timer_ = nullptr;
-
-    // The screen manager loads the target panel on its next Apply() and destroys the splash then
-    panel->done_ = true;
-
-    // Remove the fade_out_timer after transition, this replaces having to set a repeat on the animation_timer
-    lv_timer_del(fade_out_timer);
 }
 
 // ========== Configuration Methods ==========
@@ -287,19 +138,6 @@ void SplashPanel::RegisterConfigSchema(IConfigurationManager *configuration_mana
 }
 
 /**
- * @brief Instance method for backward compatibility during migration
- *
- * This method maintains backward compatibility during migration.
- * New code path uses static RegisterConfigSchema instead.
- * Can be removed once migration is complete.
- */
-void SplashPanel::RegisterConfiguration()
-{
-    // During migration, just delegate to static method
-    RegisterConfigSchema(configuration_manager_);
-}
-
-/**
  * @brief Calculates animation time based on configurable splash duration
  * @return Animation duration in milliseconds for fade-in and fade-out
  *
@@ -328,26 +166,23 @@ int SplashPanel::GetAnimationTime() const
 
     int splash_duration = 0;
     parse_duration(timing_constants::splash::DEFAULT_DURATION, splash_duration); // Default value
-    if (configuration_manager_)
-    {
-        auto duration_value = configuration_manager_->QueryConfig<std::string>(CONFIG_DURATION);
+    auto duration_value = configuration_.QueryConfig<std::string>(CONFIG_DURATION);
 #ifdef CLARITY_TEST_SEED_INVALID_SPLASH
-        // Test only (D-23): storage validation rejects a non-numeric duration before it gets here, so hand the
-        // parser one directly to exercise its fallback
-        duration_value = std::string("abc");
+    // Test only (D-23): storage validation rejects a non-numeric duration before it gets here, so hand the
+    // parser one directly to exercise its fallback
+    duration_value = std::string("abc");
 #endif
-        if (duration_value)
+    if (duration_value)
+    {
+        int parsed = 0;
+        if (parse_duration(*duration_value, parsed))
         {
-            int parsed = 0;
-            if (parse_duration(*duration_value, parsed))
-            {
-                splash_duration = parsed;
-            }
-            else
-            {
-                log_w("Invalid splash duration '%s', using default", duration_value->c_str());
-                log_t("Invalid splash duration '%s', using default", duration_value->c_str());
-            }
+            splash_duration = parsed;
+        }
+        else
+        {
+            log_w("Invalid splash duration '%s', using default", duration_value->c_str());
+            log_t("Invalid splash duration '%s', using default", duration_value->c_str());
         }
     }
 
@@ -365,38 +200,35 @@ int SplashPanel::GetAnimationTime() const
  */
 void SplashPanel::FadeLabel(lv_opa_t from, lv_opa_t to)
 {
-    lv_obj_t *label = component_.GetLabel();
-    if (!label)
+    if (!label_)
     {
         return;
     }
 
-    lv_obj_set_style_opa(label, from, 0);
+    lv_obj_set_style_opa(label_, from, 0);
 
     lv_anim_t anim;
     lv_anim_init(&anim);
-    lv_anim_set_var(&anim, label);
+    lv_anim_set_var(&anim, label_);
     lv_anim_set_values(&anim, from, to);
-    lv_anim_set_duration(&anim, static_cast<uint32_t>(GetAnimationTime()));
+    lv_anim_set_duration(&anim, static_cast<uint32_t>(fade_ms_));
     lv_anim_set_exec_cb(&anim, [](void *obj, int32_t value)
                         { lv_obj_set_style_opa(static_cast<lv_obj_t *>(obj), static_cast<lv_opa_t>(value), 0); });
     lv_anim_start(&anim);
 }
 
-// ========== Action Handler Methods ==========
-
 /**
  * @brief Handles button presses: a short press skips the rest of the splash (Q-08), a long press opens Config
  *
- * The skip completes the splash as the fade-out timer would, so the screen manager loads the target panel on
- * its next Apply(). The pending timer and the label animation are cleaned up when the splash is destroyed.
+ * The skip completes the splash as the end of the blank pause would, so the screen manager loads the target
+ * panel on its next Apply(). The label's animation is deleted with the screen.
  */
 clarity::core::NavIntent SplashPanel::OnButton(clarity::core::ButtonEvent event)
 {
     if (event == clarity::core::ButtonEvent::Short)
     {
         log_t("SplashPanel short press - skipping to target panel");
-        done_ = true;
+        phase_ = Phase::Done;
         return clarity::core::NavIntent::None;
     }
     if (event == clarity::core::ButtonEvent::Long)

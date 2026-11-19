@@ -5,12 +5,15 @@
 
 #include "clarity/core/display_policy.h"
 #include "clarity/core/types.h"
-#include "definitions/enums.h"
+#include "panels/key_panel.h"
+#include "panels/lock_panel.h"
+#include "panels/splash_panel.h"
 
 class IConfigurationManager;
 class IDisplayProvider;
 class IGpioProvider;
 class IPanel;
+class Panel;
 class Theme;
 
 /**
@@ -35,8 +38,10 @@ class Theme;
  *
  * The user panel is the default panel from the configuration (system.default_panel), read once.
  *
- * Panels are still the legacy IPanel classes, created on each transition and destroyed after the next one is
- * loaded; 5.5 replaces them with six long-lived Panel members.
+ * Splash, Key and Lock are long-lived Panel members: Enter() builds their LVGL tree and Exit() deletes it, and
+ * a key or lock reload while the panel is shown recolours it in place. Oil, Error and Config are still the
+ * legacy IPanel classes, created on each transition and destroyed after the next one is loaded; the rest of
+ * 5.5 moves them onto Panel too. In both cases the previous panel goes only after the next screen is loaded.
  */
 class ScreenManager
 {
@@ -56,8 +61,8 @@ class ScreenManager
     /// The single transition point: call once per loop pass, after OnButton()
     void Apply(const clarity::core::VehicleInputs &vehicle, bool errors_active);
 
-    /// Calls the current panel's Update(), every loop pass
-    void Update();
+    /// Calls the current panel's Update(now), every loop pass
+    void Update(uint32_t now);
 
   private:
     enum class TransitionKind : uint8_t
@@ -80,13 +85,19 @@ class ScreenManager
     void Restore();
     void Load(clarity::core::PanelId panel);
     std::unique_ptr<IPanel> CreatePanel(clarity::core::PanelId panel);
+    Panel *LongLivedPanel(clarity::core::PanelId panel);
+    bool PanelFinished() const;
 
     IGpioProvider &gpio_;
     IDisplayProvider &display_;
     Theme &theme_;
     IConfigurationManager &configuration_;
 
-    std::unique_ptr<IPanel> panel_;
+    SplashPanel splash_;
+    KeyPanel key_;
+    LockPanel lock_;
+    Panel *active_ = nullptr;          ///< The shown long-lived panel; nullptr while a legacy panel is shown
+    std::unique_ptr<IPanel> panel_;    ///< The shown legacy panel; empty while a long-lived panel is shown
     clarity::core::PanelId current_ = clarity::core::PanelId::Splash;
     clarity::core::PanelId user_panel_ = clarity::core::PanelId::Oil;
     clarity::core::PanelId splash_target_ = clarity::core::PanelId::Oil;
@@ -94,6 +105,6 @@ class ScreenManager
 
     clarity::core::VehicleInputs vehicle_{}; ///< Lines last acted on: held while the splash runs
     clarity::core::DisplayRequest applied_{clarity::core::OverridePanel::None, clarity::core::KeyState::Inactive};
-    ::KeyState key_state_ = ::KeyState::Inactive; ///< What a key panel shows when it is created
-    bool applied_lights_ = false;                 ///< Lights state the theme was last set for (Day at start)
+    clarity::core::KeyState key_state_ = clarity::core::KeyState::Inactive; ///< What the key panel shows
+    bool applied_lights_ = false; ///< Lights state the theme was last set for (Day at start)
 };

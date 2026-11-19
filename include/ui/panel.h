@@ -25,7 +25,7 @@
  *    panel or widget object, so LVGL removes them when Exit() deletes the tree.
  * 4. Panels own no lv_timer. Time-based behaviour lives in Update(now).
  *
- * Not used yet: ScreenManager still drives the legacy IPanel panels; 5.5 moves the six panels onto this base.
+ * Splash, Key and Lock use this base; Oil, Error and Config are still legacy IPanel panels (rest of 5.5).
  */
 class Panel
 {

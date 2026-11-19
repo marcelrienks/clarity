@@ -8,8 +8,6 @@
  *
  * @details Replaces `KeyComponent` and `LockComponent`. The panel picks the icon and the colour (the key state
  * and the palette are the panel's business), so the view logs nothing and holds no theme.
- *
- * Not used yet: the Key and Lock panels still draw with their components; 5.5 moves them onto this.
  */
 class IconView
 {
