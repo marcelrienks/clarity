@@ -11,136 +11,65 @@
 #include <sstream>
 #include <unordered_map>
 
-/**
- * @brief Constructs configuration panel with required service dependencies
- * @param gpio GPIO provider for hardware interaction
- * @param display Display provider for screen management
- * @param theme Theme for the shared styles and the palette
- *
- * Creates configuration panel with stack-allocated configuration component.
- * Initializes menu system for automotive settings management including
- * theme selection, calibration, and system configuration options.
- */
-ConfigPanel::ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme,
-                         IConfigurationManager *configuration_manager)
-    : gpio_provider_(gpio), display_provider_(display), theme_(theme), configuration_manager_(configuration_manager),
-      component_initialized_(false), current_menu_index_(0)
+ConfigPanel::ConfigPanel(IConfigurationManager &configuration) : configuration_manager_(&configuration)
 {
-    log_v("ConfigPanel constructor called");
 }
 
-/**
- * @brief Destructor cleans up configuration panel resources
- *
- * Safely deletes LVGL screen objects and cleans up menu state.
- * Stack-allocated component is automatically destroyed. Ensures
- * proper cleanup when exiting configuration interface.
- */
-ConfigPanel::~ConfigPanel()
+void ConfigPanel::Build(lv_obj_t *screen, Theme &theme)
 {
-    log_v("~ConfigPanel() destructor called");
+    (void)screen;
+    theme_ = &theme;
 
-    // Components delete no LVGL objects, so destroying them after the screen is safe
-    if (screen_)
-    {
-        lv_obj_delete(screen_);
-        screen_ = nullptr;
-    }
-}
-
-// Core Functionality Methods
-
-/**
- * @brief Initializes configuration panel UI structure and menu system
- *
- * Creates LVGL screen, validates display provider, sets up component location,
- * and initializes configuration menu structure. Builds menu hierarchy for
- * automotive system configuration including themes, calibration, and settings.
- */
-void ConfigPanel::Init()
-{
-    log_v("Init() called");
-
-    if (!display_provider_)
-    {
-        log_e("ConfigPanel requires display provider");
-        ErrorManager::Instance().ReportCriticalError(panel_names::CONFIG, "Missing required display provider");
-        return;
-    }
-
-    screen_ = display_provider_->CreateScreen();
-
-    if (!theme_)
-    {
-        return;
-    }
-
-    theme_->ApplyBackground(screen_);
-
-    log_i("ConfigPanel initialization completed");
-}
-
-/**
- * @brief Loads configuration panel UI and displays main menu
- *
- * Renders configuration component, sets up main menu items, applies current
- * theme styling, and loads the LVGL screen. Sets up button action handlers
- * for menu navigation and selection. Critical for configuration interface.
- */
-void ConfigPanel::Load()
-{
-    log_v("Load() called");
-
-    // Reset menu to first item
+    // Every visit starts at the main menu, on its first item
     current_menu_index_ = 0;
+    current_section_name_.clear();
 
-    // Apply current theme to config panel (don't change the theme, just apply existing)
-    if (theme_)
+    ApplyMenuBackground();
+    wheel_.Build(screen_, theme.Colors());
+
+    // Build dynamic menu from registered configuration sections
+    BuildDynamicMenus();
+}
+
+void ConfigPanel::OnExit()
+{
+    theme_ = nullptr;
+    menu_items_.clear();
+}
+
+/**
+ * @brief Follows a theme change while the panel is open
+ *
+ * Otherwise static: updates are driven by button presses.
+ */
+void ConfigPanel::Update(uint32_t now)
+{
+    (void)now;
+    if (screen_ && theme_->Active() != styled_theme_)
     {
-        theme_->ApplyBackground(screen_);
         ApplyMenuBackground();
+        wheel_.Restyle(theme_->Colors());
     }
+}
 
-    // Initialize the config component with the screen
+/// Shows menu_items_ under a title, selecting the first item
+void ConfigPanel::ShowMenu(const std::string &title)
+{
     if (!screen_)
     {
         return;
     }
 
-    // Mark component as initialized
-    component_initialized_ = true;
-
-    config_component_.Init(screen_);
-    config_component_.SetTheme(theme_);
-
-    // Build dynamic menu from registered configuration sections
-    BuildDynamicMenus();
-    config_component_.SetMenuItems(menu_items_);
-    config_component_.SetCurrentIndex(current_menu_index_);
-
-    lv_screen_load(screen_);
-
-    log_t("ConfigPanel loaded successfully");
-}
-
-/**
- * @brief Updates configuration panel display with current settings
- *
- * Monitors for theme changes and updates component styling accordingly.
- * Configuration panels are primarily static with updates driven by
- * user interactions rather than continuous data changes.
- */
-void ConfigPanel::Update()
-{
-    log_v("Update() called");
-
-    // Otherwise static: updates are driven by button presses. The menu colours are set locally, so follow a
-    // theme change while the panel is open (the lights signal, D-06)
-    if (theme_ && component_initialized_ && theme_->Active() != styled_theme_)
+    std::vector<std::string> labels;
+    labels.reserve(menu_items_.size());
+    for (const MenuItem &item : menu_items_)
     {
-        ApplyMenuBackground();
-        config_component_.UpdateThemeColors();
+        labels.push_back(item.label);
     }
+
+    wheel_.SetTitle(title);
+    wheel_.SetItems(labels);
+    wheel_.SetIndex(0);
 }
 
 /**
@@ -191,9 +120,9 @@ void ConfigPanel::HandleShortPress()
     // Cycle to next menu item
     current_menu_index_ = (current_menu_index_ + 1) % menu_items_.size();
 
-    if (component_initialized_)
+    if (screen_)
     {
-        config_component_.SetCurrentIndex(current_menu_index_);
+        wheel_.SetIndex(current_menu_index_);
     }
 
     log_t("ConfigPanel: %s option highlighted", menu_items_[current_menu_index_].label.c_str());
@@ -216,7 +145,7 @@ clarity::core::NavIntent ConfigPanel::HandleLongPress()
     }
 
     // A copy: entering a section or an option list rebuilds menu_items_
-    const ConfigComponent::MenuItem item = menu_items_[current_menu_index_];
+    const MenuItem item = menu_items_[current_menu_index_];
 
     return ExecuteMenuAction(item);
 }
@@ -254,7 +183,7 @@ bool ConfigPanel::ValidateMenuState() const
  * Parses the action type and delegates to appropriate handler method.
  * Supports section navigation, value toggling, options display, and panel exit.
  */
-clarity::core::NavIntent ConfigPanel::ExecuteMenuAction(const ConfigComponent::MenuItem &item)
+clarity::core::NavIntent ConfigPanel::ExecuteMenuAction(const MenuItem &item)
 {
 
     MenuActionType action_type = ParseActionType(item.actionType);
@@ -487,7 +416,7 @@ void ConfigPanel::BuildDynamicMenus()
     {
         if (auto section = configuration_manager_->GetConfigSection(section_name))
         {
-            ConfigComponent::MenuItem item;
+            MenuItem item;
             item.label = section->displayName;
             item.actionType = ui_strings::action_types::ENTER_SECTION;
             item.actionParam = section_name;
@@ -498,13 +427,7 @@ void ConfigPanel::BuildDynamicMenus()
     // Add exit option
     menu_items_.push_back({ui_strings::menu_labels::EXIT, ui_strings::action_types::PANEL_EXIT, ""});
 
-    // Update component
-    if (component_initialized_)
-    {
-        config_component_.SetTitle(ui_strings::menu_labels::CONFIGURATION);
-        config_component_.SetMenuItems(menu_items_);
-        config_component_.SetCurrentIndex(0);
-    }
+    ShowMenu(ui_strings::menu_labels::CONFIGURATION);
 
     current_menu_index_ = 0;
     log_i("Built dynamic menu with %zu sections", section_names.size());
@@ -534,7 +457,7 @@ void ConfigPanel::BuildSectionMenu(const std::string &section_name)
     // Add items from the section
     for (const auto &item : section->items)
     {
-        ConfigComponent::MenuItem menu_item;
+        MenuItem menu_item;
         menu_item.label = FormatItemLabel(item);
 
         // Create action based on item type
@@ -556,13 +479,7 @@ void ConfigPanel::BuildSectionMenu(const std::string &section_name)
     // Add back option
     menu_items_.push_back({ui_strings::menu_labels::BACK, ui_strings::action_types::BACK, ""});
 
-    // Update component
-    if (component_initialized_)
-    {
-        config_component_.SetTitle(section->displayName);
-        config_component_.SetMenuItems(menu_items_);
-        config_component_.SetCurrentIndex(0);
-    }
+    ShowMenu(section->displayName);
 
     current_menu_index_ = 0;
 }
@@ -621,13 +538,7 @@ void ConfigPanel::ShowOptionsMenu(const std::string &full_key, const config::Con
     // Add back option
     menu_items_.push_back({ui_strings::menu_labels::BACK, ui_strings::action_types::BACK, ""});
 
-    // Update component
-    if (component_initialized_)
-    {
-        config_component_.SetTitle(item.displayName);
-        config_component_.SetMenuItems(menu_items_);
-        config_component_.SetCurrentIndex(0);
-    }
+    ShowMenu(item.displayName);
 
     current_menu_index_ = 0;
     log_t("ConfigPanel: Options menu for %s loaded", key_str.c_str());
@@ -729,7 +640,7 @@ void ConfigPanel::ShowEnumOptionsMenu(const std::string &full_key, const config:
     for (const auto &option : options)
     {
         bool is_selected = (option == current_value);
-        ConfigComponent::MenuItem menu_item = CreateMenuItemWithSelection(option, full_key, option, is_selected);
+        MenuItem menu_item = CreateMenuItemWithSelection(option, full_key, option, is_selected);
         menu_items_.push_back(menu_item);
     }
 }
@@ -756,7 +667,7 @@ void ConfigPanel::ShowNumericOptionsMenu(const std::string &full_key, const conf
     {
         std::string value_str = FormatNumericValue(value, item);
         bool is_selected = (value == range.currentValue);
-        ConfigComponent::MenuItem menu_item =
+        MenuItem menu_item =
             CreateMenuItemWithSelection(value_str, full_key, std::to_string(value), is_selected);
         menu_items_.push_back(menu_item);
     }
@@ -773,7 +684,7 @@ void ConfigPanel::ShowNumericOptionsMenu(const std::string &full_key, const conf
 void ConfigPanel::ShowStringOptionsMenu(const std::string & /*full_key*/, const config::ConfigItem &item)
 {
     // For string types without options, just show current value
-    ConfigComponent::MenuItem current_item;
+    MenuItem current_item;
     current_item.label = ui_strings::config_ui::CURRENT_LABEL_PREFIX + configuration_manager_->ToString(item.value);
     current_item.actionType = ui_strings::config_ui::ACTION_TYPE_NONE;
     current_item.actionParam = ui_strings::config_ui::EMPTY_PARAM;
@@ -791,11 +702,11 @@ void ConfigPanel::ShowStringOptionsMenu(const std::string & /*full_key*/, const 
  * Centralizes menu item creation with consistent selection marking.
  * Selected items are prefixed with arrow indicator.
  */
-ConfigComponent::MenuItem ConfigPanel::CreateMenuItemWithSelection(const std::string &label,
+ConfigPanel::MenuItem ConfigPanel::CreateMenuItemWithSelection(const std::string &label,
                                                                    const std::string &full_key,
                                                                    const std::string &value, bool is_selected) const
 {
-    ConfigComponent::MenuItem menu_item;
+    MenuItem menu_item;
 
     // Show marker for current selection
     if (is_selected)

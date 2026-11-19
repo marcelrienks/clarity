@@ -6,8 +6,7 @@
 
 #include "definitions/constants.h"
 #include "interfaces/i_configuration_manager.h"
-#include "panels/config_panel.h"
-#include "panels/error_panel.h"
+#include "managers/error_manager.h"
 #include "ui/theme.h"
 #include "utilities/logging.h"
 
@@ -81,10 +80,9 @@ void LogDeactivated([[maybe_unused]] const clarity::core::VehicleInputs &was,
 }
 } // namespace
 
-ScreenManager::ScreenManager(IGpioProvider &gpio, IDisplayProvider &display, Theme &theme,
-                             IConfigurationManager &configuration)
-    : gpio_(gpio), display_(display), theme_(theme), configuration_(configuration), splash_(configuration),
-      oil_(gpio, configuration)
+ScreenManager::ScreenManager(IGpioProvider &gpio, Theme &theme, IConfigurationManager &configuration)
+    : theme_(theme), configuration_(configuration), splash_(configuration), oil_(gpio, configuration),
+      config_(configuration), error_(ErrorManager::Instance().Log())
 {
     std::string default_panel = panel_names::OIL;
     if (auto value = configuration_.QueryConfig<std::string>(config_constants::keys::SYSTEM_DEFAULT_PANEL))
@@ -95,10 +93,9 @@ ScreenManager::ScreenManager(IGpioProvider &gpio, IDisplayProvider &display, The
     log_i("ScreenManager: user panel is '%s'", PanelName(user_panel_));
 }
 
-// Out of line: IPanel is complete here. The shown long-lived panel's tree goes with the screen manager
 ScreenManager::~ScreenManager()
 {
-    panel_.reset();
+    // The shown panel's LVGL tree goes with the screen manager
     if (active_)
     {
         active_->Exit();
@@ -154,21 +151,13 @@ void ScreenManager::OnButton(clarity::core::ButtonEvent event)
         return;
     }
 
-    clarity::core::NavIntent intent = clarity::core::NavIntent::None;
-    if (active_)
-    {
-        intent = active_->OnButton(event);
-    }
-    else if (panel_)
-    {
-        intent = panel_->OnButton(event);
-    }
-    else
+    if (!active_)
     {
         log_w("No active panel for button action");
         return;
     }
 
+    const clarity::core::NavIntent intent = active_->OnButton(event);
     if (intent != clarity::core::NavIntent::None)
     {
         intent_ = intent;
@@ -260,19 +249,11 @@ void ScreenManager::Update(uint32_t now)
     {
         active_->Update(now);
     }
-    else if (panel_)
-    {
-        panel_->Update();
-    }
 }
 
 bool ScreenManager::PanelFinished() const
 {
-    if (active_)
-    {
-        return active_->Finished();
-    }
-    return panel_ && panel_->Finished();
+    return active_ && active_->Finished();
 }
 
 ScreenManager::Transition ScreenManager::Request(PanelId panel) const
@@ -371,9 +352,9 @@ void ScreenManager::Load(PanelId panel)
         theme_.Apply(clarity::core::ThemeId::Error);
     }
 
-    Panel *next = LongLivedPanel(panel);
+    Panel &next = PanelFor(panel);
 
-    if (next && next == active_)
+    if (&next == active_)
     {
         // A reload of the panel that is shown (key state change, lock line cleared and another still held):
         // recolour in place, a deleted active screen would leave LVGL without one
@@ -385,60 +366,39 @@ void ScreenManager::Load(PanelId panel)
         return;
     }
 
-    // Swap order (A-05): the previous panel is exited or destroyed only once the new screen is the active one
-    Panel *previous = std::exchange(active_, nullptr);
-    std::unique_ptr<IPanel> previous_legacy = std::move(panel_);
-
+    // Swap order (A-05): the previous panel is exited only once the new screen is the active one
+    Panel *previous = std::exchange(active_, &next);
     current_ = panel;
-    if (next)
+
+    if (panel == PanelId::Key)
     {
-        if (panel == PanelId::Key)
-        {
-            key_.SetState(key_state_);
-        }
-        next->Enter(theme_);
-        active_ = next;
-        log_t("%s loaded successfully", PanelName(panel));
+        key_.SetState(key_state_);
     }
-    else
-    {
-        panel_ = CreatePanel(panel);
-        panel_->Init();
-        panel_->Load();
-    }
+    next.Enter(theme_);
+    log_t("%s loaded successfully", PanelName(panel));
 
     if (previous)
     {
         previous->Exit();
     }
-    previous_legacy.reset();
 }
 
-Panel *ScreenManager::LongLivedPanel(PanelId panel)
+Panel &ScreenManager::PanelFor(PanelId panel)
 {
     switch (panel)
     {
         case PanelId::Splash:
-            return &splash_;
+            return splash_;
         case PanelId::Key:
-            return &key_;
+            return key_;
         case PanelId::Lock:
-            return &lock_;
-        case PanelId::Oil:
-            return &oil_;
+            return lock_;
         case PanelId::Config:
+            return config_;
         case PanelId::Error:
+            return error_;
+        case PanelId::Oil:
             break;
     }
-    return nullptr;
-}
-
-std::unique_ptr<IPanel> ScreenManager::CreatePanel(PanelId panel)
-{
-    // Only the panels LongLivedPanel() does not know come here
-    if (panel == PanelId::Error)
-    {
-        return std::make_unique<ErrorPanel>(&gpio_, &display_, &theme_);
-    }
-    return std::make_unique<ConfigPanel>(&gpio_, &display_, &theme_, &configuration_);
+    return oil_;
 }

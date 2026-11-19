@@ -62,7 +62,8 @@ enum class Fault : uint16_t
     NvsWriteFailed,
     SensorImplausible,
     PanelBuildFailed,
-    DebugTest
+    DebugTest,
+    Unclassified ///< Reported through the legacy ErrorManager API, which names no fault
 };
 
 constexpr const char *ToString(PanelId id)
@@ -169,6 +170,8 @@ constexpr const char *ToString(Fault fault)
             return "PanelBuildFailed";
         case Fault::DebugTest:
             return "DebugTest";
+        case Fault::Unclassified:
+            return "Unclassified";
     }
     return "Unknown";
 }

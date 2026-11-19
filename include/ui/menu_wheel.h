@@ -17,8 +17,6 @@
  * item (wrapping around the list; rows further from the centre are smaller, fainter and darker) and a hint. It
  * knows nothing about what the items do: the Config panel maps a press on the selected index to its action and
  * returns the NavIntent. The wheel holds only the labels it draws.
- *
- * Not used yet: the Config panel still draws with `ConfigComponent`; 5.5 moves it onto this.
  */
 class MenuWheel
 {

@@ -1,13 +1,11 @@
 #pragma once
 
-#include "components/config_component.h"
+#include "clarity/core/types.h"
 #include "definitions/configs.h"
-#include "definitions/types.h"
+#include "definitions/constants.h"
 #include "interfaces/i_configuration_manager.h"
-#include "interfaces/i_display_provider.h"
-#include "interfaces/i_gpio_provider.h"
-#include "interfaces/i_panel.h"
-#include "ui/theme.h"
+#include "ui/menu_wheel.h"
+#include "ui/panel.h"
 
 #include <memory>
 #include <string>
@@ -43,25 +41,33 @@
  * @context This is an initial implementation with basic configuration options.
  * Additional settings and functionality can be added as needed.
  */
-class ConfigPanel : public IPanel
+class ConfigPanel : public Panel
 {
   public:
-    // ========== Constructors and Destructor ==========
-    ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, Theme *theme,
-                IConfigurationManager *configuration_manager);
-    ~ConfigPanel() override;
+    explicit ConfigPanel(IConfigurationManager &configuration);
 
-    // ========== Public Interface Methods ==========
     static constexpr const char *NAME = panel_names::CONFIG;
-    void Init() override;
-    void Load() override;
-    void Update() override;
+
+    /// Follows a theme change while the panel is open (the menu colours are set locally, D-06)
+    void Update(uint32_t now) override;
 
     /// Short press highlights the next item; long press selects it. Returns ExitConfig when Exit is selected
     clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
 
+  protected:
+    /// Shows the main menu: every visit starts at the top
+    void Build(lv_obj_t *screen, Theme &theme) override;
+    void OnExit() override;
+
   private:
     // ========== Private Types ==========
+
+    struct MenuItem
+    {
+        std::string label;
+        std::string actionType;  // Type of action: "theme_switch", "panel_load", etc.
+        std::string actionParam; // Parameter for the action
+    };
 
     enum class MenuActionType
     {
@@ -79,6 +85,7 @@ class ConfigPanel : public IPanel
 
     // Dynamic configuration methods
     void BuildDynamicMenus();
+    void ShowMenu(const std::string &title);
     void ApplyMenuBackground();
     void BuildSectionMenu(const std::string &section_name);
     std::string FormatItemLabel(const config::ConfigItem &item) const;
@@ -90,7 +97,7 @@ class ConfigPanel : public IPanel
                              const std::vector<std::string> &options);
     void ShowNumericOptionsMenu(const std::string &full_key, const config::ConfigItem &item);
     void ShowStringOptionsMenu(const std::string &full_key, const config::ConfigItem &item);
-    ConfigComponent::MenuItem CreateMenuItemWithSelection(const std::string &label, const std::string &full_key,
+    MenuItem CreateMenuItemWithSelection(const std::string &label, const std::string &full_key,
                                                           const std::string &value, bool is_selected) const;
 
     // Extracted ShowNumericOptionsMenu helpers
@@ -112,7 +119,7 @@ class ConfigPanel : public IPanel
 
     // Helper methods for HandleLongPress
     bool ValidateMenuState() const;
-    clarity::core::NavIntent ExecuteMenuAction(const ConfigComponent::MenuItem &item);
+    clarity::core::NavIntent ExecuteMenuAction(const MenuItem &item);
     MenuActionType ParseActionType(const std::string &action_type_str) const;
     void HandleEnterSection(const std::string &section_name);
     void HandleToggleBoolean(const std::string &full_key);
@@ -124,21 +131,14 @@ class ConfigPanel : public IPanel
     // ========== Private Data Members ==========
 
     // Instance Data Members
-    IGpioProvider *gpio_provider_;
-    IDisplayProvider *display_provider_;
-    Theme *theme_;
     IConfigurationManager *configuration_manager_ = nullptr;
-    lv_obj_t *screen_ = nullptr;
+    Theme *theme_ = nullptr; ///< Valid between Build() and OnExit()
 
-    // Component (View) - static allocation
-    ConfigComponent config_component_;
-    bool component_initialized_ = false;
+    MenuWheel wheel_;
     clarity::core::ThemeId styled_theme_ = clarity::core::ThemeId::Day; ///< Theme the menu was coloured for
 
     // Dynamic menu state
-    std::vector<ConfigComponent::MenuItem> menu_items_;
+    std::vector<MenuItem> menu_items_;
     size_t current_menu_index_ = 0;
     std::string current_section_name_;
-
-    // Callback function removed - using interface-based notifications
 };

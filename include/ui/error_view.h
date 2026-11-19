@@ -15,8 +15,6 @@
  * @details Show() reads the entry straight from the log and redraws only when the log's revision or the index
  * differs from the last draw (D-19), so calling it every loop pass costs two comparisons. It keeps no copy of the
  * log and does no sorting: the index is the position in the log's own order, which the error panel chooses.
- *
- * Not used yet: the error panel still draws with `ErrorComponent`; 5.5 moves it onto this.
  */
 class ErrorView
 {

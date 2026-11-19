@@ -71,6 +71,7 @@ void test_fault_names()
     TEST_ASSERT_EQUAL_STRING("SensorImplausible", ToString(Fault::SensorImplausible));
     TEST_ASSERT_EQUAL_STRING("PanelBuildFailed", ToString(Fault::PanelBuildFailed));
     TEST_ASSERT_EQUAL_STRING("DebugTest", ToString(Fault::DebugTest));
+    TEST_ASSERT_EQUAL_STRING("Unclassified", ToString(Fault::Unclassified));
 }
 
 void test_out_of_range_values_have_a_name()

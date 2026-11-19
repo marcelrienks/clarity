@@ -1,19 +1,18 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
 
 #include "clarity/core/display_policy.h"
 #include "clarity/core/types.h"
+#include "panels/config_panel.h"
+#include "panels/error_panel.h"
 #include "panels/key_panel.h"
 #include "panels/lock_panel.h"
 #include "panels/oem_oil_panel.h"
 #include "panels/splash_panel.h"
 
 class IConfigurationManager;
-class IDisplayProvider;
 class IGpioProvider;
-class IPanel;
 class Panel;
 class Theme;
 
@@ -39,15 +38,15 @@ class Theme;
  *
  * The user panel is the default panel from the configuration (system.default_panel), read once.
  *
- * Splash, Key, Lock and Oil are long-lived Panel members: Enter() builds their LVGL tree and Exit() deletes it, and
- * a key or lock reload while the panel is shown recolours it in place. Error and Config are still the legacy
- * IPanel classes, created on each transition and destroyed after the next one is loaded; the rest of 5.5 moves
- * them onto Panel too. In both cases the previous panel goes only after the next screen is loaded.
+ * The six panels are long-lived members: Enter() builds a panel's LVGL tree and Exit() deletes it, so a panel keeps
+ * its state between visits only where it chooses to. The previous panel is exited only once the next screen is
+ * loaded (swap order, A-05). A reload of the panel already shown (key state change, a remaining override
+ * re-activated) recolours the key panel in place and does nothing for the others.
  */
 class ScreenManager
 {
   public:
-    ScreenManager(IGpioProvider &gpio, IDisplayProvider &display, Theme &theme, IConfigurationManager &configuration);
+    ScreenManager(IGpioProvider &gpio, Theme &theme, IConfigurationManager &configuration);
     ScreenManager(const ScreenManager &) = delete;
     ScreenManager &operator=(const ScreenManager &) = delete;
     ~ScreenManager();
@@ -85,12 +84,9 @@ class ScreenManager
     void Perform(const Transition &transition);
     void Restore();
     void Load(clarity::core::PanelId panel);
-    std::unique_ptr<IPanel> CreatePanel(clarity::core::PanelId panel);
-    Panel *LongLivedPanel(clarity::core::PanelId panel);
+    Panel &PanelFor(clarity::core::PanelId panel);
     bool PanelFinished() const;
 
-    IGpioProvider &gpio_;
-    IDisplayProvider &display_;
     Theme &theme_;
     IConfigurationManager &configuration_;
 
@@ -98,8 +94,9 @@ class ScreenManager
     KeyPanel key_;
     LockPanel lock_;
     OemOilPanel oil_;
-    Panel *active_ = nullptr;          ///< The shown long-lived panel; nullptr while a legacy panel is shown
-    std::unique_ptr<IPanel> panel_;    ///< The shown legacy panel; empty while a long-lived panel is shown
+    ConfigPanel config_;
+    ErrorPanel error_;
+    Panel *active_ = nullptr; ///< The panel on screen; nullptr before Begin()
     clarity::core::PanelId current_ = clarity::core::PanelId::Splash;
     clarity::core::PanelId user_panel_ = clarity::core::PanelId::Oil;
     clarity::core::PanelId splash_target_ = clarity::core::PanelId::Oil;

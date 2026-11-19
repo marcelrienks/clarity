@@ -172,8 +172,7 @@ bool InitializeServices()
 
     inputs = std::make_unique<Inputs>(*gpio_provider);
 
-    screen_manager =
-        std::make_unique<ScreenManager>(*gpio_provider, *display_provider, *ui_theme, *configuration_manager);
+    screen_manager = std::make_unique<ScreenManager>(*gpio_provider, *ui_theme, *configuration_manager);
 
     error_manager = manager_factory->CreateErrorManager();
     if (!error_manager)
