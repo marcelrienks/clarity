@@ -1,0 +1,11 @@
+name: 'Clarity Automated Integration Test - Part 8: Failed init restarts (D-04)'
+version: 1
+steps:
+  # Part 8 of 8. Runs on the test-wokwi-failinit firmware, selected by the _failinit suffix
+  # in the file name. initializeServices() always fails, so loop() must not touch the null
+  # managers and must restart after INIT_FAILED_RESTART_DELAY_MS (5 s). The same message
+  # a second time proves the device restarted instead of crashing or hanging.
+  - wait-serial: '[T] Test: forcing service initialization failure'
+  - wait-serial: '[T] Service initialization failed - restarting'
+  - wait-serial: '[T] Test: forcing service initialization failure'
+  - wait-serial: '[T] Service initialization failed - restarting'

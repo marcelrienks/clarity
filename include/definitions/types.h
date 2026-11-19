@@ -11,7 +11,6 @@
  * The type system has been organized into domain-specific headers:
  * - enums.h: System-wide enums and fundamental type definitions
  * - ui_types.h: Component positioning and layout data structures
- * - state_types.h: Runtime state structures and behavior types
  *
  * @note For new code, consider including only the specific type headers needed
  * to reduce compilation dependencies.
@@ -49,4 +48,3 @@ using Reading = std::variant<std::monostate, int32_t, double, std::string, bool>
 // Include all modularized type headers
 #include "definitions/enums.h"
 #include "definitions/ui_types.h"
-#include "definitions/state_types.h"

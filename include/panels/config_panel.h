@@ -1,15 +1,11 @@
 #pragma once
 
-#include "components/config_component.h"
-#include "interfaces/i_action_handler.h"
-#include "interfaces/i_display_provider.h"
-#include "interfaces/i_gpio_provider.h"
-#include "interfaces/i_panel.h"
-#include "interfaces/i_panel_manager.h"
-#include "interfaces/i_configuration_manager.h"
-#include "interfaces/i_style_manager.h"
+#include "clarity/core/types.h"
 #include "definitions/configs.h"
-#include "definitions/types.h"
+#include "definitions/constants.h"
+#include "interfaces/i_configuration_manager.h"
+#include "ui/menu_wheel.h"
+#include "ui/panel.h"
 
 #include <memory>
 #include <string>
@@ -45,27 +41,36 @@
  * @context This is an initial implementation with basic configuration options.
  * Additional settings and functionality can be added as needed.
  */
-class ConfigPanel : public IPanel
+class ConfigPanel : public Panel
 {
   public:
-    // ========== Constructors and Destructor ==========
-    ConfigPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *styleManager,
-                IPanelManager *panelManager, IConfigurationManager *configurationManager);
-    ~ConfigPanel();
+    explicit ConfigPanel(IConfigurationManager &configuration);
 
-    // ========== Public Interface Methods ==========
-    static constexpr const char *NAME = PanelNames::CONFIG;
-    void Init() override;
-    void Load() override;
-    void Update() override;
-    // IActionService Interface Implementation (inherited through IPanel)
-    void HandleShortPress() override;
-    void HandleLongPress() override;
+    static constexpr const char *NAME = panel_names::CONFIG;
+
+    /// Follows a theme change while the panel is open (the menu colours are set locally, D-06)
+    void Update(uint32_t now) override;
+
+    /// Short press highlights the next item; long press selects it. Returns ExitConfig when Exit is selected
+    clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
+
+  protected:
+    /// Shows the main menu: every visit starts at the top
+    void Build(lv_obj_t *screen, Theme &theme) override;
+    void OnExit() override;
 
   private:
     // ========== Private Types ==========
 
-    enum class MenuActionType {
+    struct MenuItem
+    {
+        std::string label;
+        std::string actionType;  // Type of action: "theme_switch", "panel_load", etc.
+        std::string actionParam; // Parameter for the action
+    };
+
+    enum class MenuActionType
+    {
         ENTER_SECTION,
         TOGGLE_BOOLEAN,
         SHOW_OPTIONS,
@@ -80,62 +85,61 @@ class ConfigPanel : public IPanel
 
     // Dynamic configuration methods
     void BuildDynamicMenus();
-    void BuildSectionMenu(const std::string& sectionName);
-    std::string FormatItemLabel(const Config::ConfigItem& item) const;
-    void ShowOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item);
-    void ShowBooleanToggle(const std::string& fullKey, const Config::ConfigItem& item);
+    void ShowMenu(const std::string &title);
+    void ApplyMenuBackground();
+    void BuildSectionMenu(const std::string &section_name);
+    std::string FormatItemLabel(const config::ConfigItem &item) const;
+    void ShowOptionsMenu(const std::string &full_key, const config::ConfigItem &item);
+    void ShowBooleanToggle(const std::string &full_key, const config::ConfigItem &item);
 
     // Extracted ShowOptionsMenu helpers
-    void ShowEnumOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item, const std::vector<std::string>& options);
-    void ShowNumericOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item);
-    void ShowStringOptionsMenu(const std::string& fullKey, const Config::ConfigItem& item);
-    ConfigComponent::MenuItem CreateMenuItemWithSelection(const std::string& label, const std::string& fullKey, const std::string& value, bool isSelected) const;
+    void ShowEnumOptionsMenu(const std::string &full_key, const config::ConfigItem &item,
+                             const std::vector<std::string> &options);
+    void ShowNumericOptionsMenu(const std::string &full_key, const config::ConfigItem &item);
+    void ShowStringOptionsMenu(const std::string &full_key, const config::ConfigItem &item);
+    MenuItem CreateMenuItemWithSelection(const std::string &label, const std::string &full_key,
+                                                          const std::string &value, bool is_selected) const;
 
     // Extracted ShowNumericOptionsMenu helpers
-    struct NumericRange {
+    struct NumericRange
+    {
         float minValue;
         float maxValue;
         float currentValue;
     };
-    NumericRange ParseNumericRange(const Config::ConfigItem& item) const;
-    std::vector<float> GenerateNumericValues(const NumericRange& range, const Config::ConfigItem& item) const;
-    std::string FormatNumericValue(float value, const Config::ConfigItem& item) const;
+    NumericRange ParseNumericRange(const config::ConfigItem &item) const;
+    std::vector<float> GenerateNumericValues(const NumericRange &range, const config::ConfigItem &item) const;
+    std::string FormatNumericValue(float value, const config::ConfigItem &item) const;
 
-    std::vector<std::string> ParseOptions(const std::string& constraints) const;
-    std::pair<std::string, std::string> ParseConfigKey(const std::string& fullKey) const;
+    std::vector<std::string> ParseOptions(const std::string &constraints) const;
+    std::pair<std::string, std::string> ParseConfigKey(const std::string &full_key) const;
+
+    void HandleShortPress();
+    clarity::core::NavIntent HandleLongPress();
 
     // Helper methods for HandleLongPress
     bool ValidateMenuState() const;
-    void ExecuteMenuAction(const ConfigComponent::MenuItem& item);
-    MenuActionType ParseActionType(const std::string& actionTypeStr) const;
-    void HandleEnterSection(const std::string& sectionName);
-    void HandleToggleBoolean(const std::string& fullKey);
-    void HandleShowOptions(const std::string& fullKey);
-    void HandleSetConfigValue(const std::string& actionParam);
-    void HandleBackAction(const std::string& actionParam);
-    void HandlePanelExit();
-
-    // ========== Static Methods ==========
-    static void ShowPanelCompletionCallback(lv_event_t *event);
+    clarity::core::NavIntent ExecuteMenuAction(const MenuItem &item);
+    MenuActionType ParseActionType(const std::string &action_type_str) const;
+    void HandleEnterSection(const std::string &section_name);
+    void HandleToggleBoolean(const std::string &full_key);
+    void HandleShowOptions(const std::string &full_key);
+    void HandleSetConfigValue(const std::string &action_param);
+    void HandleBackAction(const std::string &action_param);
+    clarity::core::NavIntent HandlePanelExit();
 
     // ========== Private Data Members ==========
 
     // Instance Data Members
-    IGpioProvider *gpioProvider_;
-    IDisplayProvider *displayProvider_;
-    IStyleManager *styleManager_;
-    IPanelManager *panelManager_;
-    IConfigurationManager *configurationManager_ = nullptr;
-    lv_obj_t* screen_ = nullptr;
+    IConfigurationManager *configuration_manager_ = nullptr;
+    Theme *theme_ = nullptr; ///< Valid between Build() and OnExit()
 
-    // Component (View) - static allocation
-    ConfigComponent configComponent_;
-    bool componentInitialized_ = false;
+    MenuWheel wheel_;
+    clarity::core::ThemeId styled_theme_ = clarity::core::ThemeId::Day; ///< Theme the menu was coloured for
 
     // Dynamic menu state
-    std::vector<ConfigComponent::MenuItem> menuItems_;
-    size_t currentMenuIndex_ = 0;
-    std::string currentSectionName_;
-
-    // Callback function removed - using interface-based notifications
+    std::vector<MenuItem> menu_items_;
+    size_t current_menu_index_ = 0;
+    std::string current_section_name_;
+    bool in_options_menu_ = false; ///< An option list is shown; Back returns to its section menu (Q-09)
 };

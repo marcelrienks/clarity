@@ -2,8 +2,8 @@
 
 #include "interfaces/i_configuration_manager.h"
 #include "interfaces/i_storage_provider.h"
-#include <vector>
 #include <memory>
+#include <vector>
 
 /**
  * @class ConfigurationManager
@@ -27,16 +27,17 @@
  * @context This manager is the single interface for configuration. Components
  * should use ConfigurationManager exclusively, never PreferenceStorage directly.
  */
-class ConfigurationManager : public IConfigurationManager {
-public:
+class ConfigurationManager : public IConfigurationManager
+{
+  public:
     // ========== Constructors and Destructor ==========
     ConfigurationManager();
-    ConfigurationManager(const ConfigurationManager&) = delete;
-    ConfigurationManager& operator=(const ConfigurationManager&) = delete;
-    ~ConfigurationManager();
+    ConfigurationManager(const ConfigurationManager &) = delete;
+    ConfigurationManager &operator=(const ConfigurationManager &) = delete;
+    ~ConfigurationManager() override;
 
     // ========== Static Methods ==========
-    static ConfigurationManager& Instance();
+    static ConfigurationManager &Instance();
 
     /**
      * @brief Add a configuration schema function (static interface)
@@ -45,7 +46,7 @@ public:
      * Called automatically during static initialization by components.
      * The registered functions are executed later by RegisterAllSchemas().
      */
-    static void AddSchema(void(*func)(IConfigurationManager*));
+    static void AddSchema(void (*func)(IConfigurationManager *));
 
     // ========== Public Interface Methods ==========
 
@@ -69,30 +70,30 @@ public:
     // ========== IConfigurationManager Implementation ==========
 
     // Dynamic Configuration Methods
-    bool RegisterConfigSection(const Config::ConfigSection& section) override;
+    bool RegisterConfigSection(const config::ConfigSection &section) override;
     std::vector<std::string> GetRegisteredSectionNames() const override;
-    std::optional<Config::ConfigSection> GetConfigSection(const std::string& sectionName) const override;
-    bool SaveConfigSection(const std::string& sectionName) override;
-    bool LoadConfigSection(const std::string& sectionName) override;
+    std::optional<config::ConfigSection> GetConfigSection(const std::string &section_name) const override;
+    bool SaveConfigSection(const std::string &section_name) override;
+    bool LoadConfigSection(const std::string &section_name) override;
     bool SaveAllConfigSections() override;
     bool LoadAllConfigSections() override;
-    bool ValidateConfigValue(const std::string& fullKey, const Config::ConfigValue& value) const override;
-    uint32_t RegisterChangeCallback(const std::string& fullKey, ConfigChangeCallback callback) override;
-    bool IsSchemaRegistered(const std::string& sectionName) const override;
+    bool ValidateConfigValue(const std::string &full_key, const config::ConfigValue &value) const override;
+    uint32_t RegisterChangeCallback(const std::string &full_key, ConfigChangeCallback callback) override;
+    bool IsSchemaRegistered(const std::string &section_name) const override;
 
     // Configuration Value Helper Methods
-    std::string GetTypeName(const Config::ConfigValue& value) const override;
-    bool TypesMatch(const Config::ConfigValue& a, const Config::ConfigValue& b) const override;
-    std::string ToString(const Config::ConfigValue& value) const override;
-    Config::ConfigValue FromString(const std::string& str, const Config::ConfigValue& templateValue) const override;
-    bool IsNumeric(const Config::ConfigValue& value) const override;
+    std::string GetTypeName(const config::ConfigValue &value) const override;
+    bool TypesMatch(const config::ConfigValue &a, const config::ConfigValue &b) const override;
+    std::string ToString(const config::ConfigValue &value) const override;
+    config::ConfigValue FromString(const std::string &str, const config::ConfigValue &template_value) const override;
+    bool IsNumeric(const config::ConfigValue &value) const override;
 
-protected:
+  protected:
     // Implementation Methods for Template Access
-    std::optional<Config::ConfigValue> QueryConfigImpl(const std::string& fullKey) const override;
-    bool UpdateConfigImpl(const std::string& fullKey, const Config::ConfigValue& value) override;
+    std::optional<config::ConfigValue> QueryConfigImpl(const std::string &full_key) const override;
+    bool UpdateConfigImpl(const std::string &full_key, const config::ConfigValue &value) override;
 
-private:
+  private:
     // ========== Private Methods ==========
 
     /**
@@ -102,7 +103,7 @@ private:
      * This pattern avoids the static initialization order fiasco by
      * ensuring the vector exists before any component tries to register.
      */
-    static std::vector<void(*)(IConfigurationManager*)>& GetSchemaFunctions();
+    static std::vector<void (*)(IConfigurationManager *)> &GetSchemaFunctions();
 
     /**
      * @brief Ensure storage is initialized before operations
@@ -111,6 +112,6 @@ private:
     bool EnsureStorageReady() const;
 
     // ========== Private Data Members ==========
-    std::unique_ptr<IStorageProvider> storageProvider_;  ///< Internal storage backend
-    bool initialized_ = false;                    ///< Registration state tracker
+    std::unique_ptr<IStorageProvider> storage_provider_; ///< Internal storage backend
+    bool initialized_ = false;                           ///< Registration state tracker
 };

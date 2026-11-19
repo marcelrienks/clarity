@@ -1,5 +1,5 @@
 #include "providers/lvgl_display_provider.h"
-#include "managers/style_manager.h"
+#include "ui/theme.h"
 #include <esp32-hal-log.h>
 
 // ========== Constructors and Destructor ==========
@@ -12,7 +12,7 @@
  * This provides abstraction for LVGL display operations and allows for
  * consistent display management across the application.
  */
-LvglDisplayProvider::LvglDisplayProvider(lv_obj_t *mainScreen) : mainScreen_(mainScreen)
+LvglDisplayProvider::LvglDisplayProvider(lv_obj_t *main_screen) : main_screen_(main_screen)
 {
     log_v("LvglDisplayProvider() constructor called");
 }

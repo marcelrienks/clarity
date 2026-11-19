@@ -1,0 +1,136 @@
+name: 'Clarity Automated Integration Test - Part 2: Errors and Restoration'
+version: 1
+steps:
+  # Part 2 of 5. Wokwi caps a session at 5 min wall-clock, so each part boots fresh.
+  # Boot, then rebuild the trigger state at the end of part 1 (step 8):
+  # lights on, lock engaged, key not present (red key panel)
+  - wait-serial: '[T] System ready'
+  - wait-serial: '[T] Pressure reading:'
+  - delay: 300ms
+  - set-control:
+      part-id: trigger_btn4  # GPIO 33 - Lights
+      control: pressed
+      value: 1
+  - wait-serial: '[T] SetTheme() called'
+  - delay: 300ms
+  - set-control:
+      part-id: trigger_btn3  # GPIO 27 - Lock
+      control: pressed
+      value: 1
+  - wait-serial: '[T] LockPanel loaded successfully'
+  - delay: 300ms
+  - set-control:
+      part-id: trigger_btn2  # GPIO 26 - Key Not Present
+      control: pressed
+      value: 1
+  - wait-serial: '[T] Key icon color set to RED'
+  - wait-serial: '[T] KeyPanel loaded successfully'
+  - delay: 300ms
+
+  # Step 9: Error System Integration
+  # - Error panel loads with CRITICAL priority
+  # - Overrides all other panels
+  # - Displays with night theme
+  - set-control:
+      part-id: btn2  # Debug Error button
+      control: pressed
+      value: 1
+  # Waits sit right after the press: wait-serial only sees output printed after the step starts
+  - wait-serial: '[T] Error reported: ERROR'
+  - wait-serial: '[T] ErrorOccurredActivate() - Loading ERROR panel'
+  - wait-serial: '[T] Panel transition requested: ErrorPanel'
+  - wait-serial: '[T] ErrorPanel loaded successfully'
+  - set-control:
+      part-id: btn2
+      control: pressed
+      value: 0
+  - delay: 300ms
+  
+  # Step 10: Error Navigation
+  # - Short press cycles through errors (must be 500-1500ms for ActionHandler)
+  - set-control:
+      part-id: btn1  # Action button - short press
+      control: pressed
+      value: 1
+  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - wait-serial: '[T] ErrorPanel::HandleShortPress() - Manual cycling to next error'
+  - delay: 200ms
+  
+  # Step 11: Error Resolution and Priority Restoration
+  # - Long press clears errors
+  # - Error trigger deactivates
+  # - Key panel loads (highest priority - KeyNotPresent still active)
+  - set-control:
+      part-id: btn1  # Action button - long press
+      control: pressed
+      value: 1
+  # The long press fires while the button is still held (1500ms threshold), so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] ErrorPanel: Long press - clearing all errors and exiting panel'
+  # Key panel should be restored since KeyNotPresent trigger is still active (CRITICAL priority)
+  - wait-serial: '[T] Panel transition requested: KeyPanel'
+  - wait-serial: '[T] KeyPanel loaded successfully'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 300ms
+  
+  # Step 12: Complete Trigger Chain Restoration
+  # - First clear KeyNotPresent by activating KeyPresent
+  # - Then deactivate Lock → Oil panel loads  
+  # - All PANEL triggers inactive, restore to user panel
+  # - Oil panel displays with night theme
+  
+  # Activate Key Present to clear Key Not Present
+  - set-control:
+      part-id: trigger_btn1  # GPIO 25 - Key Present
+      control: pressed
+      value: 1  # Activate
+  - wait-serial: '[T] KeyPresentActivate() - Loading KEY panel'
+  - delay: 200ms
+  
+  # Now deactivate both Key Present and Lock
+  - set-control:
+      part-id: trigger_btn1  # GPIO 25 - Key Present
+      control: pressed
+      value: 0  # Deactivate
+  - delay: 200ms
+  
+  - set-control:
+      part-id: trigger_btn3  # GPIO 27 - Lock
+      control: pressed
+      value: 0  # Deactivate
+  # When lock disengages, KeyNotPresent (still active) immediately takes over
+  - wait-serial: '[T] KeyNotPresentActivate() - Loading KEY panel'
+  - wait-serial: '[T] Panel transition requested: KeyPanel'
+  - wait-serial: '[T] KeyPanel loaded successfully'
+  - delay: 200ms
+  
+  # Now we need to clear all triggers to get back to Oil panel
+  # Deactivate KeyNotPresent sensor to allow restoration to Oil panel
+  - set-control:
+      part-id: trigger_btn2  # GPIO 26 - Key Not Present
+      control: pressed
+      value: 0  # Deactivate KeyNotPresent sensor
+  - wait-serial: '[T] CheckRestoration() called'
+  - wait-serial: '[T] No blocking interrupts - restoring to ''OemOilPanel'''
+  - wait-serial: '[T] OemOilPanel loaded successfully'
+  - delay: 300ms
+  
+  # Step 13: Theme Restoration to Day Mode
+  # - Day theme applied to Oil Panel
+  # - Oil panel continues without reload
+  # - Instant theme transition
+  - set-control:
+      part-id: trigger_btn4  # GPIO 33 - Lights
+      control: pressed
+      value: 0  # Deactivate (return to day)
+  - wait-serial: '[T] LightsOffActivate() - Setting DAY theme'
+  - wait-serial: '[T] SetTheme() called'
+  # Note: Panel should NOT reload, only theme changes
+  - delay: 300ms

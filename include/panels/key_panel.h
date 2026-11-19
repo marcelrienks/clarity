@@ -1,56 +1,36 @@
 #pragma once
 
-#include "panels/base_panel.h"
-#include "components/key_component.h"
+#include "clarity/core/types.h"
 #include "definitions/constants.h"
+#include "ui/icon_view.h"
+#include "ui/panel.h"
+
 /**
  * @class KeyPanel
- * @brief Key status monitoring panel
+ * @brief Key status panel: a centred key icon, green while the key is present, red while it is not
  *
- * @details This panel displays the key/ignition status using a centered key icon.
- * It provides a simple, clean interface for monitoring key presence or ignition state.
- *
- * @presenter_role Coordinates KeyComponent with interrupt system data
- * @data_source Key status from interrupt-driven architecture
- * @update_strategy Simple boolean state updates without animation
- *
- * @ui_layout:
- * - Key Icon: Center of screen with key-solid icon
- * - Icon changes color based on key status (white=present, red=absent)
- *
- * @visual_feedback:
- * - Normal: White key icon when key is present/ignition on
- * - Alert: Red key icon when key is absent/ignition off
- * - Smooth color transitions for status changes
- *
- * @context This panel provides a dedicated view for key status monitoring.
- * It's designed to be simple and clear, focusing on the key status indication.
+ * @details A long-lived Panel (A-05) with one IconView. The screen manager sets the key state before Enter() and
+ * again when the key line changes while the panel is already shown, which recolours the icon in place.
  */
-class KeyPanel : public BasePanel
+class KeyPanel : public Panel
 {
   public:
-    // ========== Constructors and Destructor ==========
-    KeyPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *styleManager,
-             IPanelManager *panelManager = nullptr);
+    static constexpr const char *NAME = panel_names::KEY;
 
-    // ========== Public Interface Methods ==========
-    static constexpr const char *NAME = PanelNames::KEY;
+    /// Sets the key state and recolours the icon if the panel is entered; otherwise Enter() applies it
+    void SetState(clarity::core::KeyState state);
+
+    /// Long press opens Config
+    clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
 
   protected:
-    // ========== Protected Methods ==========
-    void CreateContent() override;
-    void UpdateContent() override;
-    const char* GetPanelName() const override { return PanelNames::KEY; }
-
-    // Optional overrides
-    void HandleLongPress() override;
+    void Build(lv_obj_t *screen, Theme &theme) override;
+    void OnExit() override;
 
   private:
-    // ========== Private Methods ==========
-    KeyState DetermineCurrentKeyState();
+    void ApplyColor();
 
-    // ========== Private Data Members ==========
-    KeyComponent keyComponent_;
-    bool componentInitialized_ = false;
-    KeyState currentKeyState_ = KeyState::Inactive;
+    IconView icon_;
+    Theme *theme_ = nullptr; ///< Valid between Build() and OnExit()
+    clarity::core::KeyState state_ = clarity::core::KeyState::Inactive;
 };

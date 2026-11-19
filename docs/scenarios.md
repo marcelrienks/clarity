@@ -60,7 +60,7 @@ This scenario demonstrates the complete system functionality following a realist
 ### 10. Error Navigation and Interaction
 - **Short Press Action Button** → Navigate through error interface
 - **Error Panel**: Handles short press action for error cycling
-- **Button Timing**: 800ms press duration within ActionHandler's SHORT_PRESS range (500-1500ms)
+- **Button Timing**: 800ms press duration, a short press (50 ms minimum, below the 1500 ms long press)
 - **Error Navigation**: Demonstrates error panel interaction capabilities
 
 ### 11. Error Resolution and Priority Restoration
@@ -87,35 +87,33 @@ This scenario demonstrates the complete system functionality following a realist
 - **Config Panel**: Main menu displayed with day theme, showing available options
 - **Panel Transition**: Oil panel → Config panel via universal long press function
 
-### 15. Configuration Navigation to Theme Settings
-- **Short Press Repeatedly** → Navigate through options until theme settings reached
-- **Config Panel**: Cycles through main menu options: Default Panel, Theme Settings, Exit
-- **Theme Settings**: Option highlighted when navigation reaches it
+### 15. Configuration Navigation to the Display section
+Part 4 enters the Button section instead (the menu opens on it) and checks Back; part 3 covers the Display section.
+- **Short Press Repeatedly** → Navigate through the main menu: Button, Display, Oil Press., Oil Temp., Splash Scr., System, Exit
+- **Display**: Option highlighted when navigation reaches it
 
-### 16. Theme Submenu Access
-- **Long Press Action Button** → Theme option settings displayed
-- **Config Panel**: Enters theme submenu, showing Day/Night theme options
-- **Submenu State**: Theme configuration options now available for selection
+### 16. Display section access
+- **Long Press Action Button** → Display section menu displayed
+- **Config Panel**: Lists Brightness and Back. There is no theme setting: the theme follows the lights signal only (Q-05)
 
-### 17. Theme Selection Navigation
-- **Short Press Navigation** → Cycle through theme options until Night selected
-- **Config Panel**: Cycles between Day Theme and Night Theme options
-- **Night Option**: Highlighted when navigation reaches it
+### 17. Theme follows the lights signal, also inside Config
+- **Lights Trigger Deactivates while Config is open** → Day theme applied
+- **Lights Trigger Activates** → Night theme applied
+- **Config Panel**: Keeps its own layout; only the palette changes
 
-### 18. Theme Setting Application
-- **Long Press Action Button** → Apply night theme and return to main preference settings
-- **Config Panel**: Applies night theme setting, returns to main config menu
-- **Theme Applied**: Night theme now active across all panels, main menu displayed
+### 18. (no longer used)
+Former theme selection and application steps. The theme is not configurable.
 
 ### 19. Configuration Exit Navigation
 - **Short Press Repeatedly** → Navigate through options until Exit reached
 - **Config Panel**: Cycles through main menu options until Exit option highlighted
 - **Exit Option**: Final option in main configuration menu
+- **Back**: from an option list returns to its section menu; from a section menu it returns to the main menu (Q-09). Part 4 checks this with the Button section's Debounce options.
 
 ### 20. Return to Oil Panel with Applied Settings
-- **Long Press Action Button** → Oil panel loads with night theme
+- **Long Press Action Button** → Oil panel loads, themed by the lights signal (night while the lights are on)
 - **Config Exit**: Executes exit function, loads Oil panel as default user panel
-- **Oil Panel Final State**: Displays with applied night theme, Pressure and Temperature scales animate to preset values
+- **Oil Panel Final State**: Displays with the current lights-driven theme, Pressure and Temperature scales animate to preset values
 
 ## Individual Scenarios
 

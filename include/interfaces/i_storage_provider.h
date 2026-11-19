@@ -1,13 +1,14 @@
 #pragma once
 
 #include "definitions/configs.h"
-#include <vector>
-#include <string>
-#include <optional>
 #include <functional>
+#include <optional>
+#include <string>
+#include <vector>
 
 // Type alias for configuration change callbacks
-using ConfigChangeCallback = std::function<void(const std::string&, const std::optional<Config::ConfigValue>&, const Config::ConfigValue&)>;
+using ConfigChangeCallback =
+    std::function<void(const std::string &, const std::optional<config::ConfigValue> &, const config::ConfigValue &)>;
 
 /**
  * @interface IStorageProvider
@@ -29,8 +30,9 @@ using ConfigChangeCallback = std::function<void(const std::string&, const std::o
  * @context This interface allows ConfigurationManager to be hardware-agnostic
  * while providing persistent configuration storage across system reboots.
  */
-class IStorageProvider {
-public:
+class IStorageProvider
+{
+  public:
     virtual ~IStorageProvider() = default;
 
     // ========== Storage Operations ==========
@@ -40,7 +42,7 @@ public:
      * @param section ConfigSection containing items, metadata, and validation rules
      * @return true if registration successful, false if section already exists
      */
-    virtual bool RegisterConfigSection(const Config::ConfigSection& section) = 0;
+    virtual bool RegisterConfigSection(const config::ConfigSection &section) = 0;
 
     /**
      * @brief Get list of all registered configuration section names
@@ -50,24 +52,24 @@ public:
 
     /**
      * @brief Retrieve a specific configuration section by name
-     * @param sectionName Name of the section to retrieve
+     * @param section_name Name of the section to retrieve
      * @return Optional containing section if found, nullopt if not registered
      */
-    virtual std::optional<Config::ConfigSection> GetConfigSection(const std::string& sectionName) const = 0;
+    virtual std::optional<config::ConfigSection> GetConfigSection(const std::string &section_name) const = 0;
 
     /**
      * @brief Save a specific configuration section to storage
-     * @param sectionName Name of the section to persist
+     * @param section_name Name of the section to persist
      * @return true if save operation successful
      */
-    virtual bool SaveConfigSection(const std::string& sectionName) = 0;
+    virtual bool SaveConfigSection(const std::string &section_name) = 0;
 
     /**
      * @brief Load a specific configuration section from storage
-     * @param sectionName Name of the section to load
+     * @param section_name Name of the section to load
      * @return true if load operation successful
      */
-    virtual bool LoadConfigSection(const std::string& sectionName) = 0;
+    virtual bool LoadConfigSection(const std::string &section_name) = 0;
 
     /**
      * @brief Save all registered configuration sections to storage
@@ -83,43 +85,43 @@ public:
 
     /**
      * @brief Validate a configuration value against its metadata constraints
-     * @param fullKey Full dot-separated key (e.g., "oil_temp_sensor.unit")
+     * @param full_key Full dot-separated key (e.g., "oil_temp_sensor.unit")
      * @param value Value to validate
      * @return true if value passes validation (type, range, enum options)
      */
-    virtual bool ValidateConfigValue(const std::string& fullKey, const Config::ConfigValue& value) const = 0;
+    virtual bool ValidateConfigValue(const std::string &full_key, const config::ConfigValue &value) const = 0;
 
     /**
      * @brief Register callback for live configuration change notifications
-     * @param fullKey Configuration key to watch (empty string for all changes)
+     * @param full_key Configuration key to watch (empty string for all changes)
      * @param callback Function to call when configuration changes
      * @return Callback ID for later unregistration
      */
-    virtual uint32_t RegisterChangeCallback(const std::string& fullKey, ConfigChangeCallback callback) = 0;
+    virtual uint32_t RegisterChangeCallback(const std::string &full_key, ConfigChangeCallback callback) = 0;
 
     /**
      * @brief Check if a configuration schema is registered
-     * @param sectionName Name of the section to check
+     * @param section_name Name of the section to check
      * @return true if schema is registered, false otherwise
      */
-    virtual bool IsSchemaRegistered(const std::string& sectionName) const = 0;
+    virtual bool IsSchemaRegistered(const std::string &section_name) const = 0;
 
     // ========== Configuration Value Access ==========
 
     /**
      * @brief Query configuration value by key
-     * @param fullKey Full dot-separated configuration key
+     * @param full_key Full dot-separated configuration key
      * @return Optional containing ConfigValue if found
      */
-    virtual std::optional<Config::ConfigValue> QueryConfigValue(const std::string& fullKey) const = 0;
+    virtual std::optional<config::ConfigValue> QueryConfigValue(const std::string &full_key) const = 0;
 
     /**
      * @brief Update configuration value by key
-     * @param fullKey Full dot-separated configuration key
+     * @param full_key Full dot-separated configuration key
      * @param value New value to set
      * @return true if update successful (validation passed and storage write succeeded)
      */
-    virtual bool UpdateConfigValue(const std::string& fullKey, const Config::ConfigValue& value) = 0;
+    virtual bool UpdateConfigValue(const std::string &full_key, const config::ConfigValue &value) = 0;
 
     // ========== Configuration Value Helper Methods ==========
 
@@ -128,7 +130,7 @@ public:
      * @param value The value to get type name for
      * @return Type name as string
      */
-    virtual std::string GetTypeName(const Config::ConfigValue& value) const = 0;
+    virtual std::string GetTypeName(const config::ConfigValue &value) const = 0;
 
     /**
      * @brief Check if two configuration values have matching types
@@ -136,14 +138,14 @@ public:
      * @param b Second value
      * @return true if types match
      */
-    virtual bool TypesMatch(const Config::ConfigValue& a, const Config::ConfigValue& b) const = 0;
+    virtual bool TypesMatch(const config::ConfigValue &a, const config::ConfigValue &b) const = 0;
 
     /**
      * @brief Convert configuration value to string representation
      * @param value The value to convert
      * @return String representation of the value
      */
-    virtual std::string ToString(const Config::ConfigValue& value) const = 0;
+    virtual std::string ToString(const config::ConfigValue &value) const = 0;
 
     /**
      * @brief Convert string to configuration value using template value for type
@@ -151,12 +153,12 @@ public:
      * @param templateValue Template value providing the target type
      * @return ConfigValue with converted value
      */
-    virtual Config::ConfigValue FromString(const std::string& str, const Config::ConfigValue& templateValue) const = 0;
+    virtual config::ConfigValue FromString(const std::string &str, const config::ConfigValue &template_value) const = 0;
 
     /**
      * @brief Check if configuration value is numeric (int or float)
      * @param value The value to check
      * @return true if value is numeric
      */
-    virtual bool IsNumeric(const Config::ConfigValue& value) const = 0;
+    virtual bool IsNumeric(const config::ConfigValue &value) const = 0;
 };

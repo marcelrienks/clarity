@@ -1,11 +1,11 @@
 #include "managers/configuration_manager.h"
-#include "providers/storage_provider.h"
 #include "managers/error_manager.h"
+#include "providers/storage_provider.h"
 #include "utilities/logging.h"
 #include <esp32-hal-log.h>
 
 // Static instance for singleton pattern
-static ConfigurationManager* configManagerInstancePtr_ = nullptr;
+static ConfigurationManager *config_manager_instance_ptr = nullptr;
 
 // ========== Constructors and Destructor ==========
 
@@ -18,7 +18,7 @@ ConfigurationManager::ConfigurationManager() : initialized_(false)
     log_v("ConfigurationManager() constructor called");
 
     // Set singleton instance for static access
-    configManagerInstancePtr_ = this;
+    config_manager_instance_ptr = this;
 }
 
 /**
@@ -29,8 +29,9 @@ ConfigurationManager::~ConfigurationManager()
     log_v("~ConfigurationManager() destructor called");
 
     // Clear singleton instance if we are the current instance
-    if (configManagerInstancePtr_ == this) {
-        configManagerInstancePtr_ = nullptr;
+    if (config_manager_instance_ptr == this)
+    {
+        config_manager_instance_ptr = nullptr;
     }
 }
 
@@ -40,13 +41,15 @@ ConfigurationManager::~ConfigurationManager()
  * @brief Singleton access for manager architecture
  * @details Must be initialized by ManagerFactory before use
  */
-ConfigurationManager& ConfigurationManager::Instance() {
-    if (!configManagerInstancePtr_) {
+ConfigurationManager &ConfigurationManager::Instance()
+{
+    if (!config_manager_instance_ptr)
+    {
         log_e("ConfigurationManager::Instance() called before initialization");
-        ErrorManager::Instance().ReportCriticalError("ConfigurationManager",
-                                                     "Instance() called before initialization - configuration will not function");
+        ErrorManager::Instance().ReportCriticalError(
+            "ConfigurationManager", "Instance() called before initialization - configuration will not function");
     }
-    return *configManagerInstancePtr_;
+    return *config_manager_instance_ptr;
 }
 
 /**
@@ -56,8 +59,9 @@ ConfigurationManager& ConfigurationManager::Instance() {
  * This pattern ensures the vector exists before any static initialization
  * tries to register schemas, avoiding the static initialization order fiasco.
  */
-std::vector<void(*)(IConfigurationManager*)>& ConfigurationManager::GetSchemaFunctions() {
-    static std::vector<void(*)(IConfigurationManager*)> functions;
+std::vector<void (*)(IConfigurationManager *)> &ConfigurationManager::GetSchemaFunctions()
+{
+    static std::vector<void (*)(IConfigurationManager *)> functions;
     return functions;
 }
 
@@ -68,8 +72,10 @@ std::vector<void(*)(IConfigurationManager*)>& ConfigurationManager::GetSchemaFun
  * Called during static initialization by components.
  * Functions are stored and executed later when RegisterAllSchemas() is called.
  */
-void ConfigurationManager::AddSchema(void(*func)(IConfigurationManager*)) {
-    if (!func) {
+void ConfigurationManager::AddSchema(void (*func)(IConfigurationManager *))
+{
+    if (!func)
+    {
         log_e("ConfigurationManager: Cannot add null schema function");
         return;
     }
@@ -85,17 +91,19 @@ void ConfigurationManager::AddSchema(void(*func)(IConfigurationManager*)) {
  *
  * Creates the internal StorageProvider backend for storage operations.
  */
-bool ConfigurationManager::Initialize() {
-    if (storageProvider_) {
+bool ConfigurationManager::Initialize()
+{
+    if (storage_provider_)
+    {
         log_w("ConfigurationManager already initialized");
         return true;
     }
 
-    storageProvider_ = std::make_unique<StorageProvider>();
-    if (!storageProvider_) {
+    storage_provider_ = std::make_unique<StorageProvider>();
+    if (!storage_provider_)
+    {
         log_e("Failed to create StorageProvider");
-        ErrorManager::Instance().ReportCriticalError("ConfigurationManager",
-                                                     "Failed to create storage backend");
+        ErrorManager::Instance().ReportCriticalError("ConfigurationManager", "Failed to create storage backend");
         return false;
     }
 
@@ -109,37 +117,41 @@ bool ConfigurationManager::Initialize() {
  * Called once during application setup to register all component schemas.
  * Uses this instance as the service, delegating to internal storage.
  */
-void ConfigurationManager::RegisterAllSchemas() {
-    if (!EnsureStorageReady()) {
+void ConfigurationManager::RegisterAllSchemas()
+{
+    if (!EnsureStorageReady())
+    {
         log_e("Cannot register schemas - storage not initialized");
         return;
     }
 
-    if (initialized_) {
+    if (initialized_)
+    {
         log_w("Schemas already registered - skipping duplicate registration");
         return;
     }
 
-    auto& functions = GetSchemaFunctions();
-    size_t totalFunctions = functions.size();
+    auto &functions = GetSchemaFunctions();
+    log_i("Registering %zu configuration schemas", functions.size());
 
-    log_i("Registering %zu configuration schemas", totalFunctions);
-
-    size_t successCount = 0;
-    for (auto func : functions) {
-        if (func) {
+    size_t success_count = 0;
+    for (auto func : functions)
+    {
+        if (func)
+        {
             // Pass this ConfigurationManager as the IConfigurationManager
             func(this);
-            successCount++;
+            success_count++;
         }
     }
 
     initialized_ = true;
-    log_i("Configuration registration complete: %zu/%zu schemas registered successfully",
-          successCount, totalFunctions);
+    log_i("Configuration registration complete: %zu/%zu schemas registered successfully", success_count,
+          functions.size());
 
     // Load all configuration sections from NVS after registration
-    if (!LoadAllConfigSections()) {
+    if (!LoadAllConfigSections())
+    {
         log_w("Some configuration sections failed to load from storage");
     }
 }
@@ -154,9 +166,13 @@ void ConfigurationManager::RegisterAllSchemas() {
  * Delegates to the storage provider to register the section schema.
  * This defines the available configuration items and their constraints.
  */
-bool ConfigurationManager::RegisterConfigSection(const Config::ConfigSection& section) {
-    if (!EnsureStorageReady()) return false;
-    return storageProvider_->RegisterConfigSection(section);
+bool ConfigurationManager::RegisterConfigSection(const config::ConfigSection &section)
+{
+    if (!EnsureStorageReady())
+    {
+        return false;
+    }
+    return storage_provider_->RegisterConfigSection(section);
 }
 
 /**
@@ -166,48 +182,64 @@ bool ConfigurationManager::RegisterConfigSection(const Config::ConfigSection& se
  * Returns the names of all configuration sections that have been registered
  * with the manager. Used by UI components to enumerate available sections.
  */
-std::vector<std::string> ConfigurationManager::GetRegisteredSectionNames() const {
-    if (!EnsureStorageReady()) return {};
-    return storageProvider_->GetRegisteredSectionNames();
+std::vector<std::string> ConfigurationManager::GetRegisteredSectionNames() const
+{
+    if (!EnsureStorageReady())
+    {
+        return {};
+    }
+    return storage_provider_->GetRegisteredSectionNames();
 }
 
 /**
  * @brief Retrieve a specific configuration section by name
- * @param sectionName Name of the section to retrieve
+ * @param section_name Name of the section to retrieve
  * @return Optional containing the section if found, nullopt otherwise
  *
  * Returns the complete configuration section including all items and metadata.
  * Used by UI components to build configuration interfaces.
  */
-std::optional<Config::ConfigSection> ConfigurationManager::GetConfigSection(const std::string& sectionName) const {
-    if (!EnsureStorageReady()) return std::nullopt;
-    return storageProvider_->GetConfigSection(sectionName);
+std::optional<config::ConfigSection> ConfigurationManager::GetConfigSection(const std::string &section_name) const
+{
+    if (!EnsureStorageReady())
+    {
+        return std::nullopt;
+    }
+    return storage_provider_->GetConfigSection(section_name);
 }
 
 /**
  * @brief Save a configuration section to persistent storage
- * @param sectionName Name of the section to save
+ * @param section_name Name of the section to save
  * @return true if save successful, false otherwise
  *
  * Persists the current values of all items in the specified section to NVS.
  * This ensures configuration changes survive device restarts.
  */
-bool ConfigurationManager::SaveConfigSection(const std::string& sectionName) {
-    if (!EnsureStorageReady()) return false;
-    return storageProvider_->SaveConfigSection(sectionName);
+bool ConfigurationManager::SaveConfigSection(const std::string &section_name)
+{
+    if (!EnsureStorageReady())
+    {
+        return false;
+    }
+    return storage_provider_->SaveConfigSection(section_name);
 }
 
 /**
  * @brief Load a configuration section from persistent storage
- * @param sectionName Name of the section to load
+ * @param section_name Name of the section to load
  * @return true if load successful, false otherwise
  *
  * Restores saved values for all items in the specified section from NVS.
  * Uses default values for any items not found in storage.
  */
-bool ConfigurationManager::LoadConfigSection(const std::string& sectionName) {
-    if (!EnsureStorageReady()) return false;
-    return storageProvider_->LoadConfigSection(sectionName);
+bool ConfigurationManager::LoadConfigSection(const std::string &section_name)
+{
+    if (!EnsureStorageReady())
+    {
+        return false;
+    }
+    return storage_provider_->LoadConfigSection(section_name);
 }
 
 /**
@@ -217,9 +249,13 @@ bool ConfigurationManager::LoadConfigSection(const std::string& sectionName) {
  * Persists the current values of all registered configuration sections to NVS.
  * Provides a convenient way to save the entire configuration state at once.
  */
-bool ConfigurationManager::SaveAllConfigSections() {
-    if (!EnsureStorageReady()) return false;
-    return storageProvider_->SaveAllConfigSections();
+bool ConfigurationManager::SaveAllConfigSections()
+{
+    if (!EnsureStorageReady())
+    {
+        return false;
+    }
+    return storage_provider_->SaveAllConfigSections();
 }
 
 /**
@@ -229,50 +265,66 @@ bool ConfigurationManager::SaveAllConfigSections() {
  * Restores saved values for all registered configuration sections from NVS.
  * Called during initialization to restore the complete configuration state.
  */
-bool ConfigurationManager::LoadAllConfigSections() {
-    if (!EnsureStorageReady()) return false;
-    return storageProvider_->LoadAllConfigSections();
+bool ConfigurationManager::LoadAllConfigSections()
+{
+    if (!EnsureStorageReady())
+    {
+        return false;
+    }
+    return storage_provider_->LoadAllConfigSections();
 }
 
 /**
  * @brief Validate a configuration value against its schema constraints
- * @param fullKey Fully qualified key (section.item) to validate
+ * @param full_key Fully qualified key (section.item) to validate
  * @param value Configuration value to validate
  * @return true if value is valid for the key, false otherwise
  *
  * Checks if the provided value meets the constraints defined in the schema
  * for the specified configuration item. Used to prevent invalid values.
  */
-bool ConfigurationManager::ValidateConfigValue(const std::string& fullKey, const Config::ConfigValue& value) const {
-    if (!EnsureStorageReady()) return false;
-    return storageProvider_->ValidateConfigValue(fullKey, value);
+bool ConfigurationManager::ValidateConfigValue(const std::string &full_key, const config::ConfigValue &value) const
+{
+    if (!EnsureStorageReady())
+    {
+        return false;
+    }
+    return storage_provider_->ValidateConfigValue(full_key, value);
 }
 
 /**
  * @brief Register a callback function for configuration value changes
- * @param fullKey Fully qualified key (section.item) to monitor
+ * @param full_key Fully qualified key (section.item) to monitor
  * @param callback Function to call when the value changes
  * @return Callback ID for later removal, 0 if registration failed
  *
  * Enables components to be notified when specific configuration values change.
  * The callback receives the old and new values for processing.
  */
-uint32_t ConfigurationManager::RegisterChangeCallback(const std::string& fullKey, ConfigChangeCallback callback) {
-    if (!EnsureStorageReady()) return 0;
-    return storageProvider_->RegisterChangeCallback(fullKey, callback);
+uint32_t ConfigurationManager::RegisterChangeCallback(const std::string &full_key, ConfigChangeCallback callback)
+{
+    if (!EnsureStorageReady())
+    {
+        return 0;
+    }
+    return storage_provider_->RegisterChangeCallback(full_key, callback);
 }
 
 /**
  * @brief Check if a configuration schema is registered
- * @param sectionName Name of the section to check
+ * @param section_name Name of the section to check
  * @return true if schema is registered, false otherwise
  *
  * Verifies whether a configuration section schema has been registered.
  * Used to prevent duplicate registrations and validate section existence.
  */
-bool ConfigurationManager::IsSchemaRegistered(const std::string& sectionName) const {
-    if (!EnsureStorageReady()) return false;
-    return storageProvider_->IsSchemaRegistered(sectionName);
+bool ConfigurationManager::IsSchemaRegistered(const std::string &section_name) const
+{
+    if (!EnsureStorageReady())
+    {
+        return false;
+    }
+    return storage_provider_->IsSchemaRegistered(section_name);
 }
 
 // Configuration Value Helper Methods
@@ -285,9 +337,13 @@ bool ConfigurationManager::IsSchemaRegistered(const std::string& sectionName) co
  * Returns a human-readable type name for the configuration value.
  * Used for debugging and validation messages.
  */
-std::string ConfigurationManager::GetTypeName(const Config::ConfigValue& value) const {
-    if (!EnsureStorageReady()) return "unknown";
-    return storageProvider_->GetTypeName(value);
+std::string ConfigurationManager::GetTypeName(const config::ConfigValue &value) const
+{
+    if (!EnsureStorageReady())
+    {
+        return "unknown";
+    }
+    return storage_provider_->GetTypeName(value);
 }
 
 /**
@@ -299,9 +355,13 @@ std::string ConfigurationManager::GetTypeName(const Config::ConfigValue& value) 
  * Compares the types of two configuration values without comparing their content.
  * Used for type validation during configuration updates.
  */
-bool ConfigurationManager::TypesMatch(const Config::ConfigValue& a, const Config::ConfigValue& b) const {
-    if (!EnsureStorageReady()) return false;
-    return storageProvider_->TypesMatch(a, b);
+bool ConfigurationManager::TypesMatch(const config::ConfigValue &a, const config::ConfigValue &b) const
+{
+    if (!EnsureStorageReady())
+    {
+        return false;
+    }
+    return storage_provider_->TypesMatch(a, b);
 }
 
 /**
@@ -312,9 +372,13 @@ bool ConfigurationManager::TypesMatch(const Config::ConfigValue& a, const Config
  * Converts any supported configuration value type to a string format.
  * Used for displaying values in UI and for storage serialization.
  */
-std::string ConfigurationManager::ToString(const Config::ConfigValue& value) const {
-    if (!EnsureStorageReady()) return "";
-    return storageProvider_->ToString(value);
+std::string ConfigurationManager::ToString(const config::ConfigValue &value) const
+{
+    if (!EnsureStorageReady())
+    {
+        return "";
+    }
+    return storage_provider_->ToString(value);
 }
 
 /**
@@ -326,9 +390,14 @@ std::string ConfigurationManager::ToString(const Config::ConfigValue& value) con
  * Parses a string and converts it to the same type as the template value.
  * Used for deserializing values from storage and processing user input.
  */
-Config::ConfigValue ConfigurationManager::FromString(const std::string& str, const Config::ConfigValue& templateValue) const {
-    if (!EnsureStorageReady()) return std::monostate{};
-    return storageProvider_->FromString(str, templateValue);
+config::ConfigValue ConfigurationManager::FromString(const std::string &str,
+                                                     const config::ConfigValue &template_value) const
+{
+    if (!EnsureStorageReady())
+    {
+        return std::monostate{};
+    }
+    return storage_provider_->FromString(str, template_value);
 }
 
 /**
@@ -339,38 +408,50 @@ Config::ConfigValue ConfigurationManager::FromString(const std::string& str, con
  * Determines whether a configuration value contains numeric data.
  * Used for validation and UI formatting decisions.
  */
-bool ConfigurationManager::IsNumeric(const Config::ConfigValue& value) const {
-    if (!EnsureStorageReady()) return false;
-    return storageProvider_->IsNumeric(value);
+bool ConfigurationManager::IsNumeric(const config::ConfigValue &value) const
+{
+    if (!EnsureStorageReady())
+    {
+        return false;
+    }
+    return storage_provider_->IsNumeric(value);
 }
 
 // Protected Implementation Methods
 
 /**
  * @brief Internal implementation for querying configuration values
- * @param fullKey Fully qualified key (section.item) to query
+ * @param full_key Fully qualified key (section.item) to query
  * @return Optional containing the value if found, nullopt otherwise
  *
  * Protected implementation method for the template QueryConfig method.
  * Handles the actual storage query and returns the raw ConfigValue.
  */
-std::optional<Config::ConfigValue> ConfigurationManager::QueryConfigImpl(const std::string& fullKey) const {
-    if (!EnsureStorageReady()) return std::nullopt;
-    return storageProvider_->QueryConfigValue(fullKey);
+std::optional<config::ConfigValue> ConfigurationManager::QueryConfigImpl(const std::string &full_key) const
+{
+    if (!EnsureStorageReady())
+    {
+        return std::nullopt;
+    }
+    return storage_provider_->QueryConfigValue(full_key);
 }
 
 /**
  * @brief Internal implementation for updating configuration values
- * @param fullKey Fully qualified key (section.item) to update
+ * @param full_key Fully qualified key (section.item) to update
  * @param value New configuration value to set
  * @return true if update successful, false otherwise
  *
  * Protected implementation method for the template UpdateConfig method.
  * Handles validation, storage update, and change notification callbacks.
  */
-bool ConfigurationManager::UpdateConfigImpl(const std::string& fullKey, const Config::ConfigValue& value) {
-    if (!EnsureStorageReady()) return false;
-    return storageProvider_->UpdateConfigValue(fullKey, value);
+bool ConfigurationManager::UpdateConfigImpl(const std::string &full_key, const config::ConfigValue &value)
+{
+    if (!EnsureStorageReady())
+    {
+        return false;
+    }
+    return storage_provider_->UpdateConfigValue(full_key, value);
 }
 
 // ========== Private Methods ==========
@@ -379,8 +460,10 @@ bool ConfigurationManager::UpdateConfigImpl(const std::string& fullKey, const Co
  * @brief Ensure storage is initialized before operations
  * @return true if storage is ready
  */
-bool ConfigurationManager::EnsureStorageReady() const {
-    if (!storageProvider_) {
+bool ConfigurationManager::EnsureStorageReady() const
+{
+    if (!storage_provider_)
+    {
         log_e("Storage provider not initialized - call Initialize() first");
         return false;
     }

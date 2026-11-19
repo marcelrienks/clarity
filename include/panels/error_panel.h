@@ -1,83 +1,48 @@
 #pragma once
 
-#include "components/error_component.h"
-#include "interfaces/i_action_handler.h"
-#include "interfaces/i_display_provider.h"
-#include "interfaces/i_gpio_provider.h"
-#include "interfaces/i_panel.h"
-#include "interfaces/i_panel_manager.h"
-#include "interfaces/i_style_manager.h"
-#include "managers/error_manager.h"
-#include "definitions/types.h"
+#include <cstddef>
+#include <cstdint>
+
+#include "clarity/core/error_log.h"
+#include "clarity/core/types.h"
+#include "definitions/constants.h"
+#include "ui/error_view.h"
+#include "ui/panel.h"
+
 /**
  * @class ErrorPanel
- * @brief Application error display and management panel
+ * @brief Shows the pending errors one at a time, most severe first
  *
- * @details This panel displays pending application errors in a scrollable list
- * format. It provides user interaction for acknowledging errors and shows
- * appropriate visual indicators based on error severity levels.
+ * @details A long-lived Panel (A-05) over one ErrorView. It reads the application's ErrorLog directly (no copy):
+ * Update() picks the most severe entry that has not been viewed and the view redraws only when the log's
+ * revision or that entry changed (D-19).
  *
- * @presenter_role Coordinates error display with ErrorManager data
- * @data_source ErrorManager providing error queue information
- * @update_strategy Real-time error list updates with auto-refresh
- *
- * @ui_layout:
- * - Header: Error count and severity indicator
- * - List: Scrollable list of individual error entries
- * - Footer: Clear all errors button (for non-critical errors)
- *
- * @visual_feedback:
- * - Critical: Red background/border for critical errors
- * - Error: Orange background/border for regular errors
- * - Warning: Yellow background/border for warnings
- * - Auto-dismiss indicators for warnings
- *
- * @context This panel provides comprehensive error management interface.
- * It automatically appears when errors occur and manages user acknowledgment
- * and dismissal workflows.
+ * A short press views the shown error and moves on: warnings and errors leave the log, a critical error is
+ * marked acknowledged and stays until the log is cleared (ErrorLog::DismissAt). Viewing the last one clears the
+ * log and returns ClearErrors (Q-12 decides whether that stays); a long press clears everything at once. The
+ * screen manager then restores the panel that was shown before.
  */
-class ErrorPanel : public IPanel
+class ErrorPanel : public Panel
 {
   public:
-    // ========== Constructors and Destructor ==========
-    ErrorPanel(IGpioProvider *gpio, IDisplayProvider *display, IStyleManager *styleManager,
-               IPanelManager *panelManager);
-    ~ErrorPanel();
+    explicit ErrorPanel(clarity::core::ErrorLog &log);
 
-    // ========== Public Interface Methods ==========
-    static constexpr const char *NAME = PanelNames::ERROR;
-    void Init() override;
-    void Load() override;
-    void Update() override;
-    // IActionService Interface Implementation (inherited through IPanel)
-    // Old function pointer methods removed - using direct HandleShortPress/HandleLongPress
-    
-    // Public action handlers
-    void HandleShortPress();
-    void HandleLongPress();
+    static constexpr const char *NAME = panel_names::ERROR;
+
+    void Update(uint32_t now) override;
+
+    clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event) override;
+
+  protected:
+    void Build(lv_obj_t *screen, Theme &theme) override;
 
   private:
-    // ========== Static Methods ==========
-    static void ShowPanelCompletionCallback(lv_event_t *event);
+    /// The most severe entry not yet viewed (the first of them on a tie); Count() when there is none
+    std::size_t NextToView() const;
 
-    // ========== Private Methods ==========
-    void SortErrorsBySeverity();                    // Sort errors by severity (CRITICAL first, WARNING last)
-    void AdvanceToNextError();                      // Move to next error and update component
+    clarity::core::NavIntent HandleShortPress();
+    clarity::core::NavIntent HandleLongPress();
 
-    // ========== Private Data Members ==========
-    IGpioProvider *gpioProvider_;
-    IDisplayProvider *displayProvider_;
-    IStyleManager *styleManager_;
-    IPanelManager *panelManager_;
-    lv_obj_t* screen_ = nullptr;
-    ErrorComponent errorComponent_; // Error component - static allocation
-    bool componentInitialized_ = false;
-    ComponentLocation centerLocation_;               // Component positioning
-    bool panelLoaded_;                               // Track panel load state
-    std::vector<ErrorInfo> currentErrors_;           // Cache of current error state
-    std::string previousTheme_;                      // Store previous theme to restore on exit
-    
-    // Error cycling functionality
-    size_t currentErrorIndex_;                       // Index of currently displayed error
-    std::vector<ErrorInfo> viewedErrors_;            // Track errors that have been viewed and removed
+    clarity::core::ErrorLog &log_;
+    ErrorView view_;
 };

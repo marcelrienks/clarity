@@ -5,14 +5,12 @@
 #include <memory>
 
 // Project Includes
+#include "clarity/core/types.h"
 #include "interfaces/i_display_provider.h"
 #include "interfaces/i_gpio_provider.h"
-#include "interfaces/i_sensor.h"
-#include "interfaces/i_action_handler.h"
 
 // Forward declarations
-class IPanelManager;
-class IStyleManager;
+class Theme;
 class IConfigurationManager;
 
 /**
@@ -25,29 +23,22 @@ class IConfigurationManager;
  * All panels implement IActionService for consistent button input handling.
  *
  * @design_pattern Presenter in MVP - coordinates models and views
- * @universal_button_system All panels inherit IActionService to provide
- * static button function pointers for universal button interrupt injection
+ * @button_handling OnButton() returns a NavIntent that ScreenManager applies on its next Apply()
  *
  * @lifecycle:
  * 1. init(): Initialize panel and create components
  * 2. load(): Setup UI and start async operations with callback
- * 3. update(): Periodic refresh of sensor data and UI
+ * 3. update(): Called every loop pass, also while the panel animates
  * 4. show(): Make panel visible on screen
  *
- * @async_handling:
- * - load() accepts completion callbacks for smooth transitions
- * - Panels can perform time-consuming initialization without blocking
- * - PanelManager uses callbacks to coordinate panel switching
+ * @transitions:
+ * - Panels never switch screens: ScreenManager creates, loads and destroys them
+ * - The splash reports Finished(); ScreenManager then loads its target
  *
  * @sensor_integration:
  * - Display-only panels (Key, Lock): Create only components, no sensors
  * - Data panels (Oil): Create own data sensors and components
- * - Trigger panels receive state from interrupt system via GPIO reads
- *
- * @button_integration:
- * - All panels must implement IActionService methods
- * - Panel functions injected into universal button interrupts when panel loads
- * - Button events execute current panel's functions with panel context
+ * - The key panel gets its key state from ScreenManager when it is created
  *
  * @implementations:
  * - SplashPanel: Startup branding screen
@@ -57,10 +48,9 @@ class IConfigurationManager;
  * - ErrorPanel: Error display with navigation and auto-restoration
  * - ConfigPanel: Configuration with hierarchical state machine
  *
- * @context All panels coordinate complete screen experiences and provide
- * consistent button handling through IActionHandler inheritance.
+ * @context Legacy panel interface: 5.5 moves every panel onto ui/panel.h.
  */
-class IPanel : public IActionHandler
+class IPanel
 {
   public:
     // Destructors
@@ -71,12 +61,18 @@ class IPanel : public IActionHandler
     virtual void Load() = 0;
     virtual void Update() = 0;
 
-    // Note: Button handling methods inherited from IActionHandler
-    // All panels must implement:
-    // - void HandleShortPress()
-    // - void HandleLongPress()
+    /// Handles a completed button press and says what the screen manager should do next
+    virtual clarity::core::NavIntent OnButton(clarity::core::ButtonEvent event)
+    {
+        (void)event;
+        return clarity::core::NavIntent::None;
+    }
 
-    // SetManagers and SetConfigurationManager removed - using constructor injection
+    /// False while the panel must not be replaced by an override (the splash until it is done, Q-06)
+    virtual bool Finished() const
+    {
+        return true;
+    }
 
   protected:
     // Protected Data Members

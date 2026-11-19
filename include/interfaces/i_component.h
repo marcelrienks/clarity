@@ -4,8 +4,8 @@
 #include <lvgl.h>
 
 // Project Includes
-#include "interfaces/i_display_provider.h"
 #include "definitions/types.h"
+#include "interfaces/i_display_provider.h"
 
 /**
  * @interface IComponent
@@ -30,9 +30,6 @@
  * @memory_management Components do not own LVGL objects (screen manages lifecycle)
  *
  * @implementations:
- * - ClarityComponent: Branding/logo display
- * - KeyComponent: Key status indicator
- * - LockComponent: Lock status indicator
  * - OemOilComponent: Oil pressure gauge
  * - OemOilPressureComponent: Dedicated pressure display
  * - OemOilTemperatureComponent: Dedicated temperature display
@@ -44,6 +41,8 @@
 class IComponent
 {
   public:
+    virtual ~IComponent() = default;
+
     // Core Interface Methods
     virtual void Render(lv_obj_t *screen, const ComponentLocation &location, IDisplayProvider *display) = 0;
     virtual void Refresh(const Reading &reading) {};

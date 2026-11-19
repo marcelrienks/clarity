@@ -1,0 +1,93 @@
+name: 'Clarity Automated Integration Test - Part 3: Theme follows the lights signal'
+version: 1
+steps:
+  # Part 3 of 8. Wokwi caps a session at 5 min wall-clock, so each part boots fresh.
+  # The theme is driven only by the dash-light signal (GPIO 33): on is Night, off is Day (Q-05).
+  # There is no theme setting in Config, so this part checks the signal alone, including while
+  # the Config panel is open.
+  # Boot to the Oil panel
+  - wait-serial: '[T] System ready'
+  - wait-serial: '[T] Pressure reading:'
+  - delay: 300ms
+
+  # Step 14: Lights on gives Night
+  - set-control:
+      part-id: trigger_btn4  # GPIO 33 - Lights
+      control: pressed
+      value: 1
+  - wait-serial: '[T] LightsOnActivate() - Setting NIGHT theme'
+  - wait-serial: '[T] StyleManager: Theme applied: Night'
+  - delay: 300ms
+
+  # Step 15: Open Config with the lights on
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  # Long press fires while held, so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] Panel transition requested: ConfigPanel'
+  - wait-serial: '[T] ConfigPanel loaded successfully'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  # Give ConfigPanel time to finish building before the next input (see part 4)
+  - delay: 1000ms
+
+  # Step 16: Lights off while Config is open gives Day
+  - set-control:
+      part-id: trigger_btn4
+      control: pressed
+      value: 0
+  - wait-serial: '[T] LightsOffActivate() - Setting DAY theme'
+  - wait-serial: '[T] StyleManager: Theme applied: Day'
+  - delay: 300ms
+
+  # Step 17: Lights on again gives Night, with no saved preference involved
+  - set-control:
+      part-id: trigger_btn4
+      control: pressed
+      value: 1
+  - wait-serial: '[T] LightsOnActivate() - Setting NIGHT theme'
+  - wait-serial: '[T] StyleManager: Theme applied: Night'
+  - delay: 300ms
+
+  # Step 18: Display section holds no theme item
+  # - Short press moves to Display, long press enters it; its menu is Brightness, Back
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  - delay: 800ms  # Short press: held below the long press threshold (1500ms); shorter holds get missed by the slow firmware loop
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - wait-serial: '[T] ConfigPanel: Display option highlighted'
+  - delay: 200ms
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  # Long press fires while held, so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] ConfigPanel: Section style_manager menu loaded'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 1000ms  # menu rebuilt: wait before the next press
+  # Opening the first item must lead to Brightness, not a theme list
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 1
+  # Long press fires while held, so wait before releasing
+  - wait-serial: '[T] Long press triggered during hold'
+  - wait-serial: '[T] ConfigPanel: Options menu for style_manager.brightness loaded'
+  - set-control:
+      part-id: btn1
+      control: pressed
+      value: 0
+  - delay: 1000ms

@@ -12,7 +12,7 @@ _Partially vibe coded with claude a learning excercise._
 ## 🌟 **System Highlights**
 
 - **Professional Architecture**: MVP pattern with factory-based dependency injection, optimized for embedded systems
-- **Advanced Interrupt System**: TriggerHandler/ActionHandler separation with priority-based execution
+- **Sampled Inputs**: debounced inputs and a pure display policy decide which panel and theme to show
 - **Production Optimized**: 30.7KB flash reduction, 40-60% performance improvement across critical paths
 - **Modern UI**: LVGL-based interface designed for 240x240 round displays
 - **Comprehensive Testing**: Automated CI/CD with Wokwi simulation and integration testing
@@ -22,8 +22,8 @@ _Partially vibe coded with claude a learning excercise._
 
 ### **Core Architecture**
 - **[Architecture Overview](docs/architecture.md)** - High-level MVP pattern and system design
-- **[Interrupt Architecture](docs/interrupts.md)** - Advanced TriggerHandler/ActionHandler system with priority-based execution
-- **[Sensor Architecture](docs/sensor.md)** - Single ownership model with BaseSensor change detection pattern
+- **[Interrupt Architecture](docs/interrupts.md)** - The old trigger system, replaced by `Inputs` and `ScreenManager` (rewrite pending, todo 9)
+- **[Sensor Architecture](docs/sensor.md)** - Single ownership model for the oil sensors (rewrite pending, todo 9)
 - **[Development Patterns](docs/patterns.md)** - Design patterns, string memory management, and coding practices
 
 ### **Implementation Details**
@@ -62,11 +62,9 @@ pio run -e release         # Optimized production build
 
 ### **Testing & Simulation**
 ```bash
-# Interactive manual testing with full verbose logs
-cd test/manual && ./wokwi_debug.sh
-
-# Automated integration testing with clean logs
-cd test/wokwi && ./wokwi_run.sh
+# Automated integration testing (5 Wokwi scenario parts, needs WOKWI_CLI_TOKEN)
+pio run -e test-wokwi
+cd test/wokwi && ./wokwi_test_automation.sh
 ```
 
 ---
@@ -74,20 +72,19 @@ cd test/wokwi && ./wokwi_run.sh
 ## 🎯 **System Architecture**
 
 ### **MVP Pattern Implementation**
-- **Models**: Sensors (GPIO/ADC data acquisition with change detection)
+- **Models**: Sensors (ADC data acquisition for oil pressure and temperature)
 - **Views**: Components (LVGL UI rendering - display-only for interrupt-driven panels)
 - **Presenters**: Panels (business logic orchestration and lifecycle management)
 
-### **Advanced Interrupt Architecture**
-- **TriggerHandler**: GPIO state monitoring (Key, Lock, Lights sensors) - processes during UI IDLE only
-- **ActionHandler**: Button event processing (short 50ms-2000ms, long 2000ms-5000ms) - evaluates every loop
-- **Priority Override**: Sophisticated blocking logic prevents unnecessary panel switches
-- **Smart Restoration**: Automatic return to last user-driven panel when triggers deactivate
+### **Input and Display Policy**
+- **Inputs**: samples the key, lock, lights and button lines every loop pass, with debouncing and a short/long press state machine
+- **ScreenManager**: the single owner of the screen. It resolves the panel to show (errors, then key, then lock) and the theme (lights on gives Night) with the pure functions in `lib/core`
+- **Deferred Transitions**: panels return a navigation intent instead of switching screens; the screen manager applies at most one transition per loop pass, never from inside a panel or an LVGL callback
+- **Restoration**: automatic return to the user panel (the default panel) when the overrides clear
 
 ### **Key Features**
-- **Priority-Based Execution**: CRITICAL > IMPORTANT > NORMAL with blocking logic
-- **Type-Based Restoration**: Panel/Style trigger restoration on deactivation
-- **LVGL Compatibility**: UI operations only during IDLE state
+- **Immediate Response**: buttons and overrides act in the pass they arrive, also while a panel animates
+- **Host-Tested Core**: input filtering, button timing and display policy run under `pio test -e native`
 - **Memory Optimized**: Static arrays, zero hot path allocations
 
 ### **Panel System**
@@ -121,10 +118,9 @@ cd test/wokwi && ./wokwi_run.sh
 ## 📦 **Dependencies**
 
 ### **Core Libraries**
-- **[Arduino Framework](https://github.com/espressif/arduino-esp32)** - ESP32 hardware abstraction
+- **[Arduino Framework](https://github.com/espressif/arduino-esp32)** - ESP32 hardware abstraction (Arduino core 3.3.12 via `espressif32` platform 8.0.0, pinned in `platformio.ini`)
 - **[LVGL 9.3.0](https://docs.lvgl.io/master/)** - Advanced graphics library optimized for embedded
 - **[LovyanGFX 1.2.7](https://github.com/lovyan03/LovyanGFX)** - High-performance display driver
-- **[ArduinoJson 7.4.2](https://arduinojson.org/)** - Efficient JSON parsing for configuration
 - **[Preferences 2.0.0](https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences)** - ESP32 NVS storage wrapper
 
 ### **Development Tools**

@@ -1,0 +1,8 @@
+{
+  "name": "core",
+  "version": "0.1.0",
+  "description": "Hardware-independent core logic: no Arduino, LVGL, FreeRTOS or ESP-IDF headers (checked by tools/check_layering.sh)",
+  "build": {
+    "flags": "-std=gnu++17"
+  }
+}

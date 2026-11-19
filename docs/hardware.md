@@ -123,7 +123,7 @@ Clarity is designed for ESP32-based automotive gauge systems with a round displa
 - **Long press**: Load config panel
 
 #### Error Panel
-- **Short press**: Cycle through each error
+- **Short press**: Remove the viewed error and show the next; the last one clears all and restores the previous panel
 - **Long press**: Clear all errors
 
 #### Config Panel
