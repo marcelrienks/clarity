@@ -27,8 +27,8 @@ static bool oil_temperature_registered = []()
  * configuration values. Uses Celsius as the default temperature unit. This constructor
  * is used when no preference service is available for dynamic configuration.
  */
-OilTemperatureSensor::OilTemperatureSensor(IGpioProvider *gpio_provider, int update_rate_ms)
-    : gpio_provider_(gpio_provider), update_interval_ms_(update_rate_ms)
+OilTemperatureSensor::OilTemperatureSensor(IGpioProvider *gpio_provider_in, int update_rate_ms)
+    : gpio_provider_(gpio_provider_in), update_interval_ms_(update_rate_ms)
 {
     log_v("OilTemperatureSensor() constructor called");
     // Set default unit to Celsius
@@ -46,9 +46,10 @@ OilTemperatureSensor::OilTemperatureSensor(IGpioProvider *gpio_provider, int upd
  * Allows for real-time calibration adjustments and unit changes. The preference service
  * enables live configuration updates and persistent storage of sensor settings.
  */
-OilTemperatureSensor::OilTemperatureSensor(IGpioProvider *gpio_provider, IConfigurationManager *configuration_manager,
-                                           int update_rate_ms)
-    : gpio_provider_(gpio_provider), configuration_manager_(configuration_manager), update_interval_ms_(update_rate_ms)
+OilTemperatureSensor::OilTemperatureSensor(IGpioProvider *gpio_provider_in,
+                                           IConfigurationManager *configuration_manager_in, int update_rate_ms)
+    : gpio_provider_(gpio_provider_in), configuration_manager_(configuration_manager_in),
+      update_interval_ms_(update_rate_ms)
 {
     log_v("OilTemperatureSensor() constructor with preference service called");
     // Set default unit to Celsius

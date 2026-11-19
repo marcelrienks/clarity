@@ -49,8 +49,6 @@ struct GaugeSpec
  *
  * The animation's var is the scale object, so LVGL removes it when the panel deletes the screen (rule 3 in
  * ui/panel.h). A gauge must not move or be copied after Build(): the scale keeps a pointer to it.
- *
- * Not used yet: the oil panel still draws with `OemOilComponent`; 5.5 moves it onto this.
  */
 class Gauge
 {

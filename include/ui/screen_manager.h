@@ -7,6 +7,7 @@
 #include "clarity/core/types.h"
 #include "panels/key_panel.h"
 #include "panels/lock_panel.h"
+#include "panels/oem_oil_panel.h"
 #include "panels/splash_panel.h"
 
 class IConfigurationManager;
@@ -38,10 +39,10 @@ class Theme;
  *
  * The user panel is the default panel from the configuration (system.default_panel), read once.
  *
- * Splash, Key and Lock are long-lived Panel members: Enter() builds their LVGL tree and Exit() deletes it, and
- * a key or lock reload while the panel is shown recolours it in place. Oil, Error and Config are still the
- * legacy IPanel classes, created on each transition and destroyed after the next one is loaded; the rest of
- * 5.5 moves them onto Panel too. In both cases the previous panel goes only after the next screen is loaded.
+ * Splash, Key, Lock and Oil are long-lived Panel members: Enter() builds their LVGL tree and Exit() deletes it, and
+ * a key or lock reload while the panel is shown recolours it in place. Error and Config are still the legacy
+ * IPanel classes, created on each transition and destroyed after the next one is loaded; the rest of 5.5 moves
+ * them onto Panel too. In both cases the previous panel goes only after the next screen is loaded.
  */
 class ScreenManager
 {
@@ -96,6 +97,7 @@ class ScreenManager
     SplashPanel splash_;
     KeyPanel key_;
     LockPanel lock_;
+    OemOilPanel oil_;
     Panel *active_ = nullptr;          ///< The shown long-lived panel; nullptr while a legacy panel is shown
     std::unique_ptr<IPanel> panel_;    ///< The shown legacy panel; empty while a long-lived panel is shown
     clarity::core::PanelId current_ = clarity::core::PanelId::Splash;

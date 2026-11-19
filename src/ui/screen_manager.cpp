@@ -8,7 +8,6 @@
 #include "interfaces/i_configuration_manager.h"
 #include "panels/config_panel.h"
 #include "panels/error_panel.h"
-#include "panels/oem_oil_panel.h"
 #include "ui/theme.h"
 #include "utilities/logging.h"
 
@@ -84,7 +83,8 @@ void LogDeactivated([[maybe_unused]] const clarity::core::VehicleInputs &was,
 
 ScreenManager::ScreenManager(IGpioProvider &gpio, IDisplayProvider &display, Theme &theme,
                              IConfigurationManager &configuration)
-    : gpio_(gpio), display_(display), theme_(theme), configuration_(configuration), splash_(configuration)
+    : gpio_(gpio), display_(display), theme_(theme), configuration_(configuration), splash_(configuration),
+      oil_(gpio, configuration)
 {
     std::string default_panel = panel_names::OIL;
     if (auto value = configuration_.QueryConfig<std::string>(config_constants::keys::SYSTEM_DEFAULT_PANEL))
@@ -425,6 +425,7 @@ Panel *ScreenManager::LongLivedPanel(PanelId panel)
         case PanelId::Lock:
             return &lock_;
         case PanelId::Oil:
+            return &oil_;
         case PanelId::Config:
         case PanelId::Error:
             break;
@@ -434,17 +435,10 @@ Panel *ScreenManager::LongLivedPanel(PanelId panel)
 
 std::unique_ptr<IPanel> ScreenManager::CreatePanel(PanelId panel)
 {
-    switch (panel)
+    // Only the panels LongLivedPanel() does not know come here
+    if (panel == PanelId::Error)
     {
-        case PanelId::Config:
-            return std::make_unique<ConfigPanel>(&gpio_, &display_, &theme_, &configuration_);
-        case PanelId::Error:
-            return std::make_unique<ErrorPanel>(&gpio_, &display_, &theme_);
-        case PanelId::Splash:
-        case PanelId::Key:
-        case PanelId::Lock:
-        case PanelId::Oil:
-            break;
+        return std::make_unique<ErrorPanel>(&gpio_, &display_, &theme_);
     }
-    return std::make_unique<OemOilPanel>(&gpio_, &display_, &theme_, &configuration_);
+    return std::make_unique<ConfigPanel>(&gpio_, &display_, &theme_, &configuration_);
 }

@@ -27,8 +27,8 @@ static bool oil_pressure_registered = []()
  * configuration values. Uses Bar as the default pressure unit. This constructor
  * is used when no preference service is available for dynamic configuration.
  */
-OilPressureSensor::OilPressureSensor(IGpioProvider *gpio_provider, int update_rate_ms)
-    : gpio_provider_(gpio_provider), update_interval_ms_(update_rate_ms)
+OilPressureSensor::OilPressureSensor(IGpioProvider *gpio_provider_in, int update_rate_ms)
+    : gpio_provider_(gpio_provider_in), update_interval_ms_(update_rate_ms)
 {
     log_v("OilPressureSensor() constructor called");
     // Set default unit to Bar
@@ -46,9 +46,10 @@ OilPressureSensor::OilPressureSensor(IGpioProvider *gpio_provider, int update_ra
  * Allows for real-time calibration adjustments and unit changes. The preference service
  * enables live configuration updates and persistent storage of sensor settings.
  */
-OilPressureSensor::OilPressureSensor(IGpioProvider *gpio_provider, IConfigurationManager *configuration_manager,
+OilPressureSensor::OilPressureSensor(IGpioProvider *gpio_provider_in, IConfigurationManager *configuration_manager_in,
                                      int update_rate_ms)
-    : gpio_provider_(gpio_provider), configuration_manager_(configuration_manager), update_interval_ms_(update_rate_ms)
+    : gpio_provider_(gpio_provider_in), configuration_manager_(configuration_manager_in),
+      update_interval_ms_(update_rate_ms)
 {
     log_v("OilPressureSensor() constructor with preference service called");
     // Set default unit to Bar

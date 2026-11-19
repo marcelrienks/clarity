@@ -40,8 +40,8 @@ class OilTemperatureSensor : public IConfig
 {
   public:
     // ========== Constructors and Destructor ==========
-    OilTemperatureSensor(IGpioProvider *gpio_provider, int update_rate_ms = 500);
-    OilTemperatureSensor(IGpioProvider *gpio_provider, IConfigurationManager *configuration_manager,
+    OilTemperatureSensor(IGpioProvider *gpio_provider_in, int update_rate_ms = 500);
+    OilTemperatureSensor(IGpioProvider *gpio_provider_in, IConfigurationManager *configuration_manager_in,
                          int update_rate_ms = 500);
 
     // ========== Public Interface Methods ==========
